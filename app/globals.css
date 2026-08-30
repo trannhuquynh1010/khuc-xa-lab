@@ -92,6 +92,7 @@ footer { text-align: center; padding-top: 18px; font-size: .86rem; }
 details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
 summary { color: var(--primary-dark); font-weight: 700; cursor: pointer; }
 details .table-scroll { margin-top: 12px; }
+.teacher-chart-grid { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 .empty-state { text-align: center; }
 .empty-state h2 { margin: 0 0 6px; }
 .empty-state p { margin: 0; color: var(--muted); }
@@ -118,4 +119,3 @@ details .table-scroll { margin-top: 12px; }
   .teacher-actions .secondary-button { flex: 1; }
   .submission-summary { grid-template-columns: 1fr 1fr; gap: 14px; }
 }
-

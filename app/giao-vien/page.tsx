@@ -1,6 +1,7 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { listSubmissions } from "@/lib/db";
 import Link from "next/link";
+import RelationshipChart from "../RelationshipChart";
 import { login, logout } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         <div className="empty-state"><h2>Chưa có dữ liệu</h2><p>Kết quả học sinh gửi sẽ xuất hiện tại đây.</p></div>
       ) : (
         <div className="submission-list">
-          {submissions.map((submission) => (
+          {submissions.map((submission, index) => (
             <article className="submission-card" key={submission.id}>
               <div className="submission-summary">
                 <div><span>Lớp</span><strong>{submission.className}</strong></div>
@@ -54,13 +55,33 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
                 <div><span>Số lần đo</span><strong>{submission.measurements.length}</strong></div>
                 <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
               </div>
-              <details>
-                <summary>Xem bảng số liệu</summary>
+              <details open={index === 0}>
+                <summary>Xem bảng số liệu và đồ thị</summary>
                 <div className="table-scroll">
                   <table>
                     <thead><tr><th>Lần đo</th><th>i (°)</th><th>r (°)</th><th>sin i</th><th>sin r</th></tr></thead>
                     <tbody>{submission.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.incidenceAngle}</td><td>{item.refractionAngle}</td><td>{item.sinIncidence}</td><td>{item.sinRefraction}</td></tr>)}</tbody>
                   </table>
+                </div>
+                <div className="chart-grid teacher-chart-grid">
+                  <RelationshipChart
+                    title="Góc tới và góc khúc xạ"
+                    xLabel="Góc tới i (°)"
+                    yLabel="Góc khúc xạ r (°)"
+                    points={submission.measurements}
+                    xValue={(point) => point.incidenceAngle}
+                    yValue={(point) => point.refractionAngle}
+                    ceiling={90}
+                  />
+                  <RelationshipChart
+                    title="sin i và sin r"
+                    xLabel="sin i"
+                    yLabel="sin r"
+                    points={submission.measurements}
+                    xValue={(point) => point.sinIncidence}
+                    yValue={(point) => point.sinRefraction}
+                    ceiling={1}
+                  />
                 </div>
               </details>
             </article>
