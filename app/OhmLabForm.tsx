@@ -93,30 +93,31 @@ export default function OhmLabForm() {
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </section>
 
-      <section aria-labelledby="ohm-data-heading">
-        <div className="section-heading data-heading"><span>2</span><div><h2 id="ohm-data-heading">Số liệu đo U và I</h2><p>Nhập các giá trị đọc được từ vôn kế và ampe kế.</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button></div>
-        <div className="table-scroll">
-          <table className="compact-data-table">
-            <thead><tr><th>Lần đo</th><th>Hiệu điện thế U (V)</th><th>Cường độ dòng điện I (A)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
-            <tbody>{rows.map((row, index) => (
-              <tr key={row.id}>
-                <th scope="row">{index + 1}</th>
-                <td><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, hiệu điện thế U`} value={row.voltage} onChange={(event) => updateRow(row.id, "voltage", event.target.value)} placeholder="V" /></td>
-                <td><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, cường độ dòng điện I`} value={row.current} onChange={(event) => updateRow(row.id, "current", event.target.value)} placeholder="A" /></td>
-                <td><button type="button" className="icon-button" onClick={() => removeRow(row.id)} disabled={rows.length === 1} aria-label={`Xóa lần đo ${index + 1}`}>×</button></td>
-              </tr>
-            ))}</tbody>
-          </table>
+      <section aria-labelledby="ohm-workspace-heading">
+        <div className="section-heading data-heading"><span>2</span><div><h2 id="ohm-workspace-heading">Số liệu và đồ thị I theo U</h2><p>Nhập số đo và quan sát đồ thị thay đổi ngay bên cạnh.</p></div></div>
+        <div className="ohm-workspace-grid">
+          <div className="ohm-panel">
+            <div className="ohm-panel-header"><div><h3>Bảng số liệu U và I</h3><p>Giá trị đọc từ vôn kế và ampe kế.</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button></div>
+            <div className="table-scroll">
+              <table className="compact-data-table ohm-data-table">
+                <thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
+                <tbody>{rows.map((row, index) => (
+                  <tr key={row.id}>
+                    <th scope="row">{index + 1}</th>
+                    <td><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, hiệu điện thế U`} value={row.voltage} onChange={(event) => updateRow(row.id, "voltage", event.target.value)} placeholder="V" /></td>
+                    <td><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, cường độ dòng điện I`} value={row.current} onChange={(event) => updateRow(row.id, "current", event.target.value)} placeholder="A" /></td>
+                    <td><button type="button" className="icon-button" onClick={() => removeRow(row.id)} disabled={rows.length === 1} aria-label={`Xóa lần đo ${index + 1}`}>×</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div className="result-strip"><span>Điểm dữ liệu hoàn chỉnh: <strong>{measurements.length}</strong></span></div>
+          </div>
+          <div className="ohm-panel ohm-graph-panel">
+            <RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...measurements.map((point) => point.current * 1.2))} />
+          </div>
         </div>
-        <div className="result-strip"><span>Điểm dữ liệu hoàn chỉnh: <strong>{measurements.length}</strong></span></div>
-      </section>
-
-      <section aria-labelledby="ohm-chart-heading">
-        <div className="section-heading"><span>3</span><div><h2 id="ohm-chart-heading">Đồ thị biểu diễn I theo U</h2><p>Quan sát dạng đường biểu diễn được tạo từ các số liệu đo.</p></div></div>
-        <div className="single-chart">
-          <RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...measurements.map((point) => point.current * 1.2))} />
-          <label className="conclusion-prompt">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
-        </div>
+        <label className="conclusion-prompt ohm-conclusion">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
       </section>
 
       <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Gửi số liệu cho giáo viên"}</button></div>

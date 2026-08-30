@@ -124,6 +124,15 @@ td input { min-width: 112px; min-height: 40px; }
 .factor-review-table td { font-variant-numeric: tabular-nums; }
 .investigation-chart { margin-top: 12px; }
 .investigation-card > .conclusion-prompt { margin-top: 10px; }
+.ohm-workspace-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 22px; align-items: start; }
+.ohm-panel { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fbfdfe; }
+.ohm-panel-header { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 8px; }
+.ohm-panel-header h3 { margin: 0 0 3px; font-size: 1rem; }
+.ohm-panel-header p { margin: 0; color: var(--muted); font-size: .8rem; }
+.ohm-panel-header .secondary-button { min-height: 38px; padding: 8px 12px; white-space: nowrap; }
+.ohm-data-table { min-width: 500px; }
+.ohm-graph-panel { align-self: stretch; display: grid; align-content: center; }
+.ohm-conclusion { margin-top: 18px; }
 
 .submit-row { display: flex; align-items: center; gap: 18px; justify-content: flex-end; padding: 22px 30px; }
 .form-message { flex: 1; font-size: .92rem; }
@@ -219,6 +228,7 @@ details .table-scroll { margin-top: 12px; }
 @media (max-width: 820px) {
   .identity-grid { grid-template-columns: 1fr 1fr; }
   .chart-grid { grid-template-columns: 1fr; }
+  .ohm-workspace-grid { grid-template-columns: 1fr; }
   .submission-summary { grid-template-columns: 1fr 1fr; }
   .submission-summary time { grid-column: 1 / -1; }
   .teacher-tabs { grid-template-columns: 1fr; }
@@ -250,6 +260,9 @@ details .table-scroll { margin-top: 12px; }
   .factor-toolbar { align-items: stretch; flex-direction: column; }
   .sample-plan { grid-template-columns: 1fr 1fr; }
   .investigation-card { padding: 16px 12px; }
+  .ohm-panel { padding: 14px 10px; }
+  .ohm-panel-header { align-items: stretch; flex-direction: column; }
+  .ohm-panel-header .secondary-button { align-self: flex-start; }
   .result-strip { align-items: flex-end; flex-direction: column; gap: 5px; }
   .bar-row { grid-template-columns: 70px minmax(100px, 1fr) 62px; gap: 8px; }
   .class-progress-header { align-items: stretch; flex-direction: column; }
