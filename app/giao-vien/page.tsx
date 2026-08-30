@@ -1,5 +1,6 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { listSubmissions } from "@/lib/db";
+import { formatSineRatio } from "@/lib/physics";
 import Link from "next/link";
 import RelationshipChart from "../RelationshipChart";
 import { login, logout } from "./actions";
@@ -59,8 +60,8 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
                 <summary>Xem bảng số liệu và đồ thị</summary>
                 <div className="table-scroll">
                   <table>
-                    <thead><tr><th>Lần đo</th><th>i (°)</th><th>r (°)</th><th>sin i</th><th>sin r</th></tr></thead>
-                    <tbody>{submission.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.incidenceAngle}</td><td>{item.refractionAngle}</td><td>{item.sinIncidence}</td><td>{item.sinRefraction}</td></tr>)}</tbody>
+                    <thead><tr><th>Lần đo</th><th>i (°)</th><th>r (°)</th><th>sin i</th><th>sin r</th><th>sin i / sin r</th></tr></thead>
+                    <tbody>{submission.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.incidenceAngle}</td><td>{item.refractionAngle}</td><td>{item.sinIncidence}</td><td>{item.sinRefraction}</td><td className="ratio-cell">{formatSineRatio(item.sinIncidence, item.sinRefraction)}</td></tr>)}</tbody>
                   </table>
                 </div>
                 <div className="chart-grid teacher-chart-grid">

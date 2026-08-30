@@ -42,11 +42,12 @@ input::placeholder { color: #97a8b5; }
 input:focus { border-color: var(--primary); }
 
 .table-scroll { width: 100%; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; min-width: 660px; }
+table { width: 100%; border-collapse: collapse; min-width: 790px; }
 th, td { padding: 9px 8px; text-align: center; border-bottom: 1px solid #e7eef2; }
 thead th { color: var(--muted); font-size: .82rem; font-weight: 700; }
 tbody th { color: var(--ink); }
 td input { min-width: 112px; min-height: 40px; }
+.ratio-cell { min-width: 112px; color: var(--primary-dark); font-weight: 700; font-variant-numeric: tabular-nums; }
 .icon-button { width: 38px; height: 38px; border: 0; border-radius: 50%; color: var(--muted); background: transparent; cursor: pointer; font-size: 1.5rem; }
 .icon-button:hover { background: #f2f6f8; color: var(--danger); }
 .icon-button:disabled { opacity: .3; cursor: not-allowed; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { formatSineRatio } from "@/lib/physics";
 import RelationshipChart from "./RelationshipChart";
 
 type InputRow = {
@@ -104,12 +105,12 @@ export default function LabForm() {
       <section aria-labelledby="data-heading">
         <div className="section-heading data-heading">
           <span>2</span>
-          <div><h2 id="data-heading">Số liệu thí nghiệm</h2><p>Tự tính và nhập các giá trị sin; có thể dùng dấu phẩy hoặc dấu chấm.</p></div>
+          <div><h2 id="data-heading">Số liệu thí nghiệm</h2><p>Tự tính và nhập các giá trị sin; tỉ số sẽ xuất hiện tự động.</p></div>
           <button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button>
         </div>
         <div className="table-scroll">
           <table>
-            <thead><tr><th>Lần đo</th><th>Góc tới i (°)</th><th>Góc khúc xạ r (°)</th><th>sin i</th><th>sin r</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
+            <thead><tr><th>Lần đo</th><th>Góc tới i (°)</th><th>Góc khúc xạ r (°)</th><th>sin i</th><th>sin r</th><th>sin i / sin r</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
             <tbody>
               {rows.map((row, index) => (
                 <tr key={row.id}>
@@ -117,6 +118,7 @@ export default function LabForm() {
                   {(["i", "r", "sinI", "sinR"] as const).map((key) => (
                     <td key={key}><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, ${key}`} value={row[key]} onChange={(event) => updateRow(row.id, key, event.target.value)} placeholder={key === "i" || key === "r" ? "0–90" : "0–1"} /></td>
                   ))}
+                  <td className="ratio-cell"><output aria-live="polite" aria-label={`Tỉ số sin i chia sin r, lần đo ${index + 1}`}>{formatSineRatio(parseDecimal(row.sinI), parseDecimal(row.sinR))}</output></td>
                   <td><button type="button" className="icon-button" onClick={() => removeRow(row.id)} disabled={rows.length === 1} aria-label={`Xóa lần đo ${index + 1}`}>×</button></td>
                 </tr>
               ))}
