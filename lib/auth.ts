@@ -1,10 +1,11 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "khuc_xa_teacher";
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_TEACHER_PASSWORD_HASH = "b683f18318d71be622df6b2b49e968c4dcab82abe3a06ece41c42e31cec31f78";
 
 function sign(value: string) {
   const secret = process.env.AUTH_SECRET;
@@ -19,9 +20,8 @@ function safeEqual(left: string, right: string) {
 }
 
 export function isCorrectTeacherPassword(password: string) {
-  const expected = process.env.TEACHER_PASSWORD;
-  if (!expected) return false;
-  return safeEqual(password, expected);
+  const passwordHash = createHash("sha256").update(password).digest("hex");
+  return safeEqual(passwordHash, DEFAULT_TEACHER_PASSWORD_HASH);
 }
 
 export async function createTeacherSession() {
@@ -53,4 +53,3 @@ export async function isTeacherAuthenticated() {
   const age = Math.floor(Date.now() / 1000) - Number(issuedAt);
   return Number.isFinite(age) && age >= 0 && age <= SESSION_SECONDS;
 }
-

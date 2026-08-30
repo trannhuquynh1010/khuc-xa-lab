@@ -7,7 +7,6 @@
 Sao chép `.env.example` thành `.env.local` và điền:
 
 - `DATABASE_URL`: chuỗi kết nối Neon Postgres.
-- `TEACHER_PASSWORD`: mật khẩu mở trang giáo viên.
 - `AUTH_SECRET`: chuỗi bí mật dài, ngẫu nhiên để ký phiên đăng nhập.
 
 ## Chạy cục bộ
@@ -18,4 +17,3 @@ pnpm dev
 ```
 
 Các bảng dữ liệu được tạo tự động ở lần lưu/xem đầu tiên.
-
