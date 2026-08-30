@@ -98,6 +98,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .section-heading p { margin: 0; color: var(--muted); font-size: .84rem; }
 .data-heading { margin-bottom: 16px; }
 .data-heading .secondary-button { margin-left: auto; }
+.refraction-medium-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 16px 46px; }
 
 label { display: grid; gap: 6px; font-size: .82rem; font-weight: 800; }
 input, select, textarea { width: 100%; border: 1.4px solid var(--ink); border-radius: 10px; color: var(--ink); background: #fff; padding: 9px 11px; }
@@ -526,6 +527,7 @@ details .table-scroll { margin-top: 12px; }
   .lab-card > section, .submit-row { padding: 20px 14px; border-radius: 18px; }
   .identity-grid { grid-template-columns: 1fr; }
   .field-span-2 { grid-column: auto; }
+  .refraction-medium-grid { grid-template-columns: 1fr; margin-left: 0; }
   .team-assignment-grid, .team-assignments-review { grid-template-columns: 1fr; }
   .data-heading { flex-wrap: wrap; }
   .data-heading .secondary-button { margin-left: 46px; }

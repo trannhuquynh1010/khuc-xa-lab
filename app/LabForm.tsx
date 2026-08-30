@@ -155,10 +155,8 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
           <span>1</span>
           <div><h2 id="group-heading">Nhóm</h2></div>
         </div>
-        <label>Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <label>Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <label>Môi trường tới<input required maxLength={80} value={incidenceMedium} onChange={(event) => setIncidenceMedium(event.target.value)} placeholder="Ví dụ: Không khí" /></label>
-        <label>Môi trường khúc xạ<input required maxLength={80} value={refractionMedium} onChange={(event) => setRefractionMedium(event.target.value)} placeholder="Ví dụ: Thủy tinh" /></label>
+        <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <TeamAssignmentsFields value={teamAssignments} onChange={updateTeamAssignment} />
       </section>
 
@@ -167,6 +165,10 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
           <span>2</span>
           <div><h2 id="data-heading">Số liệu</h2><p>Tự tính sin i và sin r.</p></div>
           <button type="button" className="secondary-button" onClick={addRow}>＋ Thêm dòng</button>
+        </div>
+        <div className="refraction-medium-grid">
+          <label>Môi trường tới<input required maxLength={80} value={incidenceMedium} onChange={(event) => setIncidenceMedium(event.target.value)} placeholder="Ví dụ: Không khí" /></label>
+          <label>Môi trường khúc xạ<input required maxLength={80} value={refractionMedium} onChange={(event) => setRefractionMedium(event.target.value)} placeholder="Ví dụ: Thủy tinh" /></label>
         </div>
         <div className="table-scroll">
           <table>
