@@ -4,10 +4,11 @@ import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import type { ResistanceFactor, ResistanceFactorMeasurement } from "@/lib/experiments";
 import { calculateResistance, formatResistance } from "@/lib/physics";
-import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
+import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
+import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
 type SampleSelection = number | "";
@@ -26,11 +27,26 @@ const investigationSlots: Record<ResistanceFactor, number> = {
 
 const blankRow = (id: number): FactorRowInput => ({ id, material: "", length: "", area: "", voltage: "", current: "" });
 const initialRows = () => Array.from({ length: 5 }, (_, index) => blankRow(index + 1));
+const draftKey = deviceDraftKey("resistance-factors");
 const initialSampleSelections = (): Record<ResistanceFactor, SampleSelection[]> => ({
   material: ["", ""],
   length: ["", "", ""],
   area: ["", ""],
 });
+
+function isFactorRowInput(value: unknown): value is FactorRowInput {
+  return isDraftRecord(value) &&
+    typeof value.id === "number" && value.id >= 1 && value.id <= 5 &&
+    typeof value.material === "string" &&
+    typeof value.length === "string" &&
+    typeof value.area === "string" &&
+    typeof value.voltage === "string" &&
+    typeof value.current === "string";
+}
+
+function isSampleSelectionArray(value: unknown): value is SampleSelection[] {
+  return Array.isArray(value) && value.every((item) => item === "" || (typeof item === "number" && item >= 1 && item <= 5));
+}
 
 function parseDecimal(value: string) {
   if (!value.trim()) return null;
@@ -89,6 +105,40 @@ export default function ResistanceFactorsLabForm() {
   const [sampleSelections, setSampleSelections] = useState<Record<ResistanceFactor, SampleSelection[]>>(initialSampleSelections);
   const [conclusions, setConclusions] = useState<Record<ResistanceFactor, string>>({ material: "", length: "", area: "" });
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
+  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, rows, sampleSelections, conclusions }, (value) => {
+    if (!isDraftRecord(value)) return;
+    if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
+    if (typeof value.groupName === "string" && groupNames.includes(value.groupName)) setGroupName(value.groupName);
+    if (isDraftRecord(value.teamAssignments)) {
+      const restoredAssignments = createEmptyTeamAssignments();
+      const assignments = value.teamAssignments;
+      teamTasks.forEach(({ key }) => {
+        if (typeof assignments[key] === "string") restoredAssignments[key] = assignments[key];
+      });
+      setTeamAssignments(restoredAssignments);
+    }
+    if (Array.isArray(value.rows)) {
+      const restoredRows = value.rows.filter(isFactorRowInput);
+      if (restoredRows.length === 5 && new Set(restoredRows.map((row) => row.id)).size === 5) setRows(restoredRows);
+    }
+    if (isDraftRecord(value.sampleSelections)) {
+      const restoredSelections = initialSampleSelections();
+      const selections = value.sampleSelections;
+      factorDefinitions.forEach(({ key }) => {
+        const selected = selections[key];
+        if (isSampleSelectionArray(selected) && selected.length === investigationSlots[key]) restoredSelections[key] = selected;
+      });
+      setSampleSelections(restoredSelections);
+    }
+    if (isDraftRecord(value.conclusions)) {
+      const restoredConclusions: Record<ResistanceFactor, string> = { material: "", length: "", area: "" };
+      const savedConclusions = value.conclusions;
+      factorDefinitions.forEach(({ key }) => {
+        if (typeof savedConclusions[key] === "string") restoredConclusions[key] = savedConclusions[key];
+      });
+      setConclusions(restoredConclusions);
+    }
+  });
   const measurements = useMemo<Record<ResistanceFactor, ResistanceFactorMeasurement[]>>(() => ({
     material: rowsForInvestigation(rows, sampleSelections.material),
     length: rowsForInvestigation(rows, sampleSelections.length),
@@ -254,7 +304,7 @@ export default function ResistanceFactorsLabForm() {
         </div>
       </section>
 
-      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
+      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
     </form>
   );
 }

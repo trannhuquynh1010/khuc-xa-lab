@@ -3,10 +3,11 @@
 import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import { formatSineRatio } from "@/lib/physics";
-import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
+import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
 import RefractionConstructionGuide from "./RefractionConstructionGuide";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
+import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 type InputRow = {
   id: number;
@@ -17,6 +18,16 @@ type InputRow = {
 };
 
 const blankRow = (id: number): InputRow => ({ id, i: "", r: "", sinI: "", sinR: "" });
+const draftKey = deviceDraftKey("refraction");
+
+function isInputRow(value: unknown): value is InputRow {
+  return isDraftRecord(value) &&
+    typeof value.id === "number" &&
+    typeof value.i === "string" &&
+    typeof value.r === "string" &&
+    typeof value.sinI === "string" &&
+    typeof value.sinR === "string";
+}
 
 function parseDecimal(value: string) {
   if (!value.trim()) return null;
@@ -49,6 +60,27 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
   const [conclusionSines, setConclusionSines] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
+  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, incidenceMedium, refractionMedium, conclusionAngles, conclusionSines, rows }, (value) => {
+    if (!isDraftRecord(value)) return;
+    if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
+    if (typeof value.groupName === "string" && groupNames.includes(value.groupName)) setGroupName(value.groupName);
+    if (isDraftRecord(value.teamAssignments)) {
+      const restoredAssignments = createEmptyTeamAssignments();
+      const assignments = value.teamAssignments;
+      teamTasks.forEach(({ key }) => {
+        if (typeof assignments[key] === "string") restoredAssignments[key] = assignments[key];
+      });
+      setTeamAssignments(restoredAssignments);
+    }
+    if (typeof value.incidenceMedium === "string") setIncidenceMedium(value.incidenceMedium);
+    if (typeof value.refractionMedium === "string") setRefractionMedium(value.refractionMedium);
+    if (typeof value.conclusionAngles === "string") setConclusionAngles(value.conclusionAngles);
+    if (typeof value.conclusionSines === "string") setConclusionSines(value.conclusionSines);
+    if (Array.isArray(value.rows)) {
+      const restoredRows = value.rows.filter(isInputRow);
+      if (restoredRows.length) setRows(restoredRows);
+    }
+  });
   const points = useMemo(() => rowsToPoints(rows), [rows]);
 
   function updateRow(id: number, key: keyof Omit<InputRow, "id">, value: string) {
@@ -179,6 +211,7 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
 
       <div className="submit-row">
         <div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div>
+        <span className="draft-status" aria-live="polite">{draftStatus}</span>
         <button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button>
       </div>
     </form>

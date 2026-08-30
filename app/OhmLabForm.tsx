@@ -3,12 +3,21 @@
 import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
-import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
+import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
+import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 type InputRow = { id: number; voltage: string; current: string };
 const blankRow = (id: number): InputRow => ({ id, voltage: "", current: "" });
+const draftKey = deviceDraftKey("ohm");
+
+function isInputRow(value: unknown): value is InputRow {
+  return isDraftRecord(value) &&
+    typeof value.id === "number" &&
+    typeof value.voltage === "string" &&
+    typeof value.current === "string";
+}
 
 function parseDecimal(value: string) {
   if (!value.trim()) return null;
@@ -32,6 +41,24 @@ export default function OhmLabForm() {
   const [conclusion, setConclusion] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
+  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, conclusion, rows }, (value) => {
+    if (!isDraftRecord(value)) return;
+    if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
+    if (typeof value.groupName === "string" && groupNames.includes(value.groupName)) setGroupName(value.groupName);
+    if (isDraftRecord(value.teamAssignments)) {
+      const restoredAssignments = createEmptyTeamAssignments();
+      const assignments = value.teamAssignments;
+      teamTasks.forEach(({ key }) => {
+        if (typeof assignments[key] === "string") restoredAssignments[key] = assignments[key];
+      });
+      setTeamAssignments(restoredAssignments);
+    }
+    if (typeof value.conclusion === "string") setConclusion(value.conclusion);
+    if (Array.isArray(value.rows)) {
+      const restoredRows = value.rows.filter(isInputRow);
+      if (restoredRows.length) setRows(restoredRows);
+    }
+  });
   const measurements = useMemo(() => rowsToMeasurements(rows), [rows]);
 
   function updateRow(id: number, key: "voltage" | "current", value: string) {
@@ -132,7 +159,7 @@ export default function OhmLabForm() {
         <label className="conclusion-prompt ohm-conclusion">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
       </section>
 
-      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
+      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
     </form>
   );
 }
