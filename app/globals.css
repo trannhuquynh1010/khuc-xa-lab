@@ -15,7 +15,7 @@
 }
 
 * { box-sizing: border-box; }
-html { background: var(--page); }
+html { background: var(--page); font-size: 18px; }
 body {
   margin: 0;
   color: var(--ink);
@@ -52,7 +52,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .course-identity { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .72rem; font-weight: 700; }
 .course-identity strong { letter-spacing: -.01em; }
 .course-identity span { padding-left: 10px; border-left: 1px solid rgba(26, 24, 21, .4); }
-.workspace-hero h1 { max-width: 900px; margin: 4px 0 5px; font-size: clamp(1.9rem, 4vw, 3.35rem); line-height: 1.08; letter-spacing: -.035em; }
+.workspace-hero h1 { max-width: 900px; margin: 4px 0 5px; font-size: clamp(1.85rem, 3.75vw, 3.15rem); line-height: 1.08; letter-spacing: -.035em; }
 .workspace-hero .hero-copy > p:last-child { margin: 0; font-size: .82rem; font-weight: 600; }
 .physics-hero-art { position: absolute; z-index: 1; top: 18px; right: 24px; width: 185px; height: 145px; border: 1.5px solid var(--ink); border-radius: 50% 44% 48% 42%; background: rgba(255, 253, 248, .75); transform: rotate(-4deg); }
 .physics-hero-art::before, .physics-hero-art::after { content: ""; position: absolute; inset: 48% -28px auto; height: 2px; background: var(--ink); transform: rotate(-18deg); }
@@ -89,7 +89,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .team-assignments { grid-column: 1 / -1; min-width: 0; margin: 2px 0 0; padding: 13px 0 0; border: 0; border-top: 1px solid var(--soft-line); }
 .team-assignments legend { padding: 0 8px 0 0; font-size: .78rem; font-weight: 900; }
 .team-assignment-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.team-assignment-grid label { font-size: .72rem; }
+.team-assignment-grid label { font-size: .78rem; }
 .team-assignment-grid input { min-height: 40px; }
 .section-heading { display: flex; gap: 12px; align-items: flex-start; }
 .section-heading > span { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border: 1.5px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--lime); font-weight: 900; }
@@ -110,7 +110,7 @@ table { width: 100%; border-collapse: collapse; min-width: 790px; }
 .compact-data-table { min-width: 560px; }
 .factor-data-table { min-width: 1040px; }
 th, td { padding: 9px 8px; text-align: center; border-bottom: 1px solid #e7e1d8; }
-thead th { color: var(--ink); background: #f1edE5; font-size: .76rem; font-weight: 900; }
+thead th { color: var(--ink); background: #f1edE5; font-size: .8rem; font-weight: 900; }
 thead th:first-child { border-radius: 12px 0 0 0; }
 thead th:last-child { border-radius: 0 12px 0 0; }
 tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
@@ -132,14 +132,14 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .grid-line { stroke: #e7e1d8; stroke-width: 1; }
 .data-line { fill: none; stroke: var(--purple); stroke-width: 3; }
 .data-point { fill: var(--orange); stroke: var(--ink); stroke-width: 1.5; }
-.tick-label, .empty-chart { fill: var(--muted); font-size: 12px; }
-.axis-label, .point-label { fill: var(--ink); font-size: 12px; font-weight: 800; }
+.tick-label, .empty-chart { fill: var(--muted); font-size: 14px; }
+.axis-label, .point-label { fill: var(--ink); font-size: 14px; font-weight: 800; }
 .single-chart { width: min(640px, 100%); margin: 16px auto 0; }
 .chart-with-conclusion { min-width: 0; }
 .conclusion-prompt { margin-top: 13px; padding: 14px; border: 1.5px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--cream); line-height: 1.4; }
 .conclusion-prompt textarea { margin-top: 3px; font-weight: 400; background: var(--paper); }
 .conclusion-answer { margin-top: 13px; padding: 14px 16px; border: 1.5px solid var(--ink); border-radius: 14px; background: var(--cream); }
-.conclusion-answer span { font-size: .68rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.conclusion-answer span { font-size: .74rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .conclusion-answer p { margin: 6px 0 0; line-height: 1.5; white-space: pre-wrap; }
 .bar-chart { min-height: 250px; display: grid; align-content: center; gap: 14px; padding: 20px 4px; }
 .bar-row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(140px, 4fr) 72px; gap: 12px; align-items: center; }
@@ -209,7 +209,7 @@ footer a { text-decoration: none; }
 .teacher-tab-label b { display: grid; place-items: center; width: 37px; height: 37px; flex: 0 0 37px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: .76rem; }
 .teacher-tabs a:nth-child(2) .teacher-tab-label b { background: var(--purple); }
 .teacher-tabs a:nth-child(3) .teacher-tab-label b { background: var(--orange); }
-.teacher-tabs small { display: inline-flex; align-items: center; gap: 5px; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.teacher-tabs small { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 900; white-space: nowrap; }
 .teacher-tabs small::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #aaa49a; }
 .teacher-tabs small.open { color: var(--success); }
 .teacher-tabs a.active small.open { color: var(--lime); }
@@ -241,7 +241,7 @@ footer a { text-decoration: none; }
 .group-progress-item > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--muted); background: #eee9e0; font-weight: 900; }
 .group-progress-item div { display: grid; gap: 1px; }
 .group-progress-item strong { font-size: .76rem; }
-.group-progress-item small { color: var(--muted); font-size: .65rem; }
+.group-progress-item small { color: var(--muted); font-size: .72rem; }
 .group-progress-item.submitted { background: var(--lime); }
 .group-progress-item.submitted > span { color: #fff; background: var(--ink); }
 .group-progress-item.submitted small { color: var(--ink); font-weight: 800; }
@@ -252,14 +252,14 @@ footer a { text-decoration: none; }
 .submission-card, .empty-state { padding: 20px; }
 .submission-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto; gap: 18px; align-items: center; }
 .submission-summary div { display: grid; gap: 2px; }
-.submission-summary span, .submission-summary time { color: var(--muted); font-size: .72rem; }
+.submission-summary span, .submission-summary time { color: var(--muted); font-size: .76rem; }
 .submission-summary strong { font-size: 1rem; }
 details { margin-top: 13px; border-top: 1px solid var(--soft-line); padding-top: 12px; }
 summary { color: var(--ink); font-size: .82rem; font-weight: 900; cursor: pointer; }
 details .table-scroll { margin-top: 12px; }
 .team-assignments-review { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
 .team-assignments-review > div { display: grid; gap: 3px; padding: 9px 10px; border-radius: 10px; background: var(--cream); }
-.team-assignments-review span, .team-assignments-empty { color: var(--muted); font-size: .7rem; }
+.team-assignments-review span, .team-assignments-empty { color: var(--muted); font-size: .75rem; }
 .team-assignments-review strong { font-size: .8rem; overflow-wrap: anywhere; }
 .team-assignments-empty { margin: 10px 0 0; }
 .teacher-chart-grid { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--soft-line); }
@@ -316,13 +316,14 @@ details .table-scroll { margin-top: 12px; }
 }
 
 @media (max-width: 620px) {
+  html { font-size: 17px; }
   .page-shell, .teacher-shell { width: min(100% - 18px, 1240px); padding-top: 12px; }
   .workspace-hero { min-height: 185px; padding: 15px 16px; border-radius: 20px; }
   .hero-copy { width: 100%; }
   .hero-meta { display: grid; gap: 5px; margin-bottom: 7px; }
   .course-identity { gap: 2px 7px; padding-right: 35px; font-size: .64rem; }
   .course-identity span { padding-left: 0; border-left: 0; }
-  .workspace-hero h1 { max-width: calc(100% - 32px); font-size: clamp(1.65rem, 8.5vw, 2.35rem); }
+  .workspace-hero h1 { max-width: calc(100% - 32px); font-size: clamp(1.65rem, 8.5vw, 2.2rem); }
   .workspace-hero .hero-copy > p:last-child { max-width: calc(100% - 45px); font-size: .72rem; }
   .physics-hero-art { top: 15px; right: -70px; width: 145px; height: 112px; opacity: .16; }
   .physics-hero-art span { width: 36px; height: 36px; font-size: .85rem; }
