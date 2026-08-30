@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSubmission, isActivityOpen, type Measurement } from "@/lib/db";
+import { isClassName, isGroupName } from "@/lib/classes";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Giáo viên đã đóng hoạt động này." }, { status: 403 });
     }
 
-    if (!isText(body.className, 30) || !isText(body.groupName, 60)) {
+    if (!isClassName(body.className) || !isGroupName(body.groupName)) {
       return NextResponse.json({ error: "Thông tin lớp hoặc nhóm chưa hợp lệ." }, { status: 400 });
     }
     if (!isText(body.incidenceMedium, 80) || !isText(body.refractionMedium, 80)) {
@@ -37,12 +38,17 @@ export async function POST(request: Request) {
     if (!Array.isArray(body.measurements) || body.measurements.length < 1 || body.measurements.length > 20 || !body.measurements.every(isMeasurement)) {
       return NextResponse.json({ error: "Số liệu thí nghiệm chưa hợp lệ." }, { status: 400 });
     }
+    if (!isText(body.conclusionAngles, 600) || !isText(body.conclusionSines, 600)) {
+      return NextResponse.json({ error: "Hãy hoàn thành hai câu kết luận." }, { status: 400 });
+    }
 
     const result = await createSubmission({
       className: body.className.trim(),
       groupName: body.groupName.trim(),
       incidenceMedium: body.incidenceMedium.trim(),
       refractionMedium: body.refractionMedium.trim(),
+      conclusionAngles: body.conclusionAngles.trim(),
+      conclusionSines: body.conclusionSines.trim(),
       measurements: body.measurements,
     });
 

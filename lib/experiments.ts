@@ -7,6 +7,7 @@ export type OhmMeasurement = {
 export type OhmPayload = {
   resistorName: string;
   measurements: OhmMeasurement[];
+  conclusion: string;
 };
 
 export type ResistanceFactor = "material" | "length" | "area";
@@ -21,6 +22,7 @@ export type ResistanceFactorMeasurement = {
 
 export type ResistanceFactorsPayload = {
   investigations: Record<ResistanceFactor, ResistanceFactorMeasurement[]>;
+  conclusions: Record<ResistanceFactor, string>;
 };
 
 export type ExperimentSubmission<TPayload> = {

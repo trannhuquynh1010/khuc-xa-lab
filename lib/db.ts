@@ -19,6 +19,8 @@ export type Submission = {
   groupName: string;
   incidenceMedium: string | null;
   refractionMedium: string | null;
+  conclusionAngles: string | null;
+  conclusionSines: string | null;
   createdAt: string;
   measurements: Measurement[];
 };
@@ -49,6 +51,8 @@ async function initializeSchema() {
       group_name VARCHAR(60) NOT NULL,
       incidence_medium VARCHAR(80),
       refraction_medium VARCHAR(80),
+      conclusion_angles VARCHAR(600),
+      conclusion_sines VARCHAR(600),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -56,7 +60,9 @@ async function initializeSchema() {
   await sql`
     ALTER TABLE submissions
       ADD COLUMN IF NOT EXISTS incidence_medium VARCHAR(80),
-      ADD COLUMN IF NOT EXISTS refraction_medium VARCHAR(80)
+      ADD COLUMN IF NOT EXISTS refraction_medium VARCHAR(80),
+      ADD COLUMN IF NOT EXISTS conclusion_angles VARCHAR(600),
+      ADD COLUMN IF NOT EXISTS conclusion_sines VARCHAR(600)
   `;
 
   await sql`
@@ -75,6 +81,22 @@ async function initializeSchema() {
   await sql`
     CREATE INDEX IF NOT EXISTS submissions_created_at_idx
     ON submissions (created_at DESC)
+  `;
+
+  await sql`
+    DELETE FROM submissions older
+    USING submissions newer
+    WHERE older.class_name = newer.class_name
+      AND older.group_name = newer.group_name
+      AND (
+        older.created_at < newer.created_at OR
+        (older.created_at = newer.created_at AND older.id::TEXT < newer.id::TEXT)
+      )
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS submissions_class_group_unique_idx
+    ON submissions (class_name, group_name)
   `;
 
   await sql`
@@ -107,6 +129,23 @@ async function initializeSchema() {
   await sql`
     CREATE INDEX IF NOT EXISTS experiment_submissions_activity_created_idx
     ON experiment_submissions (activity_key, created_at DESC)
+  `;
+
+  await sql`
+    DELETE FROM experiment_submissions older
+    USING experiment_submissions newer
+    WHERE older.activity_key = newer.activity_key
+      AND older.class_name = newer.class_name
+      AND older.group_name = newer.group_name
+      AND (
+        older.created_at < newer.created_at OR
+        (older.created_at = newer.created_at AND older.id::TEXT < newer.id::TEXT)
+      )
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS experiment_submissions_activity_class_group_unique_idx
+    ON experiment_submissions (activity_key, class_name, group_name)
   `;
 }
 
@@ -167,6 +206,8 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
   const rows = await sql`
     INSERT INTO experiment_submissions (id, activity_key, class_name, group_name, payload)
     VALUES (${id}, ${input.activityKey}, ${input.className}, ${input.groupName}, ${JSON.stringify(input.payload)}::jsonb)
+    ON CONFLICT (activity_key, class_name, group_name)
+    DO UPDATE SET payload = EXCLUDED.payload, created_at = NOW()
     RETURNING id, created_at
   `;
 
@@ -203,6 +244,8 @@ export async function createSubmission(input: {
   groupName: string;
   incidenceMedium: string;
   refractionMedium: string;
+  conclusionAngles: string;
+  conclusionSines: string;
   measurements: Measurement[];
 }) {
   await ensureSchema();
@@ -219,11 +262,34 @@ export async function createSubmission(input: {
   );
 
   const rows = await sql`
-    WITH new_submission AS (
-      INSERT INTO submissions (id, class_name, group_name, incidence_medium, refraction_medium)
-      VALUES (${id}, ${input.className}, ${input.groupName}, ${input.incidenceMedium}, ${input.refractionMedium})
+    WITH target_submission AS (
+      INSERT INTO submissions (
+        id,
+        class_name,
+        group_name,
+        incidence_medium,
+        refraction_medium,
+        conclusion_angles,
+        conclusion_sines
+      )
+      VALUES (
+        ${id},
+        ${input.className},
+        ${input.groupName},
+        ${input.incidenceMedium},
+        ${input.refractionMedium},
+        ${input.conclusionAngles},
+        ${input.conclusionSines}
+      )
+      ON CONFLICT (class_name, group_name)
+      DO UPDATE SET
+        incidence_medium = EXCLUDED.incidence_medium,
+        refraction_medium = EXCLUDED.refraction_medium,
+        conclusion_angles = EXCLUDED.conclusion_angles,
+        conclusion_sines = EXCLUDED.conclusion_sines,
+        created_at = NOW()
       RETURNING id, created_at
-    ), new_measurements AS (
+    ), upserted_measurements AS (
       INSERT INTO measurements (
         submission_id,
         sequence,
@@ -233,13 +299,13 @@ export async function createSubmission(input: {
         sin_refraction
       )
       SELECT
-        new_submission.id,
+        target_submission.id,
         item.sequence,
         item.incidence_angle,
         item.refraction_angle,
         item.sin_incidence,
         item.sin_refraction
-      FROM new_submission
+      FROM target_submission
       CROSS JOIN jsonb_to_recordset(${measurementJson}::jsonb) AS item(
         sequence INTEGER,
         incidence_angle NUMERIC,
@@ -247,9 +313,24 @@ export async function createSubmission(input: {
         sin_incidence NUMERIC,
         sin_refraction NUMERIC
       )
+      ON CONFLICT (submission_id, sequence)
+      DO UPDATE SET
+        incidence_angle = EXCLUDED.incidence_angle,
+        refraction_angle = EXCLUDED.refraction_angle,
+        sin_incidence = EXCLUDED.sin_incidence,
+        sin_refraction = EXCLUDED.sin_refraction
       RETURNING id
     )
-    SELECT id, created_at FROM new_submission
+    SELECT id, created_at FROM target_submission
+  `;
+
+  await sql`
+    DELETE FROM measurements
+    WHERE submission_id = ${String(rows[0].id)}::uuid
+      AND sequence NOT IN (
+        SELECT item.sequence
+        FROM jsonb_to_recordset(${measurementJson}::jsonb) AS item(sequence INTEGER)
+      )
   `;
 
   return {
@@ -269,6 +350,8 @@ export async function listSubmissions(): Promise<Submission[]> {
       s.group_name,
       s.incidence_medium,
       s.refraction_medium,
+      s.conclusion_angles,
+      s.conclusion_sines,
       s.created_at,
       COALESCE(
         json_agg(
@@ -295,6 +378,8 @@ export async function listSubmissions(): Promise<Submission[]> {
     groupName: String(row.group_name),
     incidenceMedium: row.incidence_medium ? String(row.incidence_medium) : null,
     refractionMedium: row.refraction_medium ? String(row.refraction_medium) : null,
+    conclusionAngles: row.conclusion_angles ? String(row.conclusion_angles) : null,
+    conclusionSines: row.conclusion_sines ? String(row.conclusion_sines) : null,
     createdAt: new Date(String(row.created_at)).toISOString(),
     measurements: row.measurements as Measurement[],
   }));

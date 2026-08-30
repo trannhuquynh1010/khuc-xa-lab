@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { classNames, groupNames } from "@/lib/classes";
 import { formatSineRatio } from "@/lib/physics";
 import RelationshipChart from "./RelationshipChart";
 
@@ -40,6 +41,8 @@ export default function LabForm() {
   const [groupName, setGroupName] = useState("");
   const [incidenceMedium, setIncidenceMedium] = useState("");
   const [refractionMedium, setRefractionMedium] = useState("");
+  const [conclusionAngles, setConclusionAngles] = useState("");
+  const [conclusionSines, setConclusionSines] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const points = useMemo(() => rowsToPoints(rows), [rows]);
@@ -81,13 +84,17 @@ export default function LabForm() {
       setState({ type: "error", message: "Hãy nhập ít nhất một lần đo hợp lệ." });
       return;
     }
+    if (!conclusionAngles.trim() || !conclusionSines.trim()) {
+      setState({ type: "error", message: "Hãy hoàn thành hai câu kết luận dưới đồ thị." });
+      return;
+    }
 
     setState({ type: "sending", message: "Đang gửi số liệu…" });
     try {
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ className, groupName, incidenceMedium, refractionMedium, measurements: points, website: "" }),
+        body: JSON.stringify({ className, groupName, incidenceMedium, refractionMedium, conclusionAngles, conclusionSines, measurements: points, website: "" }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể gửi số liệu.");
@@ -104,8 +111,8 @@ export default function LabForm() {
           <span>1</span>
           <div><h2 id="group-heading">Thông tin nhóm</h2><p>Điền thông tin để giáo viên nhận đúng bài.</p></div>
         </div>
-        <label>Lớp<input required maxLength={30} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Ví dụ: 9A1" /></label>
-        <label>Tên nhóm<input required maxLength={60} value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Ví dụ: Nhóm 3" /></label>
+        <label>Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label>Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label>Môi trường tới<input required maxLength={80} value={incidenceMedium} onChange={(event) => setIncidenceMedium(event.target.value)} placeholder="Ví dụ: Không khí" /></label>
         <label>Môi trường khúc xạ<input required maxLength={80} value={refractionMedium} onChange={(event) => setRefractionMedium(event.target.value)} placeholder="Ví dụ: Thủy tinh" /></label>
       </section>
@@ -139,8 +146,14 @@ export default function LabForm() {
       <section aria-labelledby="chart-heading">
         <div className="section-heading"><span>3</span><div><h2 id="chart-heading">Đồ thị kết quả</h2><p>Điểm trên đồ thị được đánh số theo lần đo.</p></div></div>
         <div className="chart-grid">
-          <RelationshipChart title="Góc tới và góc khúc xạ" xLabel="Góc tới i (°)" yLabel="Góc khúc xạ r (°)" points={points} xValue={(point) => point.incidenceAngle} yValue={(point) => point.refractionAngle} ceiling={90} />
-          <RelationshipChart title="sin i và sin r" xLabel="sin i" yLabel="sin r" points={points} xValue={(point) => point.sinIncidence} yValue={(point) => point.sinRefraction} ceiling={1} />
+          <div className="chart-with-conclusion">
+            <RelationshipChart title="Góc tới và góc khúc xạ" xLabel="Góc tới i (°)" yLabel="Góc khúc xạ r (°)" points={points} xValue={(point) => point.incidenceAngle} yValue={(point) => point.refractionAngle} ceiling={90} />
+            <label className="conclusion-prompt">Kết luận 1: Khi góc tới i tăng, góc khúc xạ r thay đổi thế nào? i và r có tỉ lệ thuận không?<textarea required maxLength={600} value={conclusionAngles} onChange={(event) => setConclusionAngles(event.target.value)} placeholder="Viết kết luận dựa trên số liệu và đồ thị của nhóm…" /></label>
+          </div>
+          <div className="chart-with-conclusion">
+            <RelationshipChart title="sin i và sin r" xLabel="sin i" yLabel="sin r" points={points} xValue={(point) => point.sinIncidence} yValue={(point) => point.sinRefraction} ceiling={1} />
+            <label className="conclusion-prompt">Kết luận 2: Tỉ số sin i / sin r có gần không đổi không? Từ đó nêu mối liên hệ giữa sin i và sin r.<textarea required maxLength={600} value={conclusionSines} onChange={(event) => setConclusionSines(event.target.value)} placeholder="Viết kết luận dựa trên số liệu và đồ thị của nhóm…" /></label>
+          </div>
         </div>
       </section>
 

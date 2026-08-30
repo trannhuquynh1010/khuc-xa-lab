@@ -1,13 +1,15 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
+import { groupNames, isClassName } from "@/lib/classes";
 import { listActivitySettings, listExperimentSubmissions, listSubmissions } from "@/lib/db";
 import Link from "next/link";
 import { login, logout, toggleActivity } from "./actions";
 import { OhmResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
+import TeacherClassFilter from "./TeacherClassFilter";
 
 export const dynamic = "force-dynamic";
 
-export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string }> }) {
+export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
   const params = await searchParams;
 
@@ -28,37 +30,44 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   }
 
   const selectedKey: ActivityKey = isActivityKey(params.tab) ? params.tab : "refraction";
+  const selectedClass = isClassName(params.class) ? params.class : "9H01";
   const definition = getActivityDefinition(selectedKey);
   const settings = await listActivitySettings();
   const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
 
   let resultContent;
   let resultCount = 0;
+  let submittedGroups: string[] = [];
   if (selectedKey === "refraction") {
-    const submissions = await listSubmissions();
+    const submissions = (await listSubmissions()).filter((submission) => submission.className === selectedClass);
     resultCount = submissions.length;
+    submittedGroups = submissions.map((submission) => submission.groupName);
     resultContent = <RefractionResults submissions={submissions} />;
   } else if (selectedKey === "ohm") {
-    const submissions = await listExperimentSubmissions("ohm");
+    const submissions = (await listExperimentSubmissions("ohm")).filter((submission) => submission.className === selectedClass);
     resultCount = submissions.length;
+    submittedGroups = submissions.map((submission) => submission.groupName);
     resultContent = <OhmResults submissions={submissions} />;
   } else {
-    const submissions = await listExperimentSubmissions("resistance-factors");
+    const submissions = (await listExperimentSubmissions("resistance-factors")).filter((submission) => submission.className === selectedClass);
     resultCount = submissions.length;
+    submittedGroups = submissions.map((submission) => submission.groupName);
     resultContent = <ResistanceFactorsResults submissions={submissions} />;
   }
+  const submittedGroupSet = new Set(submittedGroups);
+  const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
 
   return (
     <main className="teacher-shell">
       <header className="teacher-header">
         <div><p className="eyebrow">KHU VỰC GIÁO VIÊN</p><h1>Phòng thí nghiệm số</h1><p>Mở bài cho học sinh, theo dõi dữ liệu và trình chiếu kết quả.</p></div>
-        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}`}>Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Đăng xuất</button></form></div>
+        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}`}>Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Đăng xuất</button></form></div>
       </header>
 
       <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm">
         {activityDefinitions.map((activity) => {
           const setting = settings.find((item) => item.key === activity.key);
-          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}`}><span>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Đang mở" : "Đang đóng"}</small></Link>;
+          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}&class=${selectedClass}`}><span>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Đang mở" : "Đang đóng"}</small></Link>;
         })}
       </nav>
 
@@ -71,11 +80,21 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
             <button className={currentSetting.isOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.isOpen ? "Đóng hoạt động" : "Mở cho học sinh"}</button>
           </form>
-          <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
+          <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
         </div>
       </section>
 
-      <div className="results-heading"><div><h2>Bài nộp: {definition.shortLabel}</h2><p>{resultCount} lượt gửi gần nhất</p></div></div>
+      <section className="class-progress-panel">
+        <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ NỘP BÀI</p><h2>{selectedClass} · {definition.shortLabel}</h2><p><strong>{submittedCount}/8 nhóm</strong> đã nộp</p></div><TeacherClassFilter selectedClass={selectedClass} activity={selectedKey} /></div>
+        <div className="group-progress-grid">
+          {groupNames.map((group) => {
+            const submitted = submittedGroupSet.has(group);
+            return <div key={group} className={`group-progress-item ${submitted ? "submitted" : "pending"}`}><span>{submitted ? "✓" : "○"}</span><div><strong>{group}</strong><small>{submitted ? "Đã nộp" : "Chưa nộp"}</small></div></div>;
+          })}
+        </div>
+      </section>
+
+      <div className="results-heading"><div><h2>Bài nộp: {definition.shortLabel}</h2><p>{resultCount} nhóm của lớp {selectedClass}</p></div></div>
       {resultContent}
     </main>
   );

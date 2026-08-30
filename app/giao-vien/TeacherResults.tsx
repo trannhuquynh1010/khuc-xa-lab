@@ -39,8 +39,8 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
               </table>
             </div>
             <div className="chart-grid teacher-chart-grid">
-              <RelationshipChart title="Góc tới và góc khúc xạ" xLabel="Góc tới i (°)" yLabel="Góc khúc xạ r (°)" points={submission.measurements} xValue={(point) => point.incidenceAngle} yValue={(point) => point.refractionAngle} ceiling={90} />
-              <RelationshipChart title="sin i và sin r" xLabel="sin i" yLabel="sin r" points={submission.measurements} xValue={(point) => point.sinIncidence} yValue={(point) => point.sinRefraction} ceiling={1} />
+              <div className="chart-with-conclusion"><RelationshipChart title="Góc tới và góc khúc xạ" xLabel="Góc tới i (°)" yLabel="Góc khúc xạ r (°)" points={submission.measurements} xValue={(point) => point.incidenceAngle} yValue={(point) => point.refractionAngle} ceiling={90} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.conclusionAngles ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
+              <div className="chart-with-conclusion"><RelationshipChart title="sin i và sin r" xLabel="sin i" yLabel="sin r" points={submission.measurements} xValue={(point) => point.sinIncidence} yValue={(point) => point.sinRefraction} ceiling={1} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.conclusionSines ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
             </div>
           </details>
         </article>
@@ -72,7 +72,7 @@ export function OhmResults({ submissions }: { submissions: ExperimentSubmission<
             <details open={index === 0}>
               <summary>Xem bảng số liệu và đồ thị U – I</summary>
               <div className="table-scroll"><table className="compact-data-table"><thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th><th>R = U/I (Ω)</th></tr></thead><tbody>{submission.payload.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.voltage}</td><td>{item.current}</td><td className="ratio-cell">{formatResistance(item.voltage, item.current)}</td></tr>)}</tbody></table></div>
-              <div className="single-chart teacher-chart-grid"><RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={submission.payload.measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...submission.payload.measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...submission.payload.measurements.map((point) => point.current * 1.2))} /></div>
+              <div className="single-chart teacher-chart-grid"><RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={submission.payload.measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...submission.payload.measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...submission.payload.measurements.map((point) => point.current * 1.2))} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.payload.conclusion ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
             </details>
           </article>
         );
@@ -110,6 +110,7 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
                     <div className="table-scroll"><table><thead><tr><th>Mẫu</th><th>Chất liệu</th><th>l (m)</th><th>S (mm²)</th><th>R (Ω)</th></tr></thead><tbody>{points.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.material}</td><td>{item.length}</td><td>{item.area}</td><td>{item.resistance}</td></tr>)}</tbody></table></div>
                     <div className="single-chart">
                       {factor.key === "material" ? <MaterialBarChart points={points} /> : <RelationshipChart title={factor.label} xLabel={factor.key === "length" ? "Chiều dài l (m)" : "Tiết diện S (mm²)"} yLabel="Điện trở R (Ω)" points={points} xValue={(point) => factor.key === "length" ? point.length : point.area} yValue={(point) => point.resistance} xCeiling={Math.max(1, ...points.map((point) => (factor.key === "length" ? point.length : point.area) * 1.2))} yCeiling={Math.max(10, ...points.map((point) => point.resistance * 1.2))} />}
+                      <div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.payload.conclusions?.[factor.key] ?? "Bài nộp cũ chưa có kết luận."}</p></div>
                     </div>
                   </section>
                 );

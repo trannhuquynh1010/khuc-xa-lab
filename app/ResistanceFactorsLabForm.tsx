@@ -1,16 +1,17 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { classNames, groupNames } from "@/lib/classes";
 import type { ResistanceFactor, ResistanceFactorMeasurement } from "@/lib/experiments";
 import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
 
 type FactorRowInput = { id: number; material: string; length: string; area: string; resistance: string };
 
-const factorDefinitions: Array<{ key: ResistanceFactor; label: string; guidance: string }> = [
-  { key: "material", label: "Chất liệu", guidance: "Thay đổi chất liệu; giữ nguyên chiều dài và tiết diện." },
-  { key: "length", label: "Chiều dài", guidance: "Thay đổi chiều dài; giữ nguyên chất liệu và tiết diện." },
-  { key: "area", label: "Tiết diện", guidance: "Thay đổi tiết diện; giữ nguyên chất liệu và chiều dài." },
+const factorDefinitions: Array<{ key: ResistanceFactor; label: string; guidance: string; question: string }> = [
+  { key: "material", label: "Chất liệu", guidance: "Thay đổi chất liệu; giữ nguyên chiều dài và tiết diện.", question: "Khi l và S không đổi, thay đổi chất liệu làm điện trở thay đổi thế nào?" },
+  { key: "length", label: "Chiều dài", guidance: "Thay đổi chiều dài; giữ nguyên chất liệu và tiết diện.", question: "Khi chất liệu và S không đổi, điện trở R phụ thuộc thế nào vào chiều dài l?" },
+  { key: "area", label: "Tiết diện", guidance: "Thay đổi tiết diện; giữ nguyên chất liệu và chiều dài.", question: "Khi chất liệu và l không đổi, điện trở R phụ thuộc thế nào vào tiết diện S?" },
 ];
 
 const blankRow = (id: number): FactorRowInput => ({ id, material: "", length: "", area: "", resistance: "" });
@@ -53,6 +54,7 @@ export default function ResistanceFactorsLabForm() {
   const [groupName, setGroupName] = useState("");
   const [activeFactor, setActiveFactor] = useState<ResistanceFactor>("material");
   const [rows, setRows] = useState<Record<ResistanceFactor, FactorRowInput[]>>(() => ({ material: initialRows(), length: initialRows(), area: initialRows() }));
+  const [conclusions, setConclusions] = useState<Record<ResistanceFactor, string>>({ material: "", length: "", area: "" });
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const measurements = useMemo(() => ({
     material: rowsToMeasurements(rows.material),
@@ -105,6 +107,12 @@ export default function ResistanceFactorsLabForm() {
       setState({ type: "error", message: `Phần ${incompleteFactor.label.toLowerCase()} cần ít nhất hai mẫu hợp lệ.` });
       return;
     }
+    const missingConclusion = factorDefinitions.find(({ key }) => !conclusions[key].trim());
+    if (missingConclusion) {
+      setActiveFactor(missingConclusion.key);
+      setState({ type: "error", message: `Hãy hoàn thành kết luận phần ${missingConclusion.label.toLowerCase()}.` });
+      return;
+    }
 
     setState({ type: "sending", message: "Đang gửi số liệu…" });
     try {
@@ -115,7 +123,7 @@ export default function ResistanceFactorsLabForm() {
           activityKey: "resistance-factors",
           className,
           groupName,
-          payload: { investigations: measurements },
+          payload: { investigations: measurements, conclusions },
           website: "",
         }),
       });
@@ -131,8 +139,8 @@ export default function ResistanceFactorsLabForm() {
     <form className="lab-card" onSubmit={handleSubmit}>
       <section className="identity-grid" aria-labelledby="factors-group-heading">
         <div className="section-heading"><span>1</span><div><h2 id="factors-group-heading">Thông tin nhóm</h2><p>Hoàn thành cả ba phần khảo sát trước khi nộp.</p></div></div>
-        <label className="field-span-2">Lớp<input required maxLength={30} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Ví dụ: 9A1" /></label>
-        <label className="field-span-2">Tên nhóm<input required maxLength={60} value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Ví dụ: Nhóm 3" /></label>
+        <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </section>
 
       <section aria-labelledby="factors-data-heading">
@@ -140,7 +148,7 @@ export default function ResistanceFactorsLabForm() {
         <div className="factor-tabs" role="tablist" aria-label="Yếu tố khảo sát">
           {factorDefinitions.map((factor) => (
             <button key={factor.key} type="button" role="tab" aria-selected={activeFactor === factor.key} className={activeFactor === factor.key ? "active" : ""} onClick={() => setActiveFactor(factor.key)}>
-              {factor.label}<span>{measurements[factor.key].length} mẫu</span>
+              {factor.label}<span>{measurements[factor.key].length} mẫu{conclusions[factor.key].trim() ? " · đã kết luận" : ""}</span>
             </button>
           ))}
         </div>
@@ -179,6 +187,7 @@ export default function ResistanceFactorsLabForm() {
               yCeiling={Math.max(10, ...currentPoints.map((point) => point.resistance * 1.2))}
             />
           )}
+          <label className="conclusion-prompt">Kết luận: {activeDefinition.question}<textarea required maxLength={600} value={conclusions[activeFactor]} onChange={(event) => setConclusions((current) => ({ ...current, [activeFactor]: event.target.value }))} placeholder="Viết kết luận dựa trên số liệu và đồ thị của nhóm…" /></label>
         </div>
       </section>
 

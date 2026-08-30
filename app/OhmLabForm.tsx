@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
 import { calculateResistance, formatResistance } from "@/lib/physics";
 import RelationshipChart from "./RelationshipChart";
@@ -27,6 +28,7 @@ export default function OhmLabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [resistorName, setResistorName] = useState("");
+  const [conclusion, setConclusion] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const measurements = useMemo(() => rowsToMeasurements(rows), [rows]);
@@ -64,6 +66,10 @@ export default function OhmLabForm() {
       setState({ type: "error", message: "Hãy nhập ít nhất hai lần đo hợp lệ, trong đó có I lớn hơn 0." });
       return;
     }
+    if (!conclusion.trim()) {
+      setState({ type: "error", message: "Hãy hoàn thành câu kết luận dưới đồ thị." });
+      return;
+    }
 
     setState({ type: "sending", message: "Đang gửi số liệu…" });
     try {
@@ -74,7 +80,7 @@ export default function OhmLabForm() {
           activityKey: "ohm",
           className,
           groupName,
-          payload: { resistorName, measurements },
+          payload: { resistorName, measurements, conclusion },
           website: "",
         }),
       });
@@ -90,8 +96,8 @@ export default function OhmLabForm() {
     <form className="lab-card" onSubmit={handleSubmit}>
       <section className="identity-grid" aria-labelledby="ohm-group-heading">
         <div className="section-heading"><span>1</span><div><h2 id="ohm-group-heading">Thông tin thí nghiệm</h2><p>Ghi rõ nhóm và điện trở đang khảo sát.</p></div></div>
-        <label>Lớp<input required maxLength={30} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Ví dụ: 9A1" /></label>
-        <label>Tên nhóm<input required maxLength={60} value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Ví dụ: Nhóm 3" /></label>
+        <label>Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label>Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="field-span-2">Điện trở hoặc dây dẫn khảo sát<input required maxLength={80} value={resistorName} onChange={(event) => setResistorName(event.target.value)} placeholder="Ví dụ: Điện trở R1" /></label>
       </section>
 
@@ -118,6 +124,7 @@ export default function OhmLabForm() {
         <div className="section-heading"><span>3</span><div><h2 id="ohm-chart-heading">Đồ thị định luật Ohm</h2><p>Nếu điện trở không đổi, các điểm U – I gần nằm trên một đường thẳng.</p></div></div>
         <div className="single-chart">
           <RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...measurements.map((point) => point.current * 1.2))} />
+          <label className="conclusion-prompt">Kết luận: Khi hiệu điện thế U tăng, cường độ dòng điện I thay đổi thế nào? Tỉ số U/I có gần không đổi không?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Nêu mối liên hệ giữa U và I, rồi rút ra định luật Ohm…" /></label>
         </div>
       </section>
 

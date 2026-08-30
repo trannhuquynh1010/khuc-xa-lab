@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isActivityKey } from "@/lib/activities";
+import { isClassName, isGroupName } from "@/lib/classes";
 import { createExperimentSubmission, isActivityOpen } from "@/lib/db";
 import type { OhmMeasurement, ResistanceFactorMeasurement, ResistanceFactorsPayload } from "@/lib/experiments";
 
@@ -46,12 +47,12 @@ export async function POST(request: Request) {
     if (!(await isActivityOpen(body.activityKey))) {
       return NextResponse.json({ error: "Giáo viên đã đóng hoạt động này." }, { status: 403 });
     }
-    if (!isText(body.className, 30) || !isText(body.groupName, 60)) {
+    if (!isClassName(body.className) || !isGroupName(body.groupName)) {
       return NextResponse.json({ error: "Thông tin lớp hoặc nhóm chưa hợp lệ." }, { status: 400 });
     }
 
     if (body.activityKey === "ohm") {
-      if (!isText(body.payload?.resistorName, 80) || !validMeasurementList(body.payload?.measurements, isOhmMeasurement)) {
+      if (!isText(body.payload?.resistorName, 80) || !isText(body.payload?.conclusion, 600) || !validMeasurementList(body.payload?.measurements, isOhmMeasurement)) {
         return NextResponse.json({ error: "Số liệu thí nghiệm định luật Ohm chưa hợp lệ." }, { status: 400 });
       }
       const result = await createExperimentSubmission({
@@ -61,14 +62,20 @@ export async function POST(request: Request) {
         payload: {
           resistorName: body.payload.resistorName.trim(),
           measurements: body.payload.measurements,
+          conclusion: body.payload.conclusion.trim(),
         },
       });
       return NextResponse.json({ ok: true, ...result }, { status: 201 });
     }
 
     const investigations = body.payload?.investigations as ResistanceFactorsPayload["investigations"] | undefined;
+    const conclusions = body.payload?.conclusions as ResistanceFactorsPayload["conclusions"] | undefined;
     if (
       !investigations ||
+      !conclusions ||
+      !isText(conclusions.material, 600) ||
+      !isText(conclusions.length, 600) ||
+      !isText(conclusions.area, 600) ||
       !validMeasurementList(investigations.material, isFactorMeasurement) ||
       !validMeasurementList(investigations.length, isFactorMeasurement) ||
       !validMeasurementList(investigations.area, isFactorMeasurement)
@@ -80,7 +87,14 @@ export async function POST(request: Request) {
       activityKey: "resistance-factors",
       className: body.className.trim(),
       groupName: body.groupName.trim(),
-      payload: { investigations },
+      payload: {
+        investigations,
+        conclusions: {
+          material: conclusions.material.trim(),
+          length: conclusions.length.trim(),
+          area: conclusions.area.trim(),
+        },
+      },
     });
     return NextResponse.json({ ok: true, ...result }, { status: 201 });
   } catch (error) {
