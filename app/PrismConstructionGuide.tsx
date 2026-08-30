@@ -93,18 +93,20 @@ export default function PrismConstructionGuide({ value, onChange }: { value: Pri
   const currentStep = steps[stepIndex];
   const selectedAnswer = value.answers[stepIndex] ?? "";
   const currentCorrect = selectedAnswer === currentStep.correctChoice;
-  const completed = steps.map((step, index) => value.answers[index] === step.correctChoice);
+  const completed = steps.map((_, index) => steps
+    .slice(0, index + 1)
+    .every((step, answerIndex) => value.answers[answerIndex] === step.correctChoice));
   const incidentVisible = completed[0];
   const entryNormalVisible = completed[1];
   const internalVisible = completed[2];
-  const comparisonVisible = stepIndex >= 3 || completed[3];
+  const comparisonVisible = completed[2] && stepIndex >= 3;
   const splitVisible = completed[4];
-  const exitNormalVisible = stepIndex >= 5 || completed[5];
+  const exitNormalVisible = completed[4] && stepIndex >= 5;
   const outgoingVisible = completed[5];
   const labelsVisible = completed[6];
 
   function chooseAnswer(choice: string) {
-    const answers = [...value.answers];
+    const answers = choice === selectedAnswer ? [...value.answers] : value.answers.slice(0, stepIndex + 1);
     answers[stepIndex] = choice;
     onChange({ step: stepIndex, answers });
   }
