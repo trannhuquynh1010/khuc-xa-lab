@@ -28,6 +28,7 @@ export type ResistanceFactorsPayload = {
   teamAssignments?: TeamAssignments;
   investigations: Record<ResistanceFactor, ResistanceFactorMeasurement[]>;
   conclusions: Record<ResistanceFactor, string>;
+  overallConclusion?: string;
 };
 
 export type ExperimentSubmission<TPayload> = {

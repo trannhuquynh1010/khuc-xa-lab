@@ -7,6 +7,7 @@ import { calculateResistance, formatResistance } from "@/lib/physics";
 import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
+import ResistivitySimulator from "./ResistivitySimulator";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
@@ -104,8 +105,9 @@ export default function ResistanceFactorsLabForm() {
   const [rows, setRows] = useState<FactorRowInput[]>(initialRows);
   const [sampleSelections, setSampleSelections] = useState<Record<ResistanceFactor, SampleSelection[]>>(initialSampleSelections);
   const [conclusions, setConclusions] = useState<Record<ResistanceFactor, string>>({ material: "", length: "", area: "" });
+  const [overallConclusion, setOverallConclusion] = useState("");
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
-  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, rows, sampleSelections, conclusions }, (value) => {
+  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, rows, sampleSelections, conclusions, overallConclusion }, (value) => {
     if (!isDraftRecord(value)) return;
     if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
     if (typeof value.groupName === "string" && groupNames.includes(value.groupName)) setGroupName(value.groupName);
@@ -138,6 +140,7 @@ export default function ResistanceFactorsLabForm() {
       });
       setConclusions(restoredConclusions);
     }
+    if (typeof value.overallConclusion === "string") setOverallConclusion(value.overallConclusion);
   });
   const measurements = useMemo<Record<ResistanceFactor, ResistanceFactorMeasurement[]>>(() => ({
     material: rowsForInvestigation(rows, sampleSelections.material),
@@ -188,6 +191,10 @@ export default function ResistanceFactorsLabForm() {
       setState({ type: "error", message: `Hãy hoàn thành kết luận phần ${missingConclusion.label.toLowerCase()}.` });
       return;
     }
+    if (!overallConclusion.trim()) {
+      setState({ type: "error", message: "Hãy hoàn thành kết luận tổng từ ba lượt khảo sát." });
+      return;
+    }
 
     setState({ type: "sending", message: "Đang gửi số liệu…" });
     try {
@@ -198,7 +205,7 @@ export default function ResistanceFactorsLabForm() {
           activityKey: "resistance-factors",
           className,
           groupName,
-          payload: { teamAssignments, investigations: measurements, conclusions },
+          payload: { teamAssignments, investigations: measurements, conclusions, overallConclusion },
           website: "",
         }),
       });
@@ -302,6 +309,24 @@ export default function ResistanceFactorsLabForm() {
             );
           })}
         </div>
+      </section>
+
+      <section aria-labelledby="overall-conclusion-heading">
+        <div className="section-heading data-heading"><span>4</span><div><h2 id="overall-conclusion-heading">Tổng hợp kết luận</h2><p>Đọc lại ba nhận xét rồi tìm quy luật chung.</p></div></div>
+        <div className="conclusion-summary-grid">
+          {factorDefinitions.map((definition) => (
+            <article key={definition.key} className="conclusion-summary-item">
+              <h3>{definition.label}</h3>
+              <p>{conclusions[definition.key].trim() || "Chưa viết kết luận."}</p>
+            </article>
+          ))}
+        </div>
+        <label className="conclusion-prompt overall-conclusion">Kết luận tổng: Điện trở R của dây dẫn phụ thuộc như thế nào vào chất liệu, chiều dài l và tiết diện S?<textarea required maxLength={800} value={overallConclusion} onChange={(event) => setOverallConclusion(event.target.value)} placeholder="Tổng hợp cả ba quy luật bằng lời của nhóm…" /></label>
+      </section>
+
+      <section aria-labelledby="resistivity-heading">
+        <div className="section-heading data-heading"><span>5</span><div><h2 id="resistivity-heading">Khám phá điện trở suất ρ</h2><p>Thay đổi dây dẫn để nhận ra đại lượng đặc trưng cho vật liệu.</p></div></div>
+        <ResistivitySimulator />
       </section>
 
       <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>

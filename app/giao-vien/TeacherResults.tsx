@@ -128,6 +128,7 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
                 );
               })}
             </div>
+            <div className="conclusion-answer overall-result-conclusion"><span>Kết luận tổng</span><p>{submission.payload.overallConclusion ?? "Bài nộp cũ chưa có kết luận tổng."}</p></div>
           </details>
         </article>
       ))}

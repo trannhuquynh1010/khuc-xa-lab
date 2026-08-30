@@ -207,6 +207,48 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .sample-picker { min-width: 112px; font-weight: 800; }
 .investigation-chart { margin-top: 10px; }
 .investigation-card > .conclusion-prompt { margin-top: 10px; }
+.conclusion-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.conclusion-summary-item { min-width: 0; padding: 14px; border: 1.3px solid var(--ink); border-radius: 14px; background: var(--cream); }
+.conclusion-summary-item h3 { margin: 0 0 7px; font-size: .88rem; }
+.conclusion-summary-item p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.overall-conclusion { margin-top: 12px; }
+
+.resistivity-simulator { display: grid; gap: 14px; }
+.resistivity-materials { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.resistivity-materials button { display: grid; gap: 2px; min-width: 0; padding: 9px 8px; border: 1.3px solid var(--ink); border-radius: 12px; color: var(--ink); background: var(--paper); text-align: left; cursor: pointer; }
+.resistivity-materials button:hover { background: var(--cream); }
+.resistivity-materials button.active { color: #fff; background: var(--ink); box-shadow: 3px 3px 0 var(--purple); }
+.resistivity-materials strong { font-size: .82rem; }
+.resistivity-materials span { font-size: .7rem; font-weight: 700; overflow-wrap: anywhere; }
+.resistivity-workspace { display: grid; grid-template-columns: minmax(250px, .7fr) minmax(0, 1.3fr); gap: 12px; }
+.resistivity-controls, .resistivity-observation { padding: 16px; border: 1.4px solid var(--ink); border-radius: 16px; }
+.resistivity-controls { display: grid; align-content: center; gap: 24px; background: var(--cream); }
+.resistivity-controls label > span { display: flex; justify-content: space-between; gap: 10px; }
+.resistivity-controls output { color: #5b3de0; font-weight: 900; }
+.resistivity-controls input[type="range"] { min-height: 28px; padding: 0; border: 0; box-shadow: none; accent-color: var(--purple); }
+.resistivity-observation { background: #ece8ff; }
+.wire-visual { display: flex; align-items: center; gap: 9px; min-height: 72px; }
+.wire-visual > b { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border: 1.3px solid var(--ink); border-radius: 50%; background: var(--paper); }
+.wire-space { flex: 1; display: flex; align-items: center; min-width: 0; }
+.wire-sample { display: block; min-width: 35%; border: 1.3px solid var(--ink); border-radius: 999px; box-shadow: 2px 2px 0 rgba(23, 23, 23, .25); transition: width .2s ease, height .2s ease, background .2s ease; }
+.wire-sample.copper { background: #d97941; }
+.wire-sample.aluminum { background: #c9ced6; }
+.wire-sample.iron { background: #7e8790; }
+.wire-sample.constantan { background: #bd9456; }
+.wire-sample.nichrome { background: #9892a2; }
+.resistivity-values { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.resistivity-values > div { display: grid; gap: 3px; padding: 10px 12px; border: 1.2px solid var(--ink); border-radius: 12px; background: var(--paper); }
+.resistivity-values span { color: var(--muted); font-size: .72rem; font-weight: 800; }
+.resistivity-values strong { font-size: 1rem; }
+.resistivity-formula { margin: 11px 0 0; font-weight: 800; line-height: 1.5; }
+.resistivity-note { margin: 5px 0 0; color: var(--muted); font-size: .72rem; }
+.resistivity-challenge { padding: 14px; border: 1.4px solid var(--ink); border-radius: 15px; background: var(--lime); }
+.resistivity-challenge > p { margin: 0 0 9px; font-weight: 800; }
+.resistivity-challenge > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.resistivity-challenge button { padding: 7px 11px; border: 1.2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--paper); font-weight: 800; cursor: pointer; }
+.resistivity-challenge button.selected { color: #fff; background: var(--ink); }
+.resistivity-challenge p.correct { color: var(--success); }
+.resistivity-challenge p.incorrect { color: var(--danger); }
 
 .ohm-workspace-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 18px; align-items: start; }
 .ohm-panel { min-width: 0; padding: 15px; border: 1.5px solid var(--ink); border-radius: 16px; background: #fff; }
@@ -345,12 +387,14 @@ details .table-scroll { margin-top: 12px; }
   .presentation-shell .refraction-result-layout, .presentation-shell .ohm-result-layout { grid-template-columns: 1fr; }
   .presentation-shell .refraction-result-layout > .table-scroll, .presentation-shell .refraction-result-layout .chart-grid.teacher-chart-grid { grid-column: 1; }
   .ray-guide-layout { grid-template-columns: 1fr; }
+  .resistivity-materials { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 820px) {
   .identity-grid { grid-template-columns: 1fr 1fr; }
   .team-assignment-grid, .team-assignments-review { grid-template-columns: 1fr 1fr; }
   .chart-grid, .ohm-workspace-grid { grid-template-columns: 1fr; }
+  .conclusion-summary-grid, .resistivity-workspace { grid-template-columns: 1fr; }
   .submission-summary { grid-template-columns: 1fr 1fr; }
   .submission-summary time { grid-column: 1 / -1; }
   .teacher-tabs { grid-template-columns: 1fr; }
@@ -387,6 +431,8 @@ details .table-scroll { margin-top: 12px; }
   .ray-step-indicator { flex-wrap: wrap; }
   .ray-step-panel { padding: 14px; }
   .ray-step-actions > button { width: auto; flex: 1; }
+  .resistivity-materials { grid-template-columns: 1fr 1fr; }
+  .resistivity-values { grid-template-columns: 1fr; }
   .submit-row { align-items: stretch; flex-direction: column; }
   .primary-button { width: 100%; }
   .investigation-card { padding: 14px 10px; }

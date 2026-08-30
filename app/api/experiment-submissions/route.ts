@@ -91,12 +91,14 @@ export async function POST(request: Request) {
 
     const investigations = body.payload?.investigations as ResistanceFactorsPayload["investigations"] | undefined;
     const conclusions = body.payload?.conclusions as ResistanceFactorsPayload["conclusions"] | undefined;
+    const overallConclusion = body.payload?.overallConclusion;
     if (
       !investigations ||
       !conclusions ||
       !isText(conclusions.material, 600) ||
       !isText(conclusions.length, 600) ||
       !isText(conclusions.area, 600) ||
+      !isText(overallConclusion, 800) ||
       !validFactorMeasurementList(investigations.material, 2) ||
       !validFactorMeasurementList(investigations.length, 3) ||
       !validFactorMeasurementList(investigations.area, 2)
@@ -116,6 +118,7 @@ export async function POST(request: Request) {
           length: conclusions.length.trim(),
           area: conclusions.area.trim(),
         },
+        overallConclusion: overallConclusion.trim(),
       },
     });
     return NextResponse.json({ ok: true, ...result }, { status: 201 });
