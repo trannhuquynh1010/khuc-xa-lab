@@ -231,7 +231,7 @@ export default function RefractionConstructionGuide() {
           {incidentVisible && <g className="incident-rays">
             <polyline points={`280,${objectY} 280,${(objectY + 190) / 2} 280,190`} markerMid="url(#ray-arrow)" />
             <polyline points={`280,${objectY} 350,${(objectY + 190) / 2} 420,190`} markerMid="url(#ray-arrow)" />
-            <text x={below ? 344 : 355} y={below ? 244 : 145}>Tia tới</text>
+            <text x={below ? 380 : 370} y={below ? 282 : 112}>Tia tới</text>
           </g>}
           {normalVisible && <g className="normal-line">
             <line x1="420" y1="104" x2="420" y2="276" />
