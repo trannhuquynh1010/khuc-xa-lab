@@ -30,7 +30,7 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
             <div><span>Số lần đo</span><strong>{submission.measurements.length}</strong></div>
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
-          <details open={index === 0}>
+          <details className="refraction-result-details" open={index === 0}>
             <summary>Xem kết quả</summary>
             <div className="table-scroll">
               <table>
@@ -62,7 +62,7 @@ export function OhmResults({ submissions }: { submissions: ExperimentSubmission<
               <div><span>Số lần đo</span><strong>{submission.payload.measurements.length}</strong></div>
               <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
             </div>
-            <details open={index === 0}>
+            <details className="ohm-result-details" open={index === 0}>
               <summary>Xem kết quả</summary>
               <div className="table-scroll"><table className="compact-data-table"><thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th></tr></thead><tbody>{submission.payload.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.voltage}</td><td>{item.current}</td></tr>)}</tbody></table></div>
               <div className="single-chart teacher-chart-grid"><RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={submission.payload.measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...submission.payload.measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...submission.payload.measurements.map((point) => point.current * 1.2))} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.payload.conclusion ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
@@ -92,7 +92,7 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
             {factorLabels.map((factor) => <div key={factor.key}><span>{factor.label.replace("Ảnh hưởng của ", "")}</span><strong>{submission.payload.investigations[factor.key].length} mẫu</strong></div>)}
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
-          <details open={index === 0}>
+          <details className="factor-result-details" open={index === 0}>
             <summary>Xem kết quả</summary>
             <div className="teacher-investigations">
               {factorLabels.map((factor) => {
