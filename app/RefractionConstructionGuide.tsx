@@ -229,8 +229,8 @@ export default function RefractionConstructionGuide() {
           </g>
 
           {incidentVisible && <g className="incident-rays">
-            <line x1="280" y1={objectY} x2="280" y2="190" markerEnd="url(#ray-arrow)" />
-            <line x1="280" y1={objectY} x2="420" y2="190" markerEnd="url(#ray-arrow)" />
+            <polyline points={`280,${objectY} 280,${(objectY + 190) / 2} 280,190`} markerMid="url(#ray-arrow)" />
+            <polyline points={`280,${objectY} 350,${(objectY + 190) / 2} 420,190`} markerMid="url(#ray-arrow)" />
             <text x={below ? 344 : 355} y={below ? 244 : 145}>Tia tới</text>
           </g>}
           {normalVisible && <g className="normal-line">
@@ -239,8 +239,8 @@ export default function RefractionConstructionGuide() {
             <path d="M420 174 h16 v16" />
           </g>}
           {refractedVisible && <g className="refracted-rays">
-            <line x1="280" y1="190" x2="280" y2={verticalEndY} markerEnd="url(#ray-arrow)" />
-            <line x1="420" y1="190" x2={obliqueEndX} y2={obliqueEndY} markerEnd="url(#ray-arrow)" />
+            <polyline points={`280,190 280,${(190 + verticalEndY) / 2} 280,${verticalEndY}`} markerMid="url(#ray-arrow)" />
+            <polyline points={`420,190 ${(420 + obliqueEndX) / 2},${(190 + obliqueEndY) / 2} ${obliqueEndX},${obliqueEndY}`} markerMid="url(#ray-arrow)" />
             <text x={below ? 550 : 490} y={below ? 96 : 285}>Tia khúc xạ</text>
           </g>}
           {virtualImageVisible && <g className="virtual-construction">

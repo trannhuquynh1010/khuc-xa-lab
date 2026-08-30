@@ -159,8 +159,8 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .ray-diagram .ray-object { fill: var(--orange); stroke: var(--ink); stroke-width: 2; }
 .ray-diagram .eye-symbol path { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
 .ray-diagram .eye-symbol circle { fill: var(--ink); }
-.ray-diagram .incident-rays line { stroke: var(--orange); stroke-width: 3; }
-.ray-diagram .refracted-rays line { stroke: var(--purple); stroke-width: 3; }
+.ray-diagram .incident-rays polyline { fill: none; stroke: var(--orange); stroke-width: 3; }
+.ray-diagram .refracted-rays polyline { fill: none; stroke: var(--purple); stroke-width: 3; }
 .ray-diagram .normal-line line { stroke: var(--ink); stroke-width: 1.7; stroke-dasharray: 7 6; }
 .ray-diagram .normal-line path { fill: none; stroke: var(--ink); stroke-width: 1.7; }
 .ray-diagram .virtual-construction line { stroke: var(--success); stroke-width: 2; stroke-dasharray: 7 6; }
