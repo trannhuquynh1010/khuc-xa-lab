@@ -8,29 +8,27 @@ import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
 
 type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
+type SampleSelection = number | "";
 
 const factorDefinitions: Array<{ key: ResistanceFactor; label: string; guidance: string; question: string }> = [
-  { key: "material", label: "Ảnh hưởng của chất liệu", guidance: "So sánh mẫu 1 và mẫu 2; giữ nguyên chiều dài và tiết diện.", question: "Khi l và S không đổi, thay đổi chất liệu làm điện trở thay đổi thế nào?" },
-  { key: "length", label: "Ảnh hưởng của chiều dài", guidance: "So sánh mẫu 1, mẫu 3 và mẫu 4; giữ nguyên chất liệu và tiết diện.", question: "Khi chất liệu và S không đổi, điện trở R phụ thuộc thế nào vào chiều dài l?" },
-  { key: "area", label: "Ảnh hưởng của tiết diện", guidance: "So sánh mẫu 1 và mẫu 5; giữ nguyên chất liệu và chiều dài.", question: "Khi chất liệu và l không đổi, điện trở R phụ thuộc thế nào vào tiết diện S?" },
+  { key: "material", label: "Ảnh hưởng của chất liệu", guidance: "Chọn 2 mẫu có cùng l, S nhưng khác chất liệu.", question: "Khi l và S không đổi, thay đổi chất liệu làm điện trở thay đổi thế nào?" },
+  { key: "length", label: "Ảnh hưởng của chiều dài", guidance: "Chọn 3 mẫu có cùng chất liệu, S nhưng khác l.", question: "Khi chất liệu và S không đổi, điện trở R phụ thuộc thế nào vào chiều dài l?" },
+  { key: "area", label: "Ảnh hưởng của tiết diện", guidance: "Chọn 2 mẫu có cùng chất liệu, l nhưng khác S.", question: "Khi chất liệu và l không đổi, điện trở R phụ thuộc thế nào vào tiết diện S?" },
 ];
 
-const sampleAssignments: Record<ResistanceFactor, number[]> = {
-  material: [1, 2],
-  length: [1, 3, 4],
-  area: [1, 5],
+const investigationSlots: Record<ResistanceFactor, number> = {
+  material: 2,
+  length: 3,
+  area: 2,
 };
-
-const samplePurposes = [
-  "Mẫu chuẩn dùng chung",
-  "Đổi chất liệu",
-  "Đổi chiều dài",
-  "Đổi chiều dài",
-  "Đổi tiết diện",
-];
 
 const blankRow = (id: number): FactorRowInput => ({ id, material: "", length: "", area: "", voltage: "", current: "" });
 const initialRows = () => Array.from({ length: 5 }, (_, index) => blankRow(index + 1));
+const initialSampleSelections = (): Record<ResistanceFactor, SampleSelection[]> => ({
+  material: ["", ""],
+  length: ["", "", ""],
+  area: ["", ""],
+});
 
 function parseDecimal(value: string) {
   if (!value.trim()) return null;
@@ -51,8 +49,9 @@ function rowToMeasurement(row: FactorRowInput): ResistanceFactorMeasurement | nu
   return { sequence: row.id, material: row.material.trim(), length, area, voltage, current, resistance };
 }
 
-function rowsForInvestigation(rows: FactorRowInput[], factor: ResistanceFactor) {
-  return sampleAssignments[factor].flatMap((sampleId) => {
+function rowsForInvestigation(rows: FactorRowInput[], selectedSamples: SampleSelection[]) {
+  return selectedSamples.flatMap((sampleId) => {
+    if (sampleId === "") return [];
     const row = rows.find((candidate) => candidate.id === sampleId);
     const measurement = row ? rowToMeasurement(row) : null;
     return measurement ? [measurement] : [];
@@ -60,16 +59,23 @@ function rowsForInvestigation(rows: FactorRowInput[], factor: ResistanceFactor) 
 }
 
 function hasControlledVariables(factor: ResistanceFactor, points: ResistanceFactorMeasurement[]) {
-  if (points.length < sampleAssignments[factor].length) return false;
+  if (points.length < investigationSlots[factor]) return false;
   const sameMaterial = new Set(points.map((point) => point.material.toLocaleLowerCase("vi"))).size === 1;
   const sameLength = new Set(points.map((point) => point.length)).size === 1;
   const sameArea = new Set(points.map((point) => point.area)).size === 1;
   return factor === "material" ? sameLength && sameArea : factor === "length" ? sameMaterial && sameArea : sameMaterial && sameLength;
 }
 
-function controlStatus(factor: ResistanceFactor, points: ResistanceFactorMeasurement[]) {
-  const expectedCount = sampleAssignments[factor].length;
-  if (points.length < expectedCount) return `Cần đủ ${expectedCount} mẫu hợp lệ để so sánh.`;
+function hasCompleteDistinctSelection(selectedSamples: SampleSelection[]) {
+  const chosenSamples = selectedSamples.filter((sampleId): sampleId is number => sampleId !== "");
+  return chosenSamples.length === selectedSamples.length && new Set(chosenSamples).size === selectedSamples.length;
+}
+
+function controlStatus(factor: ResistanceFactor, points: ResistanceFactorMeasurement[], selectedSamples: SampleSelection[]) {
+  const expectedCount = investigationSlots[factor];
+  if (selectedSamples.some((sampleId) => sampleId === "")) return `Chọn đủ ${expectedCount} mẫu để so sánh.`;
+  if (!hasCompleteDistinctSelection(selectedSamples)) return "Mỗi dòng cần chọn một mẫu khác nhau.";
+  if (points.length < expectedCount) return "Hãy nhập đủ số liệu của các mẫu đã chọn.";
   return hasControlledVariables(factor, points) ? "Điều kiện đối chứng đã được giữ nguyên." : "Kiểm tra lại các đại lượng cần giữ nguyên để so sánh công bằng.";
 }
 
@@ -77,16 +83,26 @@ export default function ResistanceFactorsLabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [rows, setRows] = useState<FactorRowInput[]>(initialRows);
+  const [sampleSelections, setSampleSelections] = useState<Record<ResistanceFactor, SampleSelection[]>>(initialSampleSelections);
   const [conclusions, setConclusions] = useState<Record<ResistanceFactor, string>>({ material: "", length: "", area: "" });
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const measurements = useMemo<Record<ResistanceFactor, ResistanceFactorMeasurement[]>>(() => ({
-    material: rowsForInvestigation(rows, "material"),
-    length: rowsForInvestigation(rows, "length"),
-    area: rowsForInvestigation(rows, "area"),
-  }), [rows]);
+    material: rowsForInvestigation(rows, sampleSelections.material),
+    length: rowsForInvestigation(rows, sampleSelections.length),
+    area: rowsForInvestigation(rows, sampleSelections.area),
+  }), [rows, sampleSelections]);
 
   function updateRow(id: number, key: keyof Omit<FactorRowInput, "id">, value: string) {
     setRows((current) => current.map((row) => row.id === id ? { ...row, [key]: value } : row));
+    if (state.type !== "idle") setState({ type: "idle", message: "" });
+  }
+
+  function updateSampleSelection(factor: ResistanceFactor, index: number, value: string) {
+    const sampleId: SampleSelection = value ? Number(value) : "";
+    setSampleSelections((current) => ({
+      ...current,
+      [factor]: current[factor].map((selected, selectedIndex) => selectedIndex === index ? sampleId : selected),
+    }));
     if (state.type !== "idle") setState({ type: "idle", message: "" });
   }
 
@@ -99,6 +115,11 @@ export default function ResistanceFactorsLabForm() {
     const incompleteSample = rows.find((row) => !rowToMeasurement(row));
     if (incompleteSample) {
       setState({ type: "error", message: `Hãy kiểm tra và nhập đủ thông tin, U, I cho mẫu ${incompleteSample.id}.` });
+      return;
+    }
+    const incompleteInvestigation = factorDefinitions.find(({ key }) => !hasCompleteDistinctSelection(sampleSelections[key]));
+    if (incompleteInvestigation) {
+      setState({ type: "error", message: `Hãy chọn đủ các mẫu khác nhau cho phần ${incompleteInvestigation.label.toLowerCase()}.` });
       return;
     }
     const missingConclusion = factorDefinitions.find(({ key }) => !conclusions[key].trim());
@@ -138,9 +159,6 @@ export default function ResistanceFactorsLabForm() {
 
       <section aria-labelledby="factors-samples-heading">
         <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-samples-heading">5 mẫu dây</h2><p>Nhập một lần; U, I, R được dùng chung.</p></div></div>
-        <div className="sample-plan" aria-label="Cách sử dụng năm mẫu">
-          {samplePurposes.map((purpose, index) => <div key={purpose + index}><strong>Mẫu {index + 1}</strong><span>{purpose}</span></div>)}
-        </div>
         <div className="table-scroll">
           <table className="factor-data-table">
             <thead><tr><th>Mẫu</th><th>Chất liệu dây</th><th>Chiều dài l (m)</th><th>Tiết diện S (mm²)</th><th>U (V)</th><th>I (A)</th><th>R = U/I (Ω)</th></tr></thead>
@@ -163,7 +181,8 @@ export default function ResistanceFactorsLabForm() {
         <div className="investigation-stack">
           {factorDefinitions.map((definition, investigationIndex) => {
             const points = measurements[definition.key];
-            const assignedRows = sampleAssignments[definition.key].map((id) => rows.find((row) => row.id === id)!);
+            const selectedSamples = sampleSelections[definition.key];
+            const selectedRows = selectedSamples.map((sampleId) => sampleId === "" ? null : rows.find((row) => row.id === sampleId) ?? null);
             return (
               <article className="investigation-card" key={definition.key} aria-labelledby={`investigation-${definition.key}`}>
                 <header className="investigation-header">
@@ -173,17 +192,35 @@ export default function ResistanceFactorsLabForm() {
                 <div className="table-scroll">
                   <table className="factor-review-table">
                     <thead><tr><th>Mẫu</th><th>Chất liệu</th><th>l (m)</th><th>S (mm²)</th><th>U (V)</th><th>I (A)</th><th>R (Ω)</th></tr></thead>
-                    <tbody>{assignedRows.map((row) => (
-                      <tr key={row.id}>
-                        <th scope="row">Mẫu {row.id}</th>
-                        <td>{row.material || "—"}</td><td>{row.length || "—"}</td><td>{row.area || "—"}</td>
-                        <td>{row.voltage || "—"}</td><td>{row.current || "—"}</td>
-                        <td className="ratio-cell">{formatResistance(parseDecimal(row.voltage), parseDecimal(row.current))}</td>
+                    <tbody>{selectedRows.map((row, selectionIndex) => (
+                      <tr key={`${definition.key}-${selectionIndex}`}>
+                        <th scope="row">
+                          <select
+                            className="sample-picker"
+                            aria-label={`${definition.label}, lựa chọn ${selectionIndex + 1}`}
+                            value={selectedSamples[selectionIndex]}
+                            onChange={(event) => updateSampleSelection(definition.key, selectionIndex, event.target.value)}
+                          >
+                            <option value="">Chọn mẫu</option>
+                            {rows.map((sample) => (
+                              <option
+                                key={sample.id}
+                                value={sample.id}
+                                disabled={selectedSamples.some((selected, index) => index !== selectionIndex && selected === sample.id)}
+                              >
+                                Mẫu {sample.id}
+                              </option>
+                            ))}
+                          </select>
+                        </th>
+                        <td>{row?.material || "—"}</td><td>{row?.length || "—"}</td><td>{row?.area || "—"}</td>
+                        <td>{row?.voltage || "—"}</td><td>{row?.current || "—"}</td>
+                        <td className="ratio-cell">{row ? formatResistance(parseDecimal(row.voltage), parseDecimal(row.current)) : "—"}</td>
                       </tr>
                     ))}</tbody>
                   </table>
                 </div>
-                <p className={`control-status ${hasControlledVariables(definition.key, points) ? "ready" : ""}`} aria-live="polite">{controlStatus(definition.key, points)}</p>
+                <p className={`control-status ${hasCompleteDistinctSelection(selectedSamples) && hasControlledVariables(definition.key, points) ? "ready" : ""}`} aria-live="polite">{controlStatus(definition.key, points, selectedSamples)}</p>
                 <div className="single-chart investigation-chart">
                   {definition.key === "material" ? <MaterialBarChart points={points} /> : (
                     <RelationshipChart

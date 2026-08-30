@@ -45,11 +45,11 @@ function validMeasurementList(value: unknown, validator: (item: unknown) => bool
   return Array.isArray(value) && value.length >= 1 && value.length <= 20 && value.every(validator);
 }
 
-function validFactorMeasurementList(value: unknown, expectedSequences: number[]) {
-  return Array.isArray(value) &&
-    value.length === expectedSequences.length &&
-    value.every(isFactorMeasurement) &&
-    expectedSequences.every((sequence) => value.some((item) => item.sequence === sequence));
+function validFactorMeasurementList(value: unknown, expectedCount: number) {
+  if (!Array.isArray(value) || value.length !== expectedCount || !value.every(isFactorMeasurement)) return false;
+  const sequences = value.map((item) => item.sequence);
+  return sequences.every((sequence) => Number.isInteger(sequence) && sequence >= 1 && sequence <= 5) &&
+    new Set(sequences).size === expectedCount;
 }
 
 export async function POST(request: Request) {
@@ -91,9 +91,9 @@ export async function POST(request: Request) {
       !isText(conclusions.material, 600) ||
       !isText(conclusions.length, 600) ||
       !isText(conclusions.area, 600) ||
-      !validFactorMeasurementList(investigations.material, [1, 2]) ||
-      !validFactorMeasurementList(investigations.length, [1, 3, 4]) ||
-      !validFactorMeasurementList(investigations.area, [1, 5])
+      !validFactorMeasurementList(investigations.material, 2) ||
+      !validFactorMeasurementList(investigations.length, 3) ||
+      !validFactorMeasurementList(investigations.area, 2)
     ) {
       return NextResponse.json({ error: "Số liệu khảo sát các yếu tố của điện trở chưa hợp lệ." }, { status: 400 });
     }

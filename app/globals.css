@@ -136,11 +136,6 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 
 .control-status { margin: 10px 0 0; color: #b04b21; font-size: .8rem; font-weight: 800; }
 .control-status.ready { color: var(--success); }
-.sample-plan { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0 0 16px; }
-.sample-plan > div { display: grid; gap: 3px; min-height: 65px; padding: 10px 11px; border: 1.5px solid var(--ink); border-radius: 12px; background: var(--cream); }
-.sample-plan > div:nth-child(2), .sample-plan > div:nth-child(5) { background: #efe9ff; }
-.sample-plan strong { font-size: .82rem; }
-.sample-plan span { color: var(--muted); font-size: .72rem; line-height: 1.35; }
 .sample-number { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--lime); }
 .investigation-stack { display: grid; gap: 18px; }
 .investigation-card { padding: 18px; border: 1.5px solid var(--ink); border-radius: 18px; background: #fff; box-shadow: 4px 4px 0 #e6ded2; }
@@ -151,7 +146,9 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .investigation-header h3 { margin: 1px 0 4px; font-size: 1.03rem; }
 .investigation-header p { margin: 0; color: var(--muted); font-size: .8rem; }
 .factor-review-table { min-width: 780px; background: #fff; }
+.factor-review-table th:first-child { min-width: 132px; }
 .factor-review-table td { font-variant-numeric: tabular-nums; }
+.sample-picker { min-width: 112px; font-weight: 800; }
 .investigation-chart { margin-top: 10px; }
 .investigation-card > .conclusion-prompt { margin-top: 10px; }
 
@@ -293,7 +290,6 @@ details .table-scroll { margin-top: 12px; }
   .academic-year-panel, .activity-control-panel { align-items: flex-start; flex-direction: column; }
   .activity-control-actions { justify-content: flex-start; }
   .status-badge { text-align: left; }
-  .sample-plan { grid-template-columns: repeat(3, 1fr); }
   .presentation-header { align-items: flex-start; flex-direction: column; }
   .presentation-header > div:last-child { justify-items: start; }
 }
@@ -316,7 +312,6 @@ details .table-scroll { margin-top: 12px; }
   .data-heading .secondary-button { margin-left: 46px; }
   .submit-row { align-items: stretch; flex-direction: column; }
   .primary-button { width: 100%; }
-  .sample-plan { grid-template-columns: 1fr 1fr; }
   .investigation-card { padding: 14px 10px; }
   .ohm-panel { padding: 13px 9px; }
   .ohm-panel-header { align-items: stretch; flex-direction: column; }
