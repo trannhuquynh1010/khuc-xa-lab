@@ -138,7 +138,7 @@ export default function ColorVisionChallenge({ value, onChange }: { value: Color
 
       <div className="color-challenge-layout">
         <div className="color-simulation" aria-live="polite">
-          <div className="color-stage" role="img" aria-label={`${task.lightName} chiếu vào ${task.objectName.toLocaleLowerCase("vi")}. ${currentCorrect ? `Ánh sáng phản xạ đi vào mắt làm mắt nhìn thấy màu ${task.answer}.` : "Hãy dự đoán màu trước khi hiện tia phản xạ đi vào mắt."}`}>
+          <div className="color-stage" role="img" aria-label={`${task.lightName} chiếu vào ${task.objectName.toLocaleLowerCase("vi")}. ${currentCorrect ? task.reflectedComponents.length ? `Ánh sáng phản xạ đi vào mắt làm mắt nhìn thấy màu ${task.answer}.` : "Hầu như không có thành phần ánh sáng phù hợp được phản xạ tới mắt nên vật được nhìn thấy rất tối." : "Hãy dự đoán màu trước khi hiện tia phản xạ đi vào mắt."}`}>
             <div className="light-source" style={{ "--light-color": task.lightColor } as CSSProperties}><span>✦</span><strong>{task.lightName}</strong></div>
             <div className="light-beam" style={{ "--beam-color": task.beamColor } as CSSProperties}>
               {task.incidentComponents.map((component, index) => <i key={component} className={`light-particle ${component} particle-${index + 1}`} />)}
