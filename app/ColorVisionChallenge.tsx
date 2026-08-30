@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 export type ColorChallengeProgress = {
   task: number;
   answers: string[];
@@ -14,7 +16,18 @@ type ColorTask = {
   choices: string[];
   answer: string;
   observedColor: string;
+  incidentComponents: ColorComponentKey[];
+  objectReflects: ColorComponentKey[];
+  reflectedComponents: ColorComponentKey[];
   explanation: string;
+};
+
+type ColorComponentKey = "red" | "green" | "blue";
+
+const colorComponents: Record<ColorComponentKey, { label: string; color: string }> = {
+  red: { label: "Đỏ", color: "#ef3d32" },
+  green: { label: "Lục", color: "#3bb85d" },
+  blue: { label: "Lam", color: "#3d76ff" },
 };
 
 const tasks: ColorTask[] = [
@@ -27,6 +40,9 @@ const tasks: ColorTask[] = [
     choices: ["Đỏ", "Trắng", "Đen / rất tối"],
     answer: "Đỏ",
     observedColor: "#ef3d32",
+    incidentComponents: ["red", "green", "blue"],
+    objectReflects: ["red"],
+    reflectedComponents: ["red"],
     explanation: "Vật đỏ phản xạ thành phần ánh sáng đỏ và hấp thụ phần lớn các màu còn lại.",
   },
   {
@@ -38,6 +54,9 @@ const tasks: ColorTask[] = [
     choices: ["Lục", "Đỏ", "Đen / rất tối"],
     answer: "Đen / rất tối",
     observedColor: "#242424",
+    incidentComponents: ["red"],
+    objectReflects: ["green"],
+    reflectedComponents: [],
     explanation: "Vật lục không có ánh sáng lục để phản xạ; ánh sáng đỏ bị hấp thụ nên vật trông rất tối.",
   },
   {
@@ -49,6 +68,9 @@ const tasks: ColorTask[] = [
     choices: ["Trắng", "Lam", "Đen / rất tối"],
     answer: "Lam",
     observedColor: "#3d76ff",
+    incidentComponents: ["blue"],
+    objectReflects: ["red", "green", "blue"],
+    reflectedComponents: ["blue"],
     explanation: "Vật trắng có thể phản xạ ánh sáng chiếu tới nên dưới ánh sáng lam nó được nhìn thấy màu lam.",
   },
   {
@@ -60,6 +82,9 @@ const tasks: ColorTask[] = [
     choices: ["Vàng", "Lam", "Đen / rất tối"],
     answer: "Đen / rất tối",
     observedColor: "#242424",
+    incidentComponents: ["blue"],
+    objectReflects: ["red", "green"],
+    reflectedComponents: [],
     explanation: "Vật vàng phản xạ tốt đỏ và lục nhưng hấp thụ lam, nên dưới ánh sáng lam nó trông rất tối.",
   },
 ];
@@ -81,12 +106,18 @@ export function isColorChallengeComplete(progress: ColorChallengeProgress) {
 
 export const colorChallengeTaskCount = tasks.length;
 
+function ComponentList({ components, emptyLabel }: { components: ColorComponentKey[]; emptyLabel?: string }) {
+  if (!components.length) return <span className="no-color-component">{emptyLabel ?? "Không có"}</span>;
+  return <>{components.map((component) => <span key={component} className={`color-component ${component}`}><i />{colorComponents[component].label}</span>)}</>;
+}
+
 export default function ColorVisionChallenge({ value, onChange }: { value: ColorChallengeProgress; onChange: (progress: ColorChallengeProgress) => void }) {
   const taskIndex = Math.max(0, Math.min(tasks.length - 1, value.task));
   const task = tasks[taskIndex];
   const selectedAnswer = value.answers[taskIndex] ?? "";
   const currentCorrect = selectedAnswer === task.answer;
   const completed = tasks.map((item, index) => value.answers[index] === item.answer);
+  const reflectedColor = task.reflectedComponents[0] ? colorComponents[task.reflectedComponents[0]].color : "#5b5961";
 
   function chooseAnswer(choice: string) {
     const answers = [...value.answers];
@@ -106,11 +137,26 @@ export default function ColorVisionChallenge({ value, onChange }: { value: Color
       </div>
 
       <div className="color-challenge-layout">
-        <div className="color-stage" aria-live="polite">
-          <div className="light-source" style={{ "--light-color": task.lightColor } as React.CSSProperties}><span>✦</span><strong>{task.lightName}</strong></div>
-          <div className="light-beam" style={{ "--beam-color": task.beamColor } as React.CSSProperties} />
-          <div className="object-sample source-color" style={{ "--object-color": task.objectColor } as React.CSSProperties}><span>Màu riêng</span><strong>{task.objectName}</strong></div>
-          <div className={`object-sample observed-color ${currentCorrect ? "revealed" : ""}`} style={{ "--observed-color": task.observedColor } as React.CSSProperties}><span>Mắt nhìn thấy</span><strong>{currentCorrect ? task.answer : "?"}</strong></div>
+        <div className="color-simulation" aria-live="polite">
+          <div className="color-stage" role="img" aria-label={`${task.lightName} chiếu vào ${task.objectName.toLocaleLowerCase("vi")}. ${currentCorrect ? `Ánh sáng phản xạ đi vào mắt làm mắt nhìn thấy màu ${task.answer}.` : "Hãy dự đoán màu trước khi hiện tia phản xạ đi vào mắt."}`}>
+            <div className="light-source" style={{ "--light-color": task.lightColor } as CSSProperties}><span>✦</span><strong>{task.lightName}</strong></div>
+            <div className="light-beam" style={{ "--beam-color": task.beamColor } as CSSProperties}>
+              {task.incidentComponents.map((component, index) => <i key={component} className={`light-particle ${component} particle-${index + 1}`} />)}
+            </div>
+            <div className="object-sample source-color" style={{ "--object-color": task.objectColor } as CSSProperties}><span>Vật</span><strong>{task.objectName}</strong></div>
+            <div className={`reflected-beam ${currentCorrect ? "revealed" : ""} ${task.reflectedComponents.length ? "" : "no-light"}`} style={{ "--reflected-color": reflectedColor } as CSSProperties} />
+            <div className={`eye-observer ${currentCorrect ? "revealed" : ""}`} style={{ "--eye-color": task.observedColor } as CSSProperties}>
+              <svg viewBox="0 0 100 54" aria-hidden="true"><path d="M4 27 Q50 -7 96 27 Q50 61 4 27Z" /><circle cx="50" cy="27" r="12" /></svg>
+              <span>Mắt nhìn thấy</span><strong>{currentCorrect ? task.answer : "?"}</strong>
+            </div>
+          </div>
+          <div className="color-process" aria-label="Cách xác định màu mắt nhìn thấy">
+            <div><span>Ánh sáng tới</span><p><ComponentList components={task.incidentComponents} /></p></div>
+            <b aria-hidden="true">∩</b>
+            <div><span>Vật phản xạ được</span><p><ComponentList components={task.objectReflects} /></p></div>
+            <b aria-hidden="true">=</b>
+            <div className={currentCorrect ? "revealed" : ""}><span>Ánh sáng tới mắt</span><p>{currentCorrect ? <ComponentList components={task.reflectedComponents} emptyLabel="Hầu như không có" /> : <strong>?</strong>}</p></div>
+          </div>
         </div>
 
         <div className="color-question">
