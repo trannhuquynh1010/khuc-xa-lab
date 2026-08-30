@@ -41,6 +41,12 @@ export default function StudentWorkspace() {
 
   const visibleActiveKey = activeKey && openKeys.includes(activeKey) ? activeKey : openKeys[0] ?? null;
   const activeDefinition = visibleActiveKey ? activityDefinitions.find((activity) => activity.key === visibleActiveKey) : null;
+  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === null ? "optics" : "electricity";
+  const heroSymbols = visibleActiveKey === "ohm"
+    ? ["U", "I", "A"]
+    : visibleActiveKey === "resistance-factors"
+      ? ["R", "Ω", "ρ"]
+      : ["i", "r", "n"];
 
   return (
     <>
@@ -55,7 +61,10 @@ export default function StudentWorkspace() {
           <h1>{activeDefinition?.label ?? "Phòng thí nghiệm"}</h1>
           <p>{activeDefinition?.description ?? "Chờ giáo viên mở bài."}</p>
         </div>
-        <div className="physics-hero-art" aria-hidden="true"><span>λ</span><span>Ω</span><span>↗</span><i /></div>
+        <div className={`physics-hero-art ${heroTheme}`} aria-hidden="true">
+          {heroSymbols.map((symbol) => <span key={symbol}>{symbol}</span>)}
+          <i />
+        </div>
         <span className="live-indicator"><i /> Trực tuyến</span>
       </header>
 
