@@ -53,6 +53,8 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               <div className="submission-summary">
                 <div><span>Lớp</span><strong>{submission.className}</strong></div>
                 <div><span>Nhóm</span><strong>{submission.groupName}</strong></div>
+                <div><span>Môi trường tới</span><strong>{submission.incidenceMedium ?? "—"}</strong></div>
+                <div><span>Môi trường khúc xạ</span><strong>{submission.refractionMedium ?? "—"}</strong></div>
                 <div><span>Số lần đo</span><strong>{submission.measurements.length}</strong></div>
                 <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
               </div>

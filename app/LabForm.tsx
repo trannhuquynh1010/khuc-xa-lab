@@ -38,6 +38,8 @@ function rowsToPoints(rows: InputRow[]) {
 export default function LabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [incidenceMedium, setIncidenceMedium] = useState("");
+  const [refractionMedium, setRefractionMedium] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const points = useMemo(() => rowsToPoints(rows), [rows]);
@@ -67,6 +69,10 @@ export default function LabForm() {
       setState({ type: "error", message: "Hãy nhập lớp và tên nhóm." });
       return;
     }
+    if (!incidenceMedium.trim() || !refractionMedium.trim()) {
+      setState({ type: "error", message: "Hãy nhập đủ môi trường tới và môi trường khúc xạ." });
+      return;
+    }
     if (hasPartialRow) {
       setState({ type: "error", message: "Có một lần đo chưa nhập đủ bốn giá trị." });
       return;
@@ -81,7 +87,7 @@ export default function LabForm() {
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ className, groupName, measurements: points, website: "" }),
+        body: JSON.stringify({ className, groupName, incidenceMedium, refractionMedium, measurements: points, website: "" }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể gửi số liệu.");
@@ -100,6 +106,8 @@ export default function LabForm() {
         </div>
         <label>Lớp<input required maxLength={30} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Ví dụ: 9A1" /></label>
         <label>Tên nhóm<input required maxLength={60} value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Ví dụ: Nhóm 3" /></label>
+        <label>Môi trường tới<input required maxLength={80} value={incidenceMedium} onChange={(event) => setIncidenceMedium(event.target.value)} placeholder="Ví dụ: Không khí" /></label>
+        <label>Môi trường khúc xạ<input required maxLength={80} value={refractionMedium} onChange={(event) => setRefractionMedium(event.target.value)} placeholder="Ví dụ: Thủy tinh" /></label>
       </section>
 
       <section aria-labelledby="data-heading">

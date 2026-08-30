@@ -15,6 +15,8 @@ export type Submission = {
   id: string;
   className: string;
   groupName: string;
+  incidenceMedium: string | null;
+  refractionMedium: string | null;
   createdAt: string;
   measurements: Measurement[];
 };
@@ -35,8 +37,16 @@ export async function ensureSchema() {
       id UUID PRIMARY KEY,
       class_name VARCHAR(30) NOT NULL,
       group_name VARCHAR(60) NOT NULL,
+      incidence_medium VARCHAR(80),
+      refraction_medium VARCHAR(80),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `;
+
+  await sql`
+    ALTER TABLE submissions
+      ADD COLUMN IF NOT EXISTS incidence_medium VARCHAR(80),
+      ADD COLUMN IF NOT EXISTS refraction_medium VARCHAR(80)
   `;
 
   await sql`
@@ -61,6 +71,8 @@ export async function ensureSchema() {
 export async function createSubmission(input: {
   className: string;
   groupName: string;
+  incidenceMedium: string;
+  refractionMedium: string;
   measurements: Measurement[];
 }) {
   await ensureSchema();
@@ -78,8 +90,8 @@ export async function createSubmission(input: {
 
   const rows = await sql`
     WITH new_submission AS (
-      INSERT INTO submissions (id, class_name, group_name)
-      VALUES (${id}, ${input.className}, ${input.groupName})
+      INSERT INTO submissions (id, class_name, group_name, incidence_medium, refraction_medium)
+      VALUES (${id}, ${input.className}, ${input.groupName}, ${input.incidenceMedium}, ${input.refractionMedium})
       RETURNING id, created_at
     ), new_measurements AS (
       INSERT INTO measurements (
@@ -125,6 +137,8 @@ export async function listSubmissions(): Promise<Submission[]> {
       s.id,
       s.class_name,
       s.group_name,
+      s.incidence_medium,
+      s.refraction_medium,
       s.created_at,
       COALESCE(
         json_agg(
@@ -149,6 +163,8 @@ export async function listSubmissions(): Promise<Submission[]> {
     id: String(row.id),
     className: String(row.class_name),
     groupName: String(row.group_name),
+    incidenceMedium: row.incidence_medium ? String(row.incidence_medium) : null,
+    refractionMedium: row.refraction_medium ? String(row.refraction_medium) : null,
     createdAt: new Date(String(row.created_at)).toISOString(),
     measurements: row.measurements as Measurement[],
   }));

@@ -27,6 +27,9 @@ export async function POST(request: Request) {
     if (!isText(body.className, 30) || !isText(body.groupName, 60)) {
       return NextResponse.json({ error: "Thông tin lớp hoặc nhóm chưa hợp lệ." }, { status: 400 });
     }
+    if (!isText(body.incidenceMedium, 80) || !isText(body.refractionMedium, 80)) {
+      return NextResponse.json({ error: "Thông tin môi trường thí nghiệm chưa hợp lệ." }, { status: 400 });
+    }
     if (!Array.isArray(body.measurements) || body.measurements.length < 1 || body.measurements.length > 20 || !body.measurements.every(isMeasurement)) {
       return NextResponse.json({ error: "Số liệu thí nghiệm chưa hợp lệ." }, { status: 400 });
     }
@@ -34,6 +37,8 @@ export async function POST(request: Request) {
     const result = await createSubmission({
       className: body.className.trim(),
       groupName: body.groupName.trim(),
+      incidenceMedium: body.incidenceMedium.trim(),
+      refractionMedium: body.refractionMedium.trim(),
       measurements: body.measurements,
     });
 
@@ -43,4 +48,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Máy chủ chưa thể lưu số liệu. Hãy thử lại." }, { status: 500 });
   }
 }
-
