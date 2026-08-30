@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, ResistanceFactorsPayload } from "@/lib/experiments";
+import { getCurrentSchoolYear } from "@/lib/school-years";
 
 export type Measurement = {
   sequence: number;
@@ -15,6 +16,7 @@ export type Measurement = {
 
 export type Submission = {
   id: string;
+  schoolYear: string;
   className: string;
   groupName: string;
   incidenceMedium: string | null;
@@ -47,6 +49,7 @@ async function initializeSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS submissions (
       id UUID PRIMARY KEY,
+      school_year VARCHAR(5) NOT NULL,
       class_name VARCHAR(30) NOT NULL,
       group_name VARCHAR(60) NOT NULL,
       incidence_medium VARCHAR(80),
@@ -59,11 +62,15 @@ async function initializeSchema() {
 
   await sql`
     ALTER TABLE submissions
+      ADD COLUMN IF NOT EXISTS school_year VARCHAR(5),
       ADD COLUMN IF NOT EXISTS incidence_medium VARCHAR(80),
       ADD COLUMN IF NOT EXISTS refraction_medium VARCHAR(80),
       ADD COLUMN IF NOT EXISTS conclusion_angles VARCHAR(600),
       ADD COLUMN IF NOT EXISTS conclusion_sines VARCHAR(600)
   `;
+
+  await sql`UPDATE submissions SET school_year = '26-27' WHERE school_year IS NULL`;
+  await sql`ALTER TABLE submissions ALTER COLUMN school_year SET NOT NULL`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS measurements (
@@ -84,9 +91,14 @@ async function initializeSchema() {
   `;
 
   await sql`
+    DROP INDEX IF EXISTS submissions_class_group_unique_idx
+  `;
+
+  await sql`
     DELETE FROM submissions older
     USING submissions newer
-    WHERE older.class_name = newer.class_name
+    WHERE older.school_year = newer.school_year
+      AND older.class_name = newer.class_name
       AND older.group_name = newer.group_name
       AND (
         older.created_at < newer.created_at OR
@@ -95,8 +107,8 @@ async function initializeSchema() {
   `;
 
   await sql`
-    CREATE UNIQUE INDEX IF NOT EXISTS submissions_class_group_unique_idx
-    ON submissions (class_name, group_name)
+    CREATE UNIQUE INDEX IF NOT EXISTS submissions_year_class_group_unique_idx
+    ON submissions (school_year, class_name, group_name)
   `;
 
   await sql`
@@ -118,6 +130,7 @@ async function initializeSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS experiment_submissions (
       id UUID PRIMARY KEY,
+      school_year VARCHAR(5) NOT NULL,
       activity_key VARCHAR(40) NOT NULL,
       class_name VARCHAR(30) NOT NULL,
       group_name VARCHAR(60) NOT NULL,
@@ -126,15 +139,24 @@ async function initializeSchema() {
     )
   `;
 
+  await sql`ALTER TABLE experiment_submissions ADD COLUMN IF NOT EXISTS school_year VARCHAR(5)`;
+  await sql`UPDATE experiment_submissions SET school_year = '26-27' WHERE school_year IS NULL`;
+  await sql`ALTER TABLE experiment_submissions ALTER COLUMN school_year SET NOT NULL`;
+
   await sql`
     CREATE INDEX IF NOT EXISTS experiment_submissions_activity_created_idx
     ON experiment_submissions (activity_key, created_at DESC)
   `;
 
   await sql`
+    DROP INDEX IF EXISTS experiment_submissions_activity_class_group_unique_idx
+  `;
+
+  await sql`
     DELETE FROM experiment_submissions older
     USING experiment_submissions newer
-    WHERE older.activity_key = newer.activity_key
+    WHERE older.school_year = newer.school_year
+      AND older.activity_key = newer.activity_key
       AND older.class_name = newer.class_name
       AND older.group_name = newer.group_name
       AND (
@@ -144,8 +166,8 @@ async function initializeSchema() {
   `;
 
   await sql`
-    CREATE UNIQUE INDEX IF NOT EXISTS experiment_submissions_activity_class_group_unique_idx
-    ON experiment_submissions (activity_key, class_name, group_name)
+    CREATE UNIQUE INDEX IF NOT EXISTS experiment_submissions_year_activity_class_group_unique_idx
+    ON experiment_submissions (school_year, activity_key, class_name, group_name)
   `;
 }
 
@@ -194,6 +216,26 @@ export async function setActivityOpen(key: ActivityKey, isOpen: boolean) {
   `;
 }
 
+export async function listSchoolYears() {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT school_year FROM submissions
+    UNION
+    SELECT school_year FROM experiment_submissions
+  `;
+  const years = new Set(rows.map((row) => String(row.school_year)));
+  years.add(getCurrentSchoolYear());
+  return [...years].sort((left, right) => right.localeCompare(left));
+}
+
+export async function resetSchoolYearData(schoolYear: string) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`DELETE FROM submissions WHERE school_year = ${schoolYear}`;
+  await sql`DELETE FROM experiment_submissions WHERE school_year = ${schoolYear}`;
+}
+
 type NewExperimentInput =
   | { activityKey: "ohm"; className: string; groupName: string; payload: OhmPayload }
   | { activityKey: "resistance-factors"; className: string; groupName: string; payload: ResistanceFactorsPayload };
@@ -202,11 +244,12 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
   await ensureSchema();
   const sql = getSql();
   const id = randomUUID();
+  const schoolYear = getCurrentSchoolYear();
 
   const rows = await sql`
-    INSERT INTO experiment_submissions (id, activity_key, class_name, group_name, payload)
-    VALUES (${id}, ${input.activityKey}, ${input.className}, ${input.groupName}, ${JSON.stringify(input.payload)}::jsonb)
-    ON CONFLICT (activity_key, class_name, group_name)
+    INSERT INTO experiment_submissions (id, school_year, activity_key, class_name, group_name, payload)
+    VALUES (${id}, ${schoolYear}, ${input.activityKey}, ${input.className}, ${input.groupName}, ${JSON.stringify(input.payload)}::jsonb)
+    ON CONFLICT (school_year, activity_key, class_name, group_name)
     DO UPDATE SET payload = EXCLUDED.payload, created_at = NOW()
     RETURNING id, created_at
   `;
@@ -217,21 +260,22 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
   };
 }
 
-export async function listExperimentSubmissions(key: "ohm"): Promise<ExperimentSubmission<OhmPayload>[]>;
-export async function listExperimentSubmissions(key: "resistance-factors"): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
-export async function listExperimentSubmissions(key: "ohm" | "resistance-factors") {
+export async function listExperimentSubmissions(key: "ohm", schoolYear?: string): Promise<ExperimentSubmission<OhmPayload>[]>;
+export async function listExperimentSubmissions(key: "resistance-factors", schoolYear?: string): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
+export async function listExperimentSubmissions(key: "ohm" | "resistance-factors", schoolYear = getCurrentSchoolYear()) {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT id, class_name, group_name, payload, created_at
+    SELECT id, school_year, class_name, group_name, payload, created_at
     FROM experiment_submissions
-    WHERE activity_key = ${key}
+    WHERE activity_key = ${key} AND school_year = ${schoolYear}
     ORDER BY created_at DESC
     LIMIT 200
   `;
 
   return rows.map((row) => ({
     id: String(row.id),
+    schoolYear: String(row.school_year),
     className: String(row.class_name),
     groupName: String(row.group_name),
     payload: row.payload,
@@ -251,6 +295,7 @@ export async function createSubmission(input: {
   await ensureSchema();
   const sql = getSql();
   const id = randomUUID();
+  const schoolYear = getCurrentSchoolYear();
   const measurementJson = JSON.stringify(
     input.measurements.map((item) => ({
       sequence: item.sequence,
@@ -265,6 +310,7 @@ export async function createSubmission(input: {
     WITH target_submission AS (
       INSERT INTO submissions (
         id,
+        school_year,
         class_name,
         group_name,
         incidence_medium,
@@ -274,6 +320,7 @@ export async function createSubmission(input: {
       )
       VALUES (
         ${id},
+        ${schoolYear},
         ${input.className},
         ${input.groupName},
         ${input.incidenceMedium},
@@ -281,7 +328,7 @@ export async function createSubmission(input: {
         ${input.conclusionAngles},
         ${input.conclusionSines}
       )
-      ON CONFLICT (class_name, group_name)
+      ON CONFLICT (school_year, class_name, group_name)
       DO UPDATE SET
         incidence_medium = EXCLUDED.incidence_medium,
         refraction_medium = EXCLUDED.refraction_medium,
@@ -339,13 +386,14 @@ export async function createSubmission(input: {
   };
 }
 
-export async function listSubmissions(): Promise<Submission[]> {
+export async function listSubmissions(schoolYear = getCurrentSchoolYear()): Promise<Submission[]> {
   await ensureSchema();
   const sql = getSql();
 
   const rows = await sql`
     SELECT
       s.id,
+      s.school_year,
       s.class_name,
       s.group_name,
       s.incidence_medium,
@@ -367,6 +415,7 @@ export async function listSubmissions(): Promise<Submission[]> {
       ) AS measurements
     FROM submissions s
     LEFT JOIN measurements m ON m.submission_id = s.id
+    WHERE s.school_year = ${schoolYear}
     GROUP BY s.id
     ORDER BY s.created_at DESC
     LIMIT 200
@@ -374,6 +423,7 @@ export async function listSubmissions(): Promise<Submission[]> {
 
   return rows.map((row) => ({
     id: String(row.id),
+    schoolYear: String(row.school_year),
     className: String(row.class_name),
     groupName: String(row.group_name),
     incidenceMedium: row.incidence_medium ? String(row.incidence_medium) : null,

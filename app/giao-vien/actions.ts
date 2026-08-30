@@ -2,7 +2,8 @@
 
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
-import { setActivityOpen } from "@/lib/db";
+import { resetSchoolYearData, setActivityOpen } from "@/lib/db";
+import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -26,4 +27,14 @@ export async function toggleActivity(formData: FormData) {
   await setActivityOpen(key, formData.get("nextOpen") === "true");
   revalidatePath("/");
   revalidatePath("/giao-vien");
+}
+
+export async function resetYearData(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+  const schoolYear = formData.get("schoolYear");
+  if (!isSchoolYear(schoolYear)) return;
+
+  await resetSchoolYearData(schoolYear);
+  revalidatePath("/giao-vien");
+  revalidatePath("/giao-vien/trinh-chieu", "layout");
 }

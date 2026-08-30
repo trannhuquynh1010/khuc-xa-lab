@@ -27,6 +27,7 @@ export type ResistanceFactorsPayload = {
 
 export type ExperimentSubmission<TPayload> = {
   id: string;
+  schoolYear: string;
   className: string;
   groupName: string;
   createdAt: string;

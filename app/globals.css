@@ -138,6 +138,13 @@ footer { text-align: center; padding-top: 18px; font-size: .86rem; }
 .teacher-tabs small::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #97a8b5; }
 .teacher-tabs small.open { color: var(--success); }
 .teacher-tabs small.open::before { background: var(--success); }
+.academic-year-panel { display: flex; justify-content: space-between; gap: 28px; align-items: center; margin-bottom: 14px; padding: 18px 22px; border: 1px solid #c9dce6; border-radius: 16px; background: #f6fbfd; }
+.academic-year-panel h2 { margin: 4px 0; font-size: 1.4rem; }
+.academic-year-panel p:last-child { margin: 0; color: var(--muted); font-size: .86rem; }
+.academic-year-actions { display: flex; align-items: flex-end; gap: 10px; }
+.year-filter { width: 150px; flex: 0 0 auto; }
+.reset-data-button { min-height: 44px; border: 1px solid #e3b5b0; border-radius: 10px; padding: 9px 14px; color: var(--danger); background: #fff8f7; font-weight: 700; cursor: pointer; }
+.reset-data-button:hover { border-color: var(--danger); background: #fff0ee; }
 .activity-control-panel { display: flex; justify-content: space-between; gap: 30px; align-items: center; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
 .activity-control-panel h2 { margin: 4px 0; font-size: 1.35rem; }
 .activity-control-panel p:last-child { margin: 0; color: var(--muted); }
@@ -199,6 +206,7 @@ details .table-scroll { margin-top: 12px; }
   .submission-summary { grid-template-columns: 1fr 1fr; }
   .submission-summary time { grid-column: 1 / -1; }
   .teacher-tabs { grid-template-columns: 1fr; }
+  .academic-year-panel { align-items: flex-start; flex-direction: column; }
   .activity-control-panel { align-items: flex-start; flex-direction: column; }
   .activity-control-actions { justify-content: flex-start; }
   .status-badge { text-align: left; }
@@ -230,4 +238,6 @@ details .table-scroll { margin-top: 12px; }
   .group-progress-grid { grid-template-columns: 1fr 1fr; }
   .presentation-shell { width: min(100% - 20px, 1500px); padding-top: 18px; }
   .presentation-toolbar { align-items: flex-start; flex-direction: column; }
+  .academic-year-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .year-filter, .reset-data-button { width: 100%; }
 }
