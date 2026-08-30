@@ -67,12 +67,11 @@ export async function POST(request: Request) {
     if (!isClassName(body.className) || !isGroupName(body.groupName)) {
       return NextResponse.json({ error: "Thông tin lớp hoặc nhóm chưa hợp lệ." }, { status: 400 });
     }
-    if (!isTeamAssignments(body.payload?.teamAssignments)) {
-      return NextResponse.json({ error: "Phân công nhiệm vụ của nhóm chưa đầy đủ." }, { status: 400 });
-    }
-    const teamAssignments = normalizeTeamAssignments(body.payload.teamAssignments);
-
     if (body.activityKey === "ohm") {
+      if (!isTeamAssignments(body.payload?.teamAssignments)) {
+        return NextResponse.json({ error: "Phân công nhiệm vụ của nhóm chưa đầy đủ." }, { status: 400 });
+      }
+      const teamAssignments = normalizeTeamAssignments(body.payload.teamAssignments);
       if (!isText(body.payload?.conclusion, 600) || !validMeasurementList(body.payload?.measurements, isOhmMeasurement)) {
         return NextResponse.json({ error: "Số liệu khảo sát mối liên hệ I – U chưa hợp lệ." }, { status: 400 });
       }
@@ -102,7 +101,6 @@ export async function POST(request: Request) {
         className: body.className.trim(),
         groupName: body.groupName.trim(),
         payload: {
-          teamAssignments,
           constructionCompleted: true,
           colorChallengeCompleted: true,
           colorConclusion: body.payload.colorConclusion.trim(),
@@ -114,6 +112,10 @@ export async function POST(request: Request) {
     const investigations = body.payload?.investigations as ResistanceFactorsPayload["investigations"] | undefined;
     const conclusions = body.payload?.conclusions as ResistanceFactorsPayload["conclusions"] | undefined;
     const overallConclusion = body.payload?.overallConclusion;
+    if (!isTeamAssignments(body.payload?.teamAssignments)) {
+      return NextResponse.json({ error: "Phân công nhiệm vụ của nhóm chưa đầy đủ." }, { status: 400 });
+    }
+    const teamAssignments = normalizeTeamAssignments(body.payload.teamAssignments);
     if (
       !investigations ||
       !conclusions ||

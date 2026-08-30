@@ -2,10 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
-import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import ColorVisionChallenge, { colorChallengeTaskCount, emptyColorChallengeProgress, isColorChallengeComplete, isColorChallengeProgress, type ColorChallengeProgress } from "./ColorVisionChallenge";
 import PrismConstructionGuide, { emptyPrismConstructionProgress, isPrismConstructionComplete, isPrismConstructionProgress, type PrismConstructionProgress } from "./PrismConstructionGuide";
-import TeamAssignmentsFields from "./TeamAssignmentsFields";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 const draftKey = deviceDraftKey("prism-colors");
@@ -13,34 +11,20 @@ const draftKey = deviceDraftKey("prism-colors");
 export default function PrismColorLabForm({ showColorActivity }: { showColorActivity: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
-  const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
   const [constructionProgress, setConstructionProgress] = useState<PrismConstructionProgress>(emptyPrismConstructionProgress);
   const [colorProgress, setColorProgress] = useState<ColorChallengeProgress>(emptyColorChallengeProgress);
   const [colorConclusion, setColorConclusion] = useState("");
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const constructionComplete = isPrismConstructionComplete(constructionProgress);
   const colorChallengeComplete = isColorChallengeComplete(colorProgress);
-  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, constructionProgress, colorProgress, colorConclusion }, (value) => {
+  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, constructionProgress, colorProgress, colorConclusion }, (value) => {
     if (!isDraftRecord(value)) return;
     if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
     if (typeof value.groupName === "string" && groupNames.includes(value.groupName)) setGroupName(value.groupName);
-    if (isDraftRecord(value.teamAssignments)) {
-      const restoredAssignments = createEmptyTeamAssignments();
-      teamTasks.forEach(({ key }) => {
-        if (typeof value.teamAssignments === "object" && value.teamAssignments && typeof (value.teamAssignments as Record<string, unknown>)[key] === "string") {
-          restoredAssignments[key] = (value.teamAssignments as Record<string, string>)[key];
-        }
-      });
-      setTeamAssignments(restoredAssignments);
-    }
     if (isPrismConstructionProgress(value.constructionProgress)) setConstructionProgress(value.constructionProgress);
     if (isColorChallengeProgress(value.colorProgress)) setColorProgress(value.colorProgress);
     if (typeof value.colorConclusion === "string") setColorConclusion(value.colorConclusion);
   });
-
-  function updateTeamAssignment(task: TeamTaskKey, memberName: string) {
-    setTeamAssignments((current) => ({ ...current, [task]: memberName }));
-  }
 
   function updateConstruction(progress: PrismConstructionProgress) {
     setConstructionProgress(progress);
@@ -56,10 +40,6 @@ export default function PrismColorLabForm({ showColorActivity }: { showColorActi
     event.preventDefault();
     if (!className || !groupName) {
       setState({ type: "error", message: "Hãy chọn lớp và tên nhóm." });
-      return;
-    }
-    if (!isTeamAssignments(teamAssignments)) {
-      setState({ type: "error", message: "Hãy phân công thành viên cho đủ bốn nhiệm vụ." });
       return;
     }
     if (!showColorActivity) {
@@ -89,7 +69,6 @@ export default function PrismColorLabForm({ showColorActivity }: { showColorActi
           className,
           groupName,
           payload: {
-            teamAssignments,
             constructionCompleted: true,
             colorChallengeCompleted: true,
             colorConclusion,
@@ -111,7 +90,6 @@ export default function PrismColorLabForm({ showColorActivity }: { showColorActi
         <div className="section-heading"><span>1</span><div><h2 id="prism-group-heading">Nhóm</h2></div></div>
         <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <TeamAssignmentsFields value={teamAssignments} onChange={updateTeamAssignment} />
       </section>
 
       <section aria-labelledby="prism-construction-heading">
