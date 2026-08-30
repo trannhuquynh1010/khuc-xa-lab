@@ -35,7 +35,7 @@ export type PrismColorPayload = {
   teamAssignments?: TeamAssignments;
   constructionCompleted: boolean;
   colorChallengeCompleted: boolean;
-  dispersionConclusion: string;
+  dispersionConclusion?: string;
   colorConclusion: string;
 };
 

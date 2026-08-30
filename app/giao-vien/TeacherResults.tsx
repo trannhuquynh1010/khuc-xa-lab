@@ -152,10 +152,7 @@ export function PrismColorResults({ submissions }: { submissions: ExperimentSubm
           <details open={index === 0}>
             <summary>Xem kết quả</summary>
             <TeamAssignmentsReview assignments={submission.payload.teamAssignments} />
-            <div className="prism-result-conclusions">
-              <div className="conclusion-answer"><span>Tán sắc qua lăng kính</span><p>{submission.payload.dispersionConclusion}</p></div>
-              <div className="conclusion-answer"><span>Màu sắc của vật</span><p>{submission.payload.colorConclusion}</p></div>
-            </div>
+            <div className="conclusion-answer prism-color-result"><span>Màu sắc của vật</span><p>{submission.payload.colorConclusion}</p></div>
           </details>
         </article>
       ))}

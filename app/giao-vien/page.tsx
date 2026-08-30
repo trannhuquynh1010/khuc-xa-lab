@@ -4,7 +4,7 @@ import { groupNames, isClassName } from "@/lib/classes";
 import { listActivitySettings, listExperimentSubmissions, listSchoolYears, listSubmissions } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
-import { login, logout, toggleActivity, toggleRefractionConstruction } from "./actions";
+import { login, logout, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
 import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 import TeacherClassFilter from "./TeacherClassFilter";
 import TeacherYearFilter from "./TeacherYearFilter";
@@ -100,6 +100,19 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <form action={toggleRefractionConstruction}>
               <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
               <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {selectedKey === "prism-colors" && (
+        <section className="activity-control-panel construction-control-panel color-control-panel">
+          <div className="activity-control-title"><span aria-hidden="true">◉</span><div><p className="eyebrow">NỘI DUNG</p><h2>Màu sắc của vật</h2><p>Hiện hoặc ẩn riêng mô phỏng ánh sáng phản xạ vào mắt.</p></div></div>
+          <div className="activity-control-actions">
+            <span className={`status-badge ${currentSetting.colorOpen ? "open" : "closed"}`}>{currentSetting.colorOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+            <form action={togglePrismColor}>
+              <input type="hidden" name="nextOpen" value={String(!currentSetting.colorOpen)} />
+              <button className={currentSetting.colorOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.colorOpen ? "Đóng màu sắc" : "Mở màu sắc"}</button>
             </form>
           </div>
         </section>

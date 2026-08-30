@@ -33,6 +33,7 @@ export type ActivitySetting = {
   key: ActivityKey;
   isOpen: boolean;
   constructionOpen: boolean;
+  colorOpen: boolean;
   updatedAt: string;
 };
 
@@ -62,6 +63,10 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'color_open'
       )
     ) AS ready
   `;
@@ -154,13 +159,15 @@ async function initializeSchema() {
       activity_key VARCHAR(40) PRIMARY KEY,
       is_open BOOLEAN NOT NULL DEFAULT FALSE,
       construction_open BOOLEAN NOT NULL DEFAULT TRUE,
+      color_open BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
 
   await sql`
     ALTER TABLE activity_settings
-    ADD COLUMN IF NOT EXISTS construction_open BOOLEAN NOT NULL DEFAULT TRUE
+    ADD COLUMN IF NOT EXISTS construction_open BOOLEAN NOT NULL DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS color_open BOOLEAN NOT NULL DEFAULT FALSE
   `;
 
   for (const activity of activityDefinitions) {
@@ -234,7 +241,7 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT activity_key, is_open, construction_open, updated_at
+    SELECT activity_key, is_open, construction_open, color_open, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -245,6 +252,7 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
       key: activity.key,
       isOpen: Boolean(row?.is_open),
       constructionOpen: Boolean(row?.construction_open),
+      colorOpen: Boolean(row?.color_open),
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
@@ -273,6 +281,16 @@ export async function setRefractionConstructionOpen(isOpen: boolean) {
     UPDATE activity_settings
     SET construction_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'refraction'
+  `;
+}
+
+export async function setPrismColorOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET color_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'prism-colors'
   `;
 }
 

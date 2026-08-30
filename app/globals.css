@@ -280,8 +280,7 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .prism-completion-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .prism-completion-strip span { padding: 7px 11px; border: 1.3px solid var(--ink); border-radius: 999px; color: var(--muted); background: var(--paper); font-size: .78rem; font-weight: 800; }
 .prism-completion-strip span.complete { color: var(--ink); background: var(--lime); }
-.prism-conclusion-grid, .prism-result-conclusions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.prism-conclusion-grid .conclusion-prompt, .prism-result-conclusions .conclusion-answer { margin-top: 0; }
+.prism-color-conclusion { margin-top: 0; }
 .bar-chart { min-height: 250px; display: grid; align-content: center; gap: 14px; padding: 20px 4px; }
 .bar-row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(140px, 4fr) 72px; gap: 12px; align-items: center; }
 .bar-row > span { text-align: right; font-size: .84rem; overflow-wrap: anywhere; }
@@ -410,6 +409,7 @@ footer a { text-decoration: none; }
 .activity-control-panel { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 20px; background: var(--cream); }
 .construction-control-panel { margin-top: 12px; padding: 15px 20px; background: #ece8ff; }
 .construction-control-panel .activity-control-title > span { width: 46px; height: 46px; flex-basis: 46px; background: var(--purple); }
+.color-control-panel .activity-control-title > span { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
 .construction-control-panel .activity-control-title p:last-child { margin: 3px 0 0; color: var(--muted); font-size: .78rem; }
 .activity-control-title { display: flex; align-items: center; gap: 13px; }
 .activity-control-title > span { display: grid; place-items: center; width: 56px; height: 56px; flex: 0 0 56px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--orange); font-size: 1.2rem; font-weight: 900; }
@@ -497,7 +497,6 @@ details .table-scroll { margin-top: 12px; }
   .team-assignment-grid, .team-assignments-review { grid-template-columns: 1fr 1fr; }
   .chart-grid, .ohm-workspace-grid { grid-template-columns: 1fr; }
   .conclusion-summary-grid, .resistivity-workspace { grid-template-columns: 1fr; }
-  .prism-conclusion-grid, .prism-result-conclusions { grid-template-columns: 1fr; }
   .submission-summary { grid-template-columns: 1fr 1fr; }
   .submission-summary time { grid-column: 1 / -1; }
   .teacher-tabs { grid-template-columns: 1fr; }

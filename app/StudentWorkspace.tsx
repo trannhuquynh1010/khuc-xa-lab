@@ -8,7 +8,7 @@ import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
 import PrismColorLabForm from "./PrismColorLabForm";
 import PhysicsBrand from "./PhysicsBrand";
 
-type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; updatedAt: string };
+type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; colorOpen: boolean; updatedAt: string };
 
 export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
@@ -43,6 +43,7 @@ export default function StudentWorkspace() {
   const visibleActiveKey = activeKey && openKeys.includes(activeKey) ? activeKey : openKeys[0] ?? null;
   const activeDefinition = visibleActiveKey ? activityDefinitions.find((activity) => activity.key === visibleActiveKey) : null;
   const constructionOpen = activities?.find((activity) => activity.key === "refraction")?.constructionOpen ?? false;
+  const prismColorOpen = activities?.find((activity) => activity.key === "prism-colors")?.colorOpen ?? false;
   const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
@@ -91,7 +92,7 @@ export default function StudentWorkspace() {
           <div hidden={visibleActiveKey !== "refraction"}><LabForm showConstruction={constructionOpen} /></div>
           <div hidden={visibleActiveKey !== "ohm"}><OhmLabForm /></div>
           <div hidden={visibleActiveKey !== "resistance-factors"}><ResistanceFactorsLabForm /></div>
-          <div hidden={visibleActiveKey !== "prism-colors"}><PrismColorLabForm /></div>
+          <div hidden={visibleActiveKey !== "prism-colors"}><PrismColorLabForm showColorActivity={prismColorOpen} /></div>
         </>
       )}
     </>

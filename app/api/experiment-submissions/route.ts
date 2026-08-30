@@ -93,7 +93,6 @@ export async function POST(request: Request) {
       if (
         body.payload?.constructionCompleted !== true ||
         body.payload?.colorChallengeCompleted !== true ||
-        !isText(body.payload?.dispersionConclusion, 700) ||
         !isText(body.payload?.colorConclusion, 700)
       ) {
         return NextResponse.json({ error: "Hoạt động lăng kính và màu sắc chưa hoàn thành." }, { status: 400 });
@@ -106,7 +105,6 @@ export async function POST(request: Request) {
           teamAssignments,
           constructionCompleted: true,
           colorChallengeCompleted: true,
-          dispersionConclusion: body.payload.dispersionConclusion.trim(),
           colorConclusion: body.payload.colorConclusion.trim(),
         },
       });

@@ -10,18 +10,17 @@ import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft"
 
 const draftKey = deviceDraftKey("prism-colors");
 
-export default function PrismColorLabForm() {
+export default function PrismColorLabForm({ showColorActivity }: { showColorActivity: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
   const [constructionProgress, setConstructionProgress] = useState<PrismConstructionProgress>(emptyPrismConstructionProgress);
   const [colorProgress, setColorProgress] = useState<ColorChallengeProgress>(emptyColorChallengeProgress);
-  const [dispersionConclusion, setDispersionConclusion] = useState("");
   const [colorConclusion, setColorConclusion] = useState("");
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const constructionComplete = isPrismConstructionComplete(constructionProgress);
   const colorChallengeComplete = isColorChallengeComplete(colorProgress);
-  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, constructionProgress, colorProgress, dispersionConclusion, colorConclusion }, (value) => {
+  const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, constructionProgress, colorProgress, colorConclusion }, (value) => {
     if (!isDraftRecord(value)) return;
     if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
     if (typeof value.groupName === "string" && groupNames.includes(value.groupName)) setGroupName(value.groupName);
@@ -36,7 +35,6 @@ export default function PrismColorLabForm() {
     }
     if (isPrismConstructionProgress(value.constructionProgress)) setConstructionProgress(value.constructionProgress);
     if (isColorChallengeProgress(value.colorProgress)) setColorProgress(value.colorProgress);
-    if (typeof value.dispersionConclusion === "string") setDispersionConclusion(value.dispersionConclusion);
     if (typeof value.colorConclusion === "string") setColorConclusion(value.colorConclusion);
   });
 
@@ -64,6 +62,10 @@ export default function PrismColorLabForm() {
       setState({ type: "error", message: "Hãy phân công thành viên cho đủ bốn nhiệm vụ." });
       return;
     }
+    if (!showColorActivity) {
+      setState({ type: "error", message: "Giáo viên chưa mở phần màu sắc của vật." });
+      return;
+    }
     if (!constructionComplete) {
       setState({ type: "error", message: "Hãy hoàn thành đủ bảy bước dựng hình lăng kính." });
       return;
@@ -72,8 +74,8 @@ export default function PrismColorLabForm() {
       setState({ type: "error", message: "Hãy hoàn thành đủ bốn tình huống màu sắc của vật." });
       return;
     }
-    if (!dispersionConclusion.trim() || !colorConclusion.trim()) {
-      setState({ type: "error", message: "Hãy hoàn thành hai câu kết luận." });
+    if (!colorConclusion.trim()) {
+      setState({ type: "error", message: "Hãy hoàn thành câu kết luận về màu sắc của vật." });
       return;
     }
 
@@ -90,7 +92,6 @@ export default function PrismColorLabForm() {
             teamAssignments,
             constructionCompleted: true,
             colorChallengeCompleted: true,
-            dispersionConclusion,
             colorConclusion,
           },
           website: "",
@@ -118,24 +119,23 @@ export default function PrismColorLabForm() {
         <PrismConstructionGuide value={constructionProgress} onChange={updateConstruction} />
       </section>
 
-      <section aria-labelledby="object-color-heading">
-        <div className="section-heading data-heading"><span>3</span><div><h2 id="object-color-heading">Màu sắc của vật</h2><p>Dự đoán màu quan sát được dưới các ánh sáng khác nhau.</p></div></div>
-        <ColorVisionChallenge value={colorProgress} onChange={updateColorProgress} />
-      </section>
+      {showColorActivity && <>
+        <section aria-labelledby="object-color-heading">
+          <div className="section-heading data-heading"><span>3</span><div><h2 id="object-color-heading">Màu sắc của vật</h2><p>Dự đoán màu quan sát được dưới các ánh sáng khác nhau.</p></div></div>
+          <ColorVisionChallenge value={colorProgress} onChange={updateColorProgress} />
+        </section>
 
-      <section aria-labelledby="prism-conclusion-heading">
-        <div className="section-heading data-heading"><span>4</span><div><h2 id="prism-conclusion-heading">Kết luận</h2><p>Tổng hợp điều nhóm đã nhận ra từ hai hoạt động.</p></div></div>
-        <div className="prism-completion-strip">
-          <span className={constructionComplete ? "complete" : ""}>{constructionComplete ? "✓" : "·"} Dựng hình {constructionComplete ? "7/7" : "chưa xong"}</span>
-          <span className={colorChallengeComplete ? "complete" : ""}>{colorChallengeComplete ? "✓" : "·"} Màu sắc {colorChallengeComplete ? `${colorChallengeTaskCount}/${colorChallengeTaskCount}` : "chưa xong"}</span>
-        </div>
-        <div className="prism-conclusion-grid">
-          <label className="conclusion-prompt">Vì sao tia tím lệch nhiều hơn tia đỏ khi đi qua lăng kính?<textarea required maxLength={700} value={dispersionConclusion} onChange={(event) => setDispersionConclusion(event.target.value)} placeholder="Dùng chiết suất hoặc tốc độ truyền sáng để giải thích…" /></label>
-          <label className="conclusion-prompt">Màu ta nhìn thấy của một vật phụ thuộc vào những yếu tố nào?<textarea required maxLength={700} value={colorConclusion} onChange={(event) => setColorConclusion(event.target.value)} placeholder="Nêu vai trò của ánh sáng chiếu tới và khả năng phản xạ của vật…" /></label>
-        </div>
-      </section>
+        <section aria-labelledby="prism-conclusion-heading">
+          <div className="section-heading data-heading"><span>4</span><div><h2 id="prism-conclusion-heading">Kết luận về màu sắc</h2></div></div>
+          <div className="prism-completion-strip">
+            <span className={constructionComplete ? "complete" : ""}>{constructionComplete ? "✓" : "·"} Dựng hình {constructionComplete ? "7/7" : "chưa xong"}</span>
+            <span className={colorChallengeComplete ? "complete" : ""}>{colorChallengeComplete ? "✓" : "·"} Màu sắc {colorChallengeComplete ? `${colorChallengeTaskCount}/${colorChallengeTaskCount}` : "chưa xong"}</span>
+          </div>
+          <label className="conclusion-prompt prism-color-conclusion">Màu ta nhìn thấy của một vật phụ thuộc vào những yếu tố nào?<textarea required maxLength={700} value={colorConclusion} onChange={(event) => setColorConclusion(event.target.value)} placeholder="Nêu vai trò của ánh sáng chiếu tới và khả năng phản xạ của vật…" /></label>
+        </section>
 
-      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
+        <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
+      </>}
     </form>
   );
 }

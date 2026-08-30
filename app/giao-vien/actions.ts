@@ -2,7 +2,7 @@
 
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
-import { resetSchoolYearData, setActivityOpen, setRefractionConstructionOpen } from "@/lib/db";
+import { resetSchoolYearData, setActivityOpen, setPrismColorOpen, setRefractionConstructionOpen } from "@/lib/db";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -33,6 +33,14 @@ export async function toggleRefractionConstruction(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setRefractionConstructionOpen(formData.get("nextOpen") === "true");
+  revalidatePath("/");
+  revalidatePath("/giao-vien");
+}
+
+export async function togglePrismColor(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setPrismColorOpen(formData.get("nextOpen") === "true");
   revalidatePath("/");
   revalidatePath("/giao-vien");
 }
