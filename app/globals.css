@@ -62,6 +62,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--primary); }
 .table-scroll { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 790px; }
 .compact-data-table { min-width: 560px; }
+.factor-data-table { min-width: 1040px; }
 th, td { padding: 9px 8px; text-align: center; border-bottom: 1px solid #e7eef2; }
 thead th { color: var(--muted); font-size: .82rem; font-weight: 700; }
 tbody th { color: var(--ink); }

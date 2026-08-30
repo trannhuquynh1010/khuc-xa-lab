@@ -16,6 +16,8 @@ export type ResistanceFactorMeasurement = {
   material: string;
   length: number;
   area: number;
+  voltage: number;
+  current: number;
   resistance: number;
 };
 

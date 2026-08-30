@@ -3,10 +3,11 @@
 import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import type { ResistanceFactor, ResistanceFactorMeasurement } from "@/lib/experiments";
+import { calculateResistance, formatResistance } from "@/lib/physics";
 import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
 
-type FactorRowInput = { id: number; material: string; length: string; area: string; resistance: string };
+type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
 
 const factorDefinitions: Array<{ key: ResistanceFactor; label: string; guidance: string; question: string }> = [
   { key: "material", label: "Chất liệu", guidance: "Thay đổi chất liệu; giữ nguyên chiều dài và tiết diện.", question: "Khi l và S không đổi, thay đổi chất liệu làm điện trở thay đổi thế nào?" },
@@ -14,7 +15,7 @@ const factorDefinitions: Array<{ key: ResistanceFactor; label: string; guidance:
   { key: "area", label: "Tiết diện", guidance: "Thay đổi tiết diện; giữ nguyên chất liệu và chiều dài.", question: "Khi chất liệu và l không đổi, điện trở R phụ thuộc thế nào vào tiết diện S?" },
 ];
 
-const blankRow = (id: number): FactorRowInput => ({ id, material: "", length: "", area: "", resistance: "" });
+const blankRow = (id: number): FactorRowInput => ({ id, material: "", length: "", area: "", voltage: "", current: "" });
 const initialRows = () => Array.from({ length: 3 }, (_, index) => blankRow(index + 1));
 
 function parseDecimal(value: string) {
@@ -25,14 +26,16 @@ function parseDecimal(value: string) {
 
 function rowsToMeasurements(rows: FactorRowInput[]): ResistanceFactorMeasurement[] {
   return rows.flatMap((row, index) => {
-    const length = parseDecimal(row.length);
-    const area = parseDecimal(row.area);
-    const resistance = parseDecimal(row.resistance);
-    if (
-      !row.material.trim() || length === null || area === null || resistance === null ||
-      length <= 0 || length > 10000 || area <= 0 || area > 10000 || resistance < 0 || resistance > 1000000
+  const length = parseDecimal(row.length);
+  const area = parseDecimal(row.area);
+  const voltage = parseDecimal(row.voltage);
+  const current = parseDecimal(row.current);
+  const resistance = calculateResistance(voltage, current);
+  if (
+      !row.material.trim() || length === null || area === null || voltage === null || current === null || resistance === null ||
+      length <= 0 || length > 10000 || area <= 0 || area > 10000 || voltage < 0 || voltage > 1000 || current > 100 || resistance > 1000000
     ) return [];
-    return [{ sequence: index + 1, material: row.material.trim(), length, area, resistance }];
+    return [{ sequence: index + 1, material: row.material.trim(), length, area, voltage, current, resistance }];
   });
 }
 
@@ -93,12 +96,12 @@ export default function ResistanceFactorsLabForm() {
       return;
     }
     const hasPartialRow = factorDefinitions.some(({ key }) => rows[key].some((row) => {
-      const values = [row.material, row.length, row.area, row.resistance];
+      const values = [row.material, row.length, row.area, row.voltage, row.current];
       const filled = values.filter((value) => value.trim()).length;
       return filled > 0 && filled < values.length;
     }));
     if (hasPartialRow) {
-      setState({ type: "error", message: "Có mẫu dây chưa được nhập đủ bốn thông tin." });
+      setState({ type: "error", message: "Có mẫu dây chưa được nhập đủ chất liệu, l, S, U và I." });
       return;
     }
     const incompleteFactor = factorDefinitions.find(({ key }) => measurements[key].length < 2);
@@ -144,7 +147,7 @@ export default function ResistanceFactorsLabForm() {
       </section>
 
       <section aria-labelledby="factors-data-heading">
-        <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-data-heading">Khảo sát từng yếu tố</h2><p>Mỗi lần chỉ thay đổi một yếu tố và giữ các yếu tố còn lại không đổi.</p></div></div>
+        <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-data-heading">Khảo sát từng yếu tố</h2><p>Nhập số đo U, I; điện trở R = U/I được tính tự động.</p></div></div>
         <div className="factor-tabs" role="tablist" aria-label="Yếu tố khảo sát">
           {factorDefinitions.map((factor) => (
             <button key={factor.key} type="button" role="tab" aria-selected={activeFactor === factor.key} className={activeFactor === factor.key ? "active" : ""} onClick={() => setActiveFactor(factor.key)}>
@@ -155,15 +158,16 @@ export default function ResistanceFactorsLabForm() {
 
         <div className="factor-toolbar"><div><strong>{activeDefinition.label}</strong><p>{activeDefinition.guidance}</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm mẫu dây</button></div>
         <div className="table-scroll" role="tabpanel">
-          <table>
-            <thead><tr><th>Mẫu</th><th>Chất liệu dây</th><th>Chiều dài l (m)</th><th>Tiết diện S (mm²)</th><th>Điện trở R (Ω)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
+          <table className="factor-data-table">
+            <thead><tr><th>Mẫu</th><th>Chất liệu dây</th><th>Chiều dài l (m)</th><th>Tiết diện S (mm²)</th><th>U (V)</th><th>I (A)</th><th>R = U/I (Ω)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
             <tbody>{rows[activeFactor].map((row, index) => (
               <tr key={row.id}>
                 <th scope="row">{index + 1}</th>
                 <td><input aria-label={`${activeDefinition.label}, mẫu ${index + 1}, chất liệu`} value={row.material} onChange={(event) => updateRow(activeFactor, row.id, "material", event.target.value)} placeholder="Ví dụ: Đồng" /></td>
-                {(["length", "area", "resistance"] as const).map((key) => (
-                  <td key={key}><input inputMode="decimal" aria-label={`${activeDefinition.label}, mẫu ${index + 1}, ${key}`} value={row[key]} onChange={(event) => updateRow(activeFactor, row.id, key, event.target.value)} placeholder={key === "length" ? "m" : key === "area" ? "mm²" : "Ω"} /></td>
+                {(["length", "area", "voltage", "current"] as const).map((key) => (
+                  <td key={key}><input inputMode="decimal" aria-label={`${activeDefinition.label}, mẫu ${index + 1}, ${key}`} value={row[key]} onChange={(event) => updateRow(activeFactor, row.id, key, event.target.value)} placeholder={key === "length" ? "m" : key === "area" ? "mm²" : key === "voltage" ? "V" : "A"} /></td>
                 ))}
+                <td className="ratio-cell"><output aria-live="polite" aria-label={`${activeDefinition.label}, mẫu ${index + 1}, điện trở`}>{formatResistance(parseDecimal(row.voltage), parseDecimal(row.current))}</output></td>
                 <td><button type="button" className="icon-button" onClick={() => removeRow(row.id)} disabled={rows[activeFactor].length === 1} aria-label={`Xóa mẫu ${index + 1}`}>×</button></td>
               </tr>
             ))}</tbody>

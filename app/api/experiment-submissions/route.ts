@@ -3,6 +3,7 @@ import { isActivityKey } from "@/lib/activities";
 import { isClassName, isGroupName } from "@/lib/classes";
 import { createExperimentSubmission, isActivityOpen } from "@/lib/db";
 import type { OhmMeasurement, ResistanceFactorMeasurement, ResistanceFactorsPayload } from "@/lib/experiments";
+import { calculateResistance } from "@/lib/physics";
 
 export const runtime = "nodejs";
 
@@ -25,11 +26,19 @@ function isOhmMeasurement(value: unknown): value is OhmMeasurement {
 function isFactorMeasurement(value: unknown): value is ResistanceFactorMeasurement {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
+  const expectedResistance = calculateResistance(
+    typeof item.voltage === "number" ? item.voltage : null,
+    typeof item.current === "number" ? item.current : null,
+  );
   return Number.isInteger(item.sequence) && Number(item.sequence) > 0 &&
     isText(item.material, 80) &&
     isNumberInRange(item.length, 0.000001, 10000) &&
     isNumberInRange(item.area, 0.000001, 10000) &&
-    isNumberInRange(item.resistance, 0, 1000000);
+    isNumberInRange(item.voltage, 0, 1000) &&
+    isNumberInRange(item.current, 0.000001, 100) &&
+    isNumberInRange(item.resistance, 0, 1000000) &&
+    expectedResistance !== null &&
+    Math.abs(Number(item.resistance) - expectedResistance) <= Math.max(0.000001, expectedResistance * 0.000001);
 }
 
 function validMeasurementList(value: unknown, validator: (item: unknown) => boolean) {
