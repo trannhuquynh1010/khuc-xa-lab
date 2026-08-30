@@ -259,6 +259,9 @@ footer a { text-decoration: none; }
 .reset-data-button { min-height: 42px; border: 1.5px solid var(--ink); border-radius: 999px; padding: 8px 14px; color: var(--danger); background: var(--paper); font-weight: 900; cursor: pointer; }
 .reset-data-button:hover { color: #fff; background: var(--danger); }
 .activity-control-panel { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 20px; background: var(--cream); }
+.construction-control-panel { margin-top: 12px; padding: 15px 20px; background: #ece8ff; }
+.construction-control-panel .activity-control-title > span { width: 46px; height: 46px; flex-basis: 46px; background: var(--purple); }
+.construction-control-panel .activity-control-title p:last-child { margin: 3px 0 0; color: var(--muted); font-size: .78rem; }
 .activity-control-title { display: flex; align-items: center; gap: 13px; }
 .activity-control-title > span { display: grid; place-items: center; width: 56px; height: 56px; flex: 0 0 56px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--orange); font-size: 1.2rem; font-weight: 900; }
 .activity-control-panel h2 { margin: 3px 0 0; font-size: 1.3rem; letter-spacing: -.03em; }

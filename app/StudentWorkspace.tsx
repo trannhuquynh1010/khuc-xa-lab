@@ -7,7 +7,7 @@ import OhmLabForm from "./OhmLabForm";
 import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
 import PhysicsBrand from "./PhysicsBrand";
 
-type ActivityStatus = { key: ActivityKey; isOpen: boolean; updatedAt: string };
+type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; updatedAt: string };
 
 export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
@@ -41,6 +41,7 @@ export default function StudentWorkspace() {
 
   const visibleActiveKey = activeKey && openKeys.includes(activeKey) ? activeKey : openKeys[0] ?? null;
   const activeDefinition = visibleActiveKey ? activityDefinitions.find((activity) => activity.key === visibleActiveKey) : null;
+  const constructionOpen = activities?.find((activity) => activity.key === "refraction")?.constructionOpen ?? false;
   const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
@@ -84,7 +85,7 @@ export default function StudentWorkspace() {
               <button key={activity.key} type="button" role="tab" aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
             ))}
           </nav>
-          <div hidden={visibleActiveKey !== "refraction"}><LabForm /></div>
+          <div hidden={visibleActiveKey !== "refraction"}><LabForm showConstruction={constructionOpen} /></div>
           <div hidden={visibleActiveKey !== "ohm"}><OhmLabForm /></div>
           <div hidden={visibleActiveKey !== "resistance-factors"}><ResistanceFactorsLabForm /></div>
         </>

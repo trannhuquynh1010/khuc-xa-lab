@@ -32,6 +32,7 @@ export type Submission = {
 export type ActivitySetting = {
   key: ActivityKey;
   isOpen: boolean;
+  constructionOpen: boolean;
   updatedAt: string;
 };
 
@@ -119,8 +120,14 @@ async function initializeSchema() {
     CREATE TABLE IF NOT EXISTS activity_settings (
       activity_key VARCHAR(40) PRIMARY KEY,
       is_open BOOLEAN NOT NULL DEFAULT FALSE,
+      construction_open BOOLEAN NOT NULL DEFAULT TRUE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `;
+
+  await sql`
+    ALTER TABLE activity_settings
+    ADD COLUMN IF NOT EXISTS construction_open BOOLEAN NOT NULL DEFAULT TRUE
   `;
 
   for (const activity of activityDefinitions) {
@@ -189,7 +196,7 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT activity_key, is_open, updated_at
+    SELECT activity_key, is_open, construction_open, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -199,6 +206,7 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
     return {
       key: activity.key,
       isOpen: Boolean(row?.is_open),
+      constructionOpen: Boolean(row?.construction_open),
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
@@ -217,6 +225,16 @@ export async function setActivityOpen(key: ActivityKey, isOpen: boolean) {
     VALUES (${key}, ${isOpen}, NOW())
     ON CONFLICT (activity_key)
     DO UPDATE SET is_open = EXCLUDED.is_open, updated_at = NOW()
+  `;
+}
+
+export async function setRefractionConstructionOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET construction_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'refraction'
   `;
 }
 

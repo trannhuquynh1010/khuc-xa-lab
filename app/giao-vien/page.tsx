@@ -4,7 +4,7 @@ import { groupNames, isClassName } from "@/lib/classes";
 import { listActivitySettings, listExperimentSubmissions, listSchoolYears, listSubmissions } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
-import { login, logout, toggleActivity } from "./actions";
+import { login, logout, toggleActivity, toggleRefractionConstruction } from "./actions";
 import { OhmResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 import TeacherClassFilter from "./TeacherClassFilter";
 import TeacherYearFilter from "./TeacherYearFilter";
@@ -94,6 +94,19 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
           <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
         </div>
       </section>
+
+      {selectedKey === "refraction" && (
+        <section className="activity-control-panel construction-control-panel">
+          <div className="activity-control-title"><span aria-hidden="true">↘</span><div><p className="eyebrow">BỔ TRỢ</p><h2>Dựng hình khúc xạ</h2><p>Hiện hoặc ẩn riêng phần hướng dẫn dựng tia.</p></div></div>
+          <div className="activity-control-actions">
+            <span className={`status-badge ${currentSetting.constructionOpen ? "open" : "closed"}`}>{currentSetting.constructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+            <form action={toggleRefractionConstruction}>
+              <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
+              <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
+            </form>
+          </div>
+        </section>
+      )}
 
       <section className="class-progress-panel">
         <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ</p><h2>{selectedClass} · {submittedCount}/8</h2></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>

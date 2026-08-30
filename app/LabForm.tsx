@@ -39,7 +39,7 @@ function rowsToPoints(rows: InputRow[]) {
   });
 }
 
-export default function LabForm() {
+export default function LabForm({ showConstruction }: { showConstruction: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
@@ -170,10 +170,12 @@ export default function LabForm() {
         </div>
       </section>
 
-      <section aria-labelledby="construction-heading">
-        <div className="section-heading data-heading"><span>4</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Quan sát từng bước rồi tự rút ra kết luận.</p></div></div>
-        <RefractionConstructionGuide />
-      </section>
+      {showConstruction && (
+        <section aria-labelledby="construction-heading">
+          <div className="section-heading data-heading"><span>4</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Quan sát từng bước rồi tự rút ra kết luận.</p></div></div>
+          <RefractionConstructionGuide />
+        </section>
+      )}
 
       <div className="submit-row">
         <div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div>
