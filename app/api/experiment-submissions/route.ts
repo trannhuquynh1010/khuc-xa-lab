@@ -52,15 +52,14 @@ export async function POST(request: Request) {
     }
 
     if (body.activityKey === "ohm") {
-      if (!isText(body.payload?.resistorName, 80) || !isText(body.payload?.conclusion, 600) || !validMeasurementList(body.payload?.measurements, isOhmMeasurement)) {
-        return NextResponse.json({ error: "Số liệu thí nghiệm định luật Ohm chưa hợp lệ." }, { status: 400 });
+      if (!isText(body.payload?.conclusion, 600) || !validMeasurementList(body.payload?.measurements, isOhmMeasurement)) {
+        return NextResponse.json({ error: "Số liệu khảo sát mối liên hệ I – U chưa hợp lệ." }, { status: 400 });
       }
       const result = await createExperimentSubmission({
         activityKey: "ohm",
         className: body.className.trim(),
         groupName: body.groupName.trim(),
         payload: {
-          resistorName: body.payload.resistorName.trim(),
           measurements: body.payload.measurements,
           conclusion: body.payload.conclusion.trim(),
         },

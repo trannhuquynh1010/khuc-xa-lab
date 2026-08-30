@@ -3,7 +3,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
-import { calculateResistance, formatResistance } from "@/lib/physics";
 import RelationshipChart from "./RelationshipChart";
 
 type InputRow = { id: number; voltage: string; current: string };
@@ -27,16 +26,10 @@ function rowsToMeasurements(rows: InputRow[]): OhmMeasurement[] {
 export default function OhmLabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
-  const [resistorName, setResistorName] = useState("");
   const [conclusion, setConclusion] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const measurements = useMemo(() => rowsToMeasurements(rows), [rows]);
-  const resistances = measurements.flatMap((item) => {
-    const value = calculateResistance(item.voltage, item.current);
-    return value === null ? [] : [value];
-  });
-  const averageResistance = resistances.length ? resistances.reduce((sum, value) => sum + value, 0) / resistances.length : null;
 
   function updateRow(id: number, key: "voltage" | "current", value: string) {
     setRows((current) => current.map((row) => row.id === id ? { ...row, [key]: value } : row));
@@ -54,16 +47,16 @@ export default function OhmLabForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const hasPartialRow = rows.some((row) => [row.voltage, row.current].filter((value) => value.trim()).length === 1);
-    if (!className.trim() || !groupName.trim() || !resistorName.trim()) {
-      setState({ type: "error", message: "Hãy nhập lớp, tên nhóm và tên điện trở khảo sát." });
+    if (!className.trim() || !groupName.trim()) {
+      setState({ type: "error", message: "Hãy chọn lớp và tên nhóm." });
       return;
     }
     if (hasPartialRow) {
       setState({ type: "error", message: "Có một lần đo chưa nhập đủ U và I." });
       return;
     }
-    if (measurements.length < 2 || !resistances.length) {
-      setState({ type: "error", message: "Hãy nhập ít nhất hai lần đo hợp lệ, trong đó có I lớn hơn 0." });
+    if (measurements.length < 2) {
+      setState({ type: "error", message: "Hãy nhập ít nhất hai lần đo hợp lệ." });
       return;
     }
     if (!conclusion.trim()) {
@@ -80,7 +73,7 @@ export default function OhmLabForm() {
           activityKey: "ohm",
           className,
           groupName,
-          payload: { resistorName, measurements, conclusion },
+          payload: { measurements, conclusion },
           website: "",
         }),
       });
@@ -95,36 +88,34 @@ export default function OhmLabForm() {
   return (
     <form className="lab-card" onSubmit={handleSubmit}>
       <section className="identity-grid" aria-labelledby="ohm-group-heading">
-        <div className="section-heading"><span>1</span><div><h2 id="ohm-group-heading">Thông tin thí nghiệm</h2><p>Ghi rõ nhóm và điện trở đang khảo sát.</p></div></div>
-        <label>Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <label>Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <label className="field-span-2">Điện trở hoặc dây dẫn khảo sát<input required maxLength={80} value={resistorName} onChange={(event) => setResistorName(event.target.value)} placeholder="Ví dụ: Điện trở R1" /></label>
+        <div className="section-heading"><span>1</span><div><h2 id="ohm-group-heading">Thông tin nhóm</h2><p>Chọn đúng lớp và nhóm trước khi nhập số liệu.</p></div></div>
+        <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </section>
 
       <section aria-labelledby="ohm-data-heading">
-        <div className="section-heading data-heading"><span>2</span><div><h2 id="ohm-data-heading">Số liệu U – I</h2><p>Nhập số đo; điện trở R = U/I được tính tự động.</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button></div>
+        <div className="section-heading data-heading"><span>2</span><div><h2 id="ohm-data-heading">Số liệu đo U và I</h2><p>Nhập các giá trị đọc được từ vôn kế và ampe kế.</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button></div>
         <div className="table-scroll">
           <table className="compact-data-table">
-            <thead><tr><th>Lần đo</th><th>Hiệu điện thế U (V)</th><th>Cường độ dòng điện I (A)</th><th>Điện trở R (Ω)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
+            <thead><tr><th>Lần đo</th><th>Hiệu điện thế U (V)</th><th>Cường độ dòng điện I (A)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
             <tbody>{rows.map((row, index) => (
               <tr key={row.id}>
                 <th scope="row">{index + 1}</th>
                 <td><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, hiệu điện thế U`} value={row.voltage} onChange={(event) => updateRow(row.id, "voltage", event.target.value)} placeholder="V" /></td>
                 <td><input inputMode="decimal" aria-label={`Lần đo ${index + 1}, cường độ dòng điện I`} value={row.current} onChange={(event) => updateRow(row.id, "current", event.target.value)} placeholder="A" /></td>
-                <td className="ratio-cell"><output aria-live="polite">{formatResistance(parseDecimal(row.voltage), parseDecimal(row.current))}</output></td>
                 <td><button type="button" className="icon-button" onClick={() => removeRow(row.id)} disabled={rows.length === 1} aria-label={`Xóa lần đo ${index + 1}`}>×</button></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
-        <div className="result-strip"><span>Điểm dữ liệu hoàn chỉnh: <strong>{measurements.length}</strong></span><span>Điện trở trung bình: <strong>{averageResistance === null ? "—" : `${averageResistance.toFixed(2)} Ω`}</strong></span></div>
+        <div className="result-strip"><span>Điểm dữ liệu hoàn chỉnh: <strong>{measurements.length}</strong></span></div>
       </section>
 
       <section aria-labelledby="ohm-chart-heading">
-        <div className="section-heading"><span>3</span><div><h2 id="ohm-chart-heading">Đồ thị định luật Ohm</h2><p>Nếu điện trở không đổi, các điểm U – I gần nằm trên một đường thẳng.</p></div></div>
+        <div className="section-heading"><span>3</span><div><h2 id="ohm-chart-heading">Đồ thị biểu diễn I theo U</h2><p>Quan sát dạng đường biểu diễn được tạo từ các số liệu đo.</p></div></div>
         <div className="single-chart">
           <RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...measurements.map((point) => point.current * 1.2))} />
-          <label className="conclusion-prompt">Kết luận: Khi hiệu điện thế U tăng, cường độ dòng điện I thay đổi thế nào? Tỉ số U/I có gần không đổi không?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Nêu mối liên hệ giữa U và I, rồi rút ra định luật Ohm…" /></label>
+          <label className="conclusion-prompt">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
         </div>
       </section>
 

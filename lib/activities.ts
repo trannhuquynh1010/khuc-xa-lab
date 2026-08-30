@@ -7,9 +7,9 @@ export const activityDefinitions = [
   },
   {
     key: "ohm",
-    shortLabel: "Định luật Ohm",
-    label: "Điện trở – Định luật Ohm",
-    description: "Đo hiệu điện thế, cường độ dòng điện và xác định điện trở.",
+    shortLabel: "Sự phụ thuộc của I vào U",
+    label: "Sự phụ thuộc của cường độ dòng điện vào hiệu điện thế",
+    description: "Đo hiệu điện thế, cường độ dòng điện và quan sát mối liên hệ giữa I và U.",
   },
   {
     key: "resistance-factors",

@@ -5,7 +5,6 @@ export type OhmMeasurement = {
 };
 
 export type OhmPayload = {
-  resistorName: string;
   measurements: OhmMeasurement[];
   conclusion: string;
 };

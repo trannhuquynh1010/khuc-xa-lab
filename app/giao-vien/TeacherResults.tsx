@@ -1,6 +1,6 @@
 import type { Submission } from "@/lib/db";
 import type { ExperimentSubmission, OhmPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
-import { calculateResistance, formatResistance, formatSineRatio } from "@/lib/physics";
+import { formatSineRatio } from "@/lib/physics";
 import MaterialBarChart from "../MaterialBarChart";
 import RelationshipChart from "../RelationshipChart";
 
@@ -54,24 +54,17 @@ export function OhmResults({ submissions }: { submissions: ExperimentSubmission<
   return (
     <div className="submission-list">
       {submissions.map((submission, index) => {
-        const resistanceValues = submission.payload.measurements.flatMap((item) => {
-          const value = calculateResistance(item.voltage, item.current);
-          return value === null ? [] : [value];
-        });
-        const average = resistanceValues.length ? resistanceValues.reduce((sum, value) => sum + value, 0) / resistanceValues.length : null;
         return (
           <article className="submission-card" key={submission.id}>
             <div className="submission-summary compact-summary">
               <div><span>Lớp</span><strong>{submission.className}</strong></div>
               <div><span>Nhóm</span><strong>{submission.groupName}</strong></div>
-              <div><span>Điện trở khảo sát</span><strong>{submission.payload.resistorName}</strong></div>
-              <div><span>R trung bình</span><strong>{average === null ? "—" : `${average.toFixed(2)} Ω`}</strong></div>
               <div><span>Số lần đo</span><strong>{submission.payload.measurements.length}</strong></div>
               <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
             </div>
             <details open={index === 0}>
               <summary>Xem bảng số liệu và đồ thị U – I</summary>
-              <div className="table-scroll"><table className="compact-data-table"><thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th><th>R = U/I (Ω)</th></tr></thead><tbody>{submission.payload.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.voltage}</td><td>{item.current}</td><td className="ratio-cell">{formatResistance(item.voltage, item.current)}</td></tr>)}</tbody></table></div>
+              <div className="table-scroll"><table className="compact-data-table"><thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th></tr></thead><tbody>{submission.payload.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.voltage}</td><td>{item.current}</td></tr>)}</tbody></table></div>
               <div className="single-chart teacher-chart-grid"><RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={submission.payload.measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...submission.payload.measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...submission.payload.measurements.map((point) => point.current * 1.2))} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.payload.conclusion ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
             </details>
           </article>
