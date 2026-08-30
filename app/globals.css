@@ -141,6 +141,41 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .conclusion-answer { margin-top: 13px; padding: 14px 16px; border: 1.5px solid var(--ink); border-radius: 14px; background: var(--cream); }
 .conclusion-answer span { font-size: .74rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .conclusion-answer p { margin: 6px 0 0; line-height: 1.5; white-space: pre-wrap; }
+.ray-guide { display: grid; gap: 14px; }
+.ray-guide-toolbar { display: flex; justify-content: space-between; gap: 16px; align-items: end; }
+.ray-guide-toolbar > label { width: min(420px, 100%); }
+.ray-step-indicator { display: flex; gap: 6px; align-items: center; }
+.ray-step-indicator span { display: grid; place-items: center; width: 31px; height: 31px; border: 1.4px solid var(--ink); border-radius: 50%; color: var(--muted); background: var(--paper); font-size: .74rem; font-weight: 900; }
+.ray-step-indicator span.done { color: var(--ink); background: var(--lime); }
+.ray-guide-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(270px, .65fr); gap: 14px; align-items: stretch; }
+.ray-diagram { display: block; width: 100%; height: auto; aspect-ratio: 720 / 380; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 16px; background: var(--paper); }
+.ray-diagram .air-zone { fill: var(--cream); }
+.ray-diagram .water-zone { fill: #ece8ff; }
+.ray-diagram .water-boundary { stroke: var(--purple); stroke-width: 3; }
+.ray-diagram .medium-label, .ray-diagram .object-label, .ray-diagram .eye-symbol text, .ray-diagram .incident-rays text, .ray-diagram .normal-line text, .ray-diagram .refracted-rays text, .ray-diagram .virtual-construction text { fill: var(--ink); font-size: 15px; font-weight: 800; text-anchor: middle; }
+.ray-diagram .medium-label { text-anchor: start; }
+.ray-diagram .ray-object { fill: var(--orange); stroke: var(--ink); stroke-width: 2; }
+.ray-diagram .eye-symbol path { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
+.ray-diagram .eye-symbol circle { fill: var(--ink); }
+.ray-diagram .incident-rays line { stroke: var(--orange); stroke-width: 3; }
+.ray-diagram .refracted-rays line { stroke: var(--purple); stroke-width: 3; }
+.ray-diagram .normal-line line { stroke: var(--ink); stroke-width: 1.7; stroke-dasharray: 7 6; }
+.ray-diagram .normal-line path { fill: none; stroke: var(--ink); stroke-width: 1.7; }
+.ray-diagram .virtual-construction line { stroke: var(--success); stroke-width: 2; stroke-dasharray: 7 6; }
+.ray-diagram .virtual-construction circle { fill: var(--lime); stroke: var(--ink); stroke-width: 2; }
+.ray-diagram marker path { fill: var(--ink); }
+.ray-step-panel { display: flex; flex-direction: column; min-width: 0; padding: 18px; border: 1.5px solid var(--ink); border-radius: 16px; background: var(--cream); }
+.ray-step-panel h3 { margin: 8px 0 14px; font-size: 1rem; line-height: 1.5; }
+.ray-question { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--soft-line); }
+.ray-question > p { margin: 0 0 10px; font-weight: 800; }
+.ray-question > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.ray-question button { padding: 7px 10px; border: 1.2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--paper); font-weight: 800; cursor: pointer; }
+.ray-question button:hover { background: var(--lime); }
+.ray-question button.selected { color: #fff; background: var(--ink); }
+.ray-question p.correct { color: var(--success); }
+.ray-question p.incorrect { color: var(--danger); }
+.ray-step-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; }
+.ray-step-actions .primary-button:disabled, .ray-step-actions .secondary-button:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
 .bar-chart { min-height: 250px; display: grid; align-content: center; gap: 14px; padding: 20px 4px; }
 .bar-row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(140px, 4fr) 72px; gap: 12px; align-items: center; }
 .bar-row > span { text-align: right; font-size: .84rem; overflow-wrap: anywhere; }
@@ -299,6 +334,7 @@ details .table-scroll { margin-top: 12px; }
   .group-progress-grid { grid-template-columns: repeat(4, 1fr); }
   .presentation-shell .refraction-result-layout, .presentation-shell .ohm-result-layout { grid-template-columns: 1fr; }
   .presentation-shell .refraction-result-layout > .table-scroll, .presentation-shell .refraction-result-layout .chart-grid.teacher-chart-grid { grid-column: 1; }
+  .ray-guide-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 820px) {
@@ -337,6 +373,10 @@ details .table-scroll { margin-top: 12px; }
   .team-assignment-grid, .team-assignments-review { grid-template-columns: 1fr; }
   .data-heading { flex-wrap: wrap; }
   .data-heading .secondary-button { margin-left: 46px; }
+  .ray-guide-toolbar { align-items: stretch; flex-direction: column; }
+  .ray-step-indicator { flex-wrap: wrap; }
+  .ray-step-panel { padding: 14px; }
+  .ray-step-actions > button { width: auto; flex: 1; }
   .submit-row { align-items: stretch; flex-direction: column; }
   .primary-button { width: 100%; }
   .investigation-card { padding: 14px 10px; }
