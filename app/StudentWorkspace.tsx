@@ -45,7 +45,16 @@ export default function StudentWorkspace() {
   return (
     <>
       <header className="hero workspace-hero">
-        <div className="hero-copy"><PhysicsBrand /><p className="eyebrow">THÍ NGHIỆM TRỰC TUYẾN</p><h1>{activeDefinition?.label ?? "Phòng thí nghiệm"}</h1><p>{activeDefinition?.description ?? "Chờ giáo viên mở bài."}</p></div>
+        <div className="hero-copy">
+          <PhysicsBrand />
+          <div className="course-identity">
+            <div><strong>Lawrence S. Ting School</strong><span>Teacher: Ms. Quỳnh</span></div>
+            <p>Lớp: Natural Science - Physics 9</p>
+          </div>
+          <p className="eyebrow">THÍ NGHIỆM TRỰC TUYẾN</p>
+          <h1>{activeDefinition?.label ?? "Phòng thí nghiệm"}</h1>
+          <p>{activeDefinition?.description ?? "Chờ giáo viên mở bài."}</p>
+        </div>
         <div className="physics-hero-art" aria-hidden="true"><span>λ</span><span>Ω</span><span>↗</span><i /></div>
         <span className="live-indicator"><i /> Trực tuyến</span>
       </header>
