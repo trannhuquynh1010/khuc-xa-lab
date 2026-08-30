@@ -5,6 +5,7 @@ import { classNames, groupNames } from "@/lib/classes";
 import { formatSineRatio } from "@/lib/physics";
 import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
+import RefractionConstructionGuide from "./RefractionConstructionGuide";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
 
 type InputRow = {
@@ -167,6 +168,11 @@ export default function LabForm() {
             <label className="conclusion-prompt">Kết luận 2: Tỉ số sin i / sin r có gần không đổi không? Từ đó nêu mối liên hệ giữa sin i và sin r.<textarea required maxLength={600} value={conclusionSines} onChange={(event) => setConclusionSines(event.target.value)} placeholder="Viết kết luận dựa trên số liệu và đồ thị của nhóm…" /></label>
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="construction-heading">
+        <div className="section-heading data-heading"><span>4</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Quan sát từng bước rồi tự rút ra kết luận.</p></div></div>
+        <RefractionConstructionGuide />
       </section>
 
       <div className="submit-row">
