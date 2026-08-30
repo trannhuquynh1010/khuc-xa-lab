@@ -10,13 +10,27 @@ import RelationshipChart from "./RelationshipChart";
 type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
 
 const factorDefinitions: Array<{ key: ResistanceFactor; label: string; guidance: string; question: string }> = [
-  { key: "material", label: "Chất liệu", guidance: "Thay đổi chất liệu; giữ nguyên chiều dài và tiết diện.", question: "Khi l và S không đổi, thay đổi chất liệu làm điện trở thay đổi thế nào?" },
-  { key: "length", label: "Chiều dài", guidance: "Thay đổi chiều dài; giữ nguyên chất liệu và tiết diện.", question: "Khi chất liệu và S không đổi, điện trở R phụ thuộc thế nào vào chiều dài l?" },
-  { key: "area", label: "Tiết diện", guidance: "Thay đổi tiết diện; giữ nguyên chất liệu và chiều dài.", question: "Khi chất liệu và l không đổi, điện trở R phụ thuộc thế nào vào tiết diện S?" },
+  { key: "material", label: "Ảnh hưởng của chất liệu", guidance: "So sánh mẫu 1 và mẫu 2; giữ nguyên chiều dài và tiết diện.", question: "Khi l và S không đổi, thay đổi chất liệu làm điện trở thay đổi thế nào?" },
+  { key: "length", label: "Ảnh hưởng của chiều dài", guidance: "So sánh mẫu 1, mẫu 3 và mẫu 4; giữ nguyên chất liệu và tiết diện.", question: "Khi chất liệu và S không đổi, điện trở R phụ thuộc thế nào vào chiều dài l?" },
+  { key: "area", label: "Ảnh hưởng của tiết diện", guidance: "So sánh mẫu 1 và mẫu 5; giữ nguyên chất liệu và chiều dài.", question: "Khi chất liệu và l không đổi, điện trở R phụ thuộc thế nào vào tiết diện S?" },
+];
+
+const sampleAssignments: Record<ResistanceFactor, number[]> = {
+  material: [1, 2],
+  length: [1, 3, 4],
+  area: [1, 5],
+};
+
+const samplePurposes = [
+  "Mẫu chuẩn dùng chung",
+  "Đổi chất liệu",
+  "Đổi chiều dài",
+  "Đổi chiều dài",
+  "Đổi tiết diện",
 ];
 
 const blankRow = (id: number): FactorRowInput => ({ id, material: "", length: "", area: "", voltage: "", current: "" });
-const initialRows = () => Array.from({ length: 3 }, (_, index) => blankRow(index + 1));
+const initialRows = () => Array.from({ length: 5 }, (_, index) => blankRow(index + 1));
 
 function parseDecimal(value: string) {
   if (!value.trim()) return null;
@@ -24,23 +38,29 @@ function parseDecimal(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function rowsToMeasurements(rows: FactorRowInput[]): ResistanceFactorMeasurement[] {
-  return rows.flatMap((row, index) => {
+function rowToMeasurement(row: FactorRowInput): ResistanceFactorMeasurement | null {
   const length = parseDecimal(row.length);
   const area = parseDecimal(row.area);
   const voltage = parseDecimal(row.voltage);
   const current = parseDecimal(row.current);
   const resistance = calculateResistance(voltage, current);
   if (
-      !row.material.trim() || length === null || area === null || voltage === null || current === null || resistance === null ||
-      length <= 0 || length > 10000 || area <= 0 || area > 10000 || voltage < 0 || voltage > 1000 || current > 100 || resistance > 1000000
-    ) return [];
-    return [{ sequence: index + 1, material: row.material.trim(), length, area, voltage, current, resistance }];
+    !row.material.trim() || length === null || area === null || voltage === null || current === null || resistance === null ||
+    length <= 0 || length > 10000 || area <= 0 || area > 10000 || voltage < 0 || voltage > 1000 || current > 100 || resistance > 1000000
+  ) return null;
+  return { sequence: row.id, material: row.material.trim(), length, area, voltage, current, resistance };
+}
+
+function rowsForInvestigation(rows: FactorRowInput[], factor: ResistanceFactor) {
+  return sampleAssignments[factor].flatMap((sampleId) => {
+    const row = rows.find((candidate) => candidate.id === sampleId);
+    const measurement = row ? rowToMeasurement(row) : null;
+    return measurement ? [measurement] : [];
   });
 }
 
 function hasControlledVariables(factor: ResistanceFactor, points: ResistanceFactorMeasurement[]) {
-  if (points.length < 2) return false;
+  if (points.length < sampleAssignments[factor].length) return false;
   const sameMaterial = new Set(points.map((point) => point.material.toLocaleLowerCase("vi"))).size === 1;
   const sameLength = new Set(points.map((point) => point.length)).size === 1;
   const sameArea = new Set(points.map((point) => point.area)).size === 1;
@@ -48,45 +68,26 @@ function hasControlledVariables(factor: ResistanceFactor, points: ResistanceFact
 }
 
 function controlStatus(factor: ResistanceFactor, points: ResistanceFactorMeasurement[]) {
-  if (points.length < 2) return "Cần ít nhất hai mẫu để so sánh.";
+  const expectedCount = sampleAssignments[factor].length;
+  if (points.length < expectedCount) return `Cần đủ ${expectedCount} mẫu hợp lệ để so sánh.`;
   return hasControlledVariables(factor, points) ? "Điều kiện đối chứng đã được giữ nguyên." : "Kiểm tra lại các đại lượng cần giữ nguyên để so sánh công bằng.";
 }
 
 export default function ResistanceFactorsLabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
-  const [activeFactor, setActiveFactor] = useState<ResistanceFactor>("material");
-  const [rows, setRows] = useState<Record<ResistanceFactor, FactorRowInput[]>>(() => ({ material: initialRows(), length: initialRows(), area: initialRows() }));
+  const [rows, setRows] = useState<FactorRowInput[]>(initialRows);
   const [conclusions, setConclusions] = useState<Record<ResistanceFactor, string>>({ material: "", length: "", area: "" });
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
-  const measurements = useMemo(() => ({
-    material: rowsToMeasurements(rows.material),
-    length: rowsToMeasurements(rows.length),
-    area: rowsToMeasurements(rows.area),
+  const measurements = useMemo<Record<ResistanceFactor, ResistanceFactorMeasurement[]>>(() => ({
+    material: rowsForInvestigation(rows, "material"),
+    length: rowsForInvestigation(rows, "length"),
+    area: rowsForInvestigation(rows, "area"),
   }), [rows]);
-  const currentPoints = measurements[activeFactor];
-  const activeDefinition = factorDefinitions.find((factor) => factor.key === activeFactor)!;
 
-  function updateRow(factor: ResistanceFactor, id: number, key: keyof Omit<FactorRowInput, "id">, value: string) {
-    setRows((current) => ({
-      ...current,
-      [factor]: current[factor].map((row) => row.id === id ? { ...row, [key]: value } : row),
-    }));
+  function updateRow(id: number, key: keyof Omit<FactorRowInput, "id">, value: string) {
+    setRows((current) => current.map((row) => row.id === id ? { ...row, [key]: value } : row));
     if (state.type !== "idle") setState({ type: "idle", message: "" });
-  }
-
-  function addRow() {
-    setRows((current) => ({
-      ...current,
-      [activeFactor]: [...current[activeFactor], blankRow(Math.max(0, ...current[activeFactor].map((row) => row.id)) + 1)],
-    }));
-  }
-
-  function removeRow(id: number) {
-    setRows((current) => ({
-      ...current,
-      [activeFactor]: current[activeFactor].length === 1 ? current[activeFactor] : current[activeFactor].filter((row) => row.id !== id),
-    }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -95,24 +96,13 @@ export default function ResistanceFactorsLabForm() {
       setState({ type: "error", message: "Hãy nhập lớp và tên nhóm." });
       return;
     }
-    const hasPartialRow = factorDefinitions.some(({ key }) => rows[key].some((row) => {
-      const values = [row.material, row.length, row.area, row.voltage, row.current];
-      const filled = values.filter((value) => value.trim()).length;
-      return filled > 0 && filled < values.length;
-    }));
-    if (hasPartialRow) {
-      setState({ type: "error", message: "Có mẫu dây chưa được nhập đủ chất liệu, l, S, U và I." });
-      return;
-    }
-    const incompleteFactor = factorDefinitions.find(({ key }) => measurements[key].length < 2);
-    if (incompleteFactor) {
-      setActiveFactor(incompleteFactor.key);
-      setState({ type: "error", message: `Phần ${incompleteFactor.label.toLowerCase()} cần ít nhất hai mẫu hợp lệ.` });
+    const incompleteSample = rows.find((row) => !rowToMeasurement(row));
+    if (incompleteSample) {
+      setState({ type: "error", message: `Hãy kiểm tra và nhập đủ thông tin, U, I cho mẫu ${incompleteSample.id}.` });
       return;
     }
     const missingConclusion = factorDefinitions.find(({ key }) => !conclusions[key].trim());
     if (missingConclusion) {
-      setActiveFactor(missingConclusion.key);
       setState({ type: "error", message: `Hãy hoàn thành kết luận phần ${missingConclusion.label.toLowerCase()}.` });
       return;
     }
@@ -146,52 +136,72 @@ export default function ResistanceFactorsLabForm() {
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </section>
 
-      <section aria-labelledby="factors-data-heading">
-        <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-data-heading">Khảo sát từng yếu tố</h2><p>Nhập số đo U, I; điện trở R = U/I được tính tự động.</p></div></div>
-        <div className="factor-tabs" role="tablist" aria-label="Yếu tố khảo sát">
-          {factorDefinitions.map((factor) => (
-            <button key={factor.key} type="button" role="tab" aria-selected={activeFactor === factor.key} className={activeFactor === factor.key ? "active" : ""} onClick={() => setActiveFactor(factor.key)}>
-              {factor.label}<span>{measurements[factor.key].length} mẫu{conclusions[factor.key].trim() ? " · đã kết luận" : ""}</span>
-            </button>
-          ))}
+      <section aria-labelledby="factors-samples-heading">
+        <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-samples-heading">Số liệu của 5 mẫu dây</h2><p>Chỉ nhập mỗi mẫu một lần. U, I và R sẽ tự xuất hiện lại trong các bảng khảo sát bên dưới.</p></div></div>
+        <div className="sample-plan" aria-label="Cách sử dụng năm mẫu">
+          {samplePurposes.map((purpose, index) => <div key={purpose + index}><strong>Mẫu {index + 1}</strong><span>{purpose}</span></div>)}
         </div>
-
-        <div className="factor-toolbar"><div><strong>{activeDefinition.label}</strong><p>{activeDefinition.guidance}</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm mẫu dây</button></div>
-        <div className="table-scroll" role="tabpanel">
+        <div className="table-scroll">
           <table className="factor-data-table">
-            <thead><tr><th>Mẫu</th><th>Chất liệu dây</th><th>Chiều dài l (m)</th><th>Tiết diện S (mm²)</th><th>U (V)</th><th>I (A)</th><th>R = U/I (Ω)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
-            <tbody>{rows[activeFactor].map((row, index) => (
+            <thead><tr><th>Mẫu</th><th>Chất liệu dây</th><th>Chiều dài l (m)</th><th>Tiết diện S (mm²)</th><th>U (V)</th><th>I (A)</th><th>R = U/I (Ω)</th></tr></thead>
+            <tbody>{rows.map((row) => (
               <tr key={row.id}>
-                <th scope="row">{index + 1}</th>
-                <td><input aria-label={`${activeDefinition.label}, mẫu ${index + 1}, chất liệu`} value={row.material} onChange={(event) => updateRow(activeFactor, row.id, "material", event.target.value)} placeholder="Ví dụ: Đồng" /></td>
+                <th scope="row"><span className="sample-number">{row.id}</span></th>
+                <td><input aria-label={`Mẫu ${row.id}, chất liệu`} value={row.material} onChange={(event) => updateRow(row.id, "material", event.target.value)} placeholder="Ví dụ: Đồng" /></td>
                 {(["length", "area", "voltage", "current"] as const).map((key) => (
-                  <td key={key}><input inputMode="decimal" aria-label={`${activeDefinition.label}, mẫu ${index + 1}, ${key}`} value={row[key]} onChange={(event) => updateRow(activeFactor, row.id, key, event.target.value)} placeholder={key === "length" ? "m" : key === "area" ? "mm²" : key === "voltage" ? "V" : "A"} /></td>
+                  <td key={key}><input inputMode="decimal" aria-label={`Mẫu ${row.id}, ${key}`} value={row[key]} onChange={(event) => updateRow(row.id, key, event.target.value)} placeholder={key === "length" ? "m" : key === "area" ? "mm²" : key === "voltage" ? "V" : "A"} /></td>
                 ))}
-                <td className="ratio-cell"><output aria-live="polite" aria-label={`${activeDefinition.label}, mẫu ${index + 1}, điện trở`}>{formatResistance(parseDecimal(row.voltage), parseDecimal(row.current))}</output></td>
-                <td><button type="button" className="icon-button" onClick={() => removeRow(row.id)} disabled={rows[activeFactor].length === 1} aria-label={`Xóa mẫu ${index + 1}`}>×</button></td>
+                <td className="ratio-cell"><output aria-live="polite" aria-label={`Mẫu ${row.id}, điện trở`}>{formatResistance(parseDecimal(row.voltage), parseDecimal(row.current))}</output></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
-        <p className={`control-status ${hasControlledVariables(activeFactor, currentPoints) ? "ready" : ""}`} aria-live="polite">{controlStatus(activeFactor, currentPoints)}</p>
       </section>
 
-      <section aria-labelledby="factors-chart-heading">
-        <div className="section-heading"><span>3</span><div><h2 id="factors-chart-heading">So sánh kết quả</h2><p>Đồ thị thay đổi theo phần khảo sát đang chọn.</p></div></div>
-        <div className="single-chart">
-          {activeFactor === "material" ? <MaterialBarChart points={currentPoints} /> : (
-            <RelationshipChart
-              title={activeFactor === "length" ? "Điện trở theo chiều dài dây" : "Điện trở theo tiết diện dây"}
-              xLabel={activeFactor === "length" ? "Chiều dài l (m)" : "Tiết diện S (mm²)"}
-              yLabel="Điện trở R (Ω)"
-              points={currentPoints}
-              xValue={(point) => activeFactor === "length" ? point.length : point.area}
-              yValue={(point) => point.resistance}
-              xCeiling={Math.max(1, ...currentPoints.map((point) => (activeFactor === "length" ? point.length : point.area) * 1.2))}
-              yCeiling={Math.max(10, ...currentPoints.map((point) => point.resistance * 1.2))}
-            />
-          )}
-          <label className="conclusion-prompt">Kết luận: {activeDefinition.question}<textarea required maxLength={600} value={conclusions[activeFactor]} onChange={(event) => setConclusions((current) => ({ ...current, [activeFactor]: event.target.value }))} placeholder="Viết kết luận dựa trên số liệu và đồ thị của nhóm…" /></label>
+      <section aria-labelledby="factors-investigations-heading">
+        <div className="section-heading data-heading"><span>3</span><div><h2 id="factors-investigations-heading">Ba lượt khảo sát</h2><p>Số đo của các mẫu dùng chung được lấy tự động từ bảng trên.</p></div></div>
+        <div className="investigation-stack">
+          {factorDefinitions.map((definition, investigationIndex) => {
+            const points = measurements[definition.key];
+            const assignedRows = sampleAssignments[definition.key].map((id) => rows.find((row) => row.id === id)!);
+            return (
+              <article className="investigation-card" key={definition.key} aria-labelledby={`investigation-${definition.key}`}>
+                <header className="investigation-header">
+                  <span>Khảo sát {investigationIndex + 1}</span>
+                  <div><h3 id={`investigation-${definition.key}`}>{definition.label}</h3><p>{definition.guidance}</p></div>
+                </header>
+                <div className="table-scroll">
+                  <table className="factor-review-table">
+                    <thead><tr><th>Mẫu</th><th>Chất liệu</th><th>l (m)</th><th>S (mm²)</th><th>U (V)</th><th>I (A)</th><th>R (Ω)</th></tr></thead>
+                    <tbody>{assignedRows.map((row) => (
+                      <tr key={row.id}>
+                        <th scope="row">Mẫu {row.id}</th>
+                        <td>{row.material || "—"}</td><td>{row.length || "—"}</td><td>{row.area || "—"}</td>
+                        <td>{row.voltage || "—"}</td><td>{row.current || "—"}</td>
+                        <td className="ratio-cell">{formatResistance(parseDecimal(row.voltage), parseDecimal(row.current))}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+                <p className={`control-status ${hasControlledVariables(definition.key, points) ? "ready" : ""}`} aria-live="polite">{controlStatus(definition.key, points)}</p>
+                <div className="single-chart investigation-chart">
+                  {definition.key === "material" ? <MaterialBarChart points={points} /> : (
+                    <RelationshipChart
+                      title={definition.key === "length" ? "Điện trở theo chiều dài dây" : "Điện trở theo tiết diện dây"}
+                      xLabel={definition.key === "length" ? "Chiều dài l (m)" : "Tiết diện S (mm²)"}
+                      yLabel="Điện trở R (Ω)"
+                      points={points}
+                      xValue={(point) => definition.key === "length" ? point.length : point.area}
+                      yValue={(point) => point.resistance}
+                      xCeiling={Math.max(1, ...points.map((point) => (definition.key === "length" ? point.length : point.area) * 1.2))}
+                      yCeiling={Math.max(10, ...points.map((point) => point.resistance * 1.2))}
+                    />
+                  )}
+                </div>
+                <label className="conclusion-prompt">Kết luận: {definition.question}<textarea required maxLength={600} value={conclusions[definition.key]} onChange={(event) => setConclusions((current) => ({ ...current, [definition.key]: event.target.value }))} placeholder="Viết kết luận dựa trên số liệu và đồ thị của nhóm…" /></label>
+              </article>
+            );
+          })}
         </div>
       </section>
 

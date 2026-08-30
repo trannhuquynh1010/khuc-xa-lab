@@ -45,6 +45,13 @@ function validMeasurementList(value: unknown, validator: (item: unknown) => bool
   return Array.isArray(value) && value.length >= 1 && value.length <= 20 && value.every(validator);
 }
 
+function validFactorMeasurementList(value: unknown, expectedSequences: number[]) {
+  return Array.isArray(value) &&
+    value.length === expectedSequences.length &&
+    value.every(isFactorMeasurement) &&
+    expectedSequences.every((sequence) => value.some((item) => item.sequence === sequence));
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -84,9 +91,9 @@ export async function POST(request: Request) {
       !isText(conclusions.material, 600) ||
       !isText(conclusions.length, 600) ||
       !isText(conclusions.area, 600) ||
-      !validMeasurementList(investigations.material, isFactorMeasurement) ||
-      !validMeasurementList(investigations.length, isFactorMeasurement) ||
-      !validMeasurementList(investigations.area, isFactorMeasurement)
+      !validFactorMeasurementList(investigations.material, [1, 2]) ||
+      !validFactorMeasurementList(investigations.length, [1, 3, 4]) ||
+      !validFactorMeasurementList(investigations.area, [1, 5])
     ) {
       return NextResponse.json({ error: "Số liệu khảo sát các yếu tố của điện trở chưa hợp lệ." }, { status: 400 });
     }

@@ -109,6 +109,21 @@ td input { min-width: 112px; min-height: 40px; }
 .factor-toolbar p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
 .control-status { margin: 10px 0 0; color: var(--orange); font-size: .88rem; font-weight: 700; }
 .control-status.ready { color: var(--success); }
+.sample-plan { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0 0 16px; }
+.sample-plan > div { display: grid; gap: 3px; min-height: 68px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: #f8fbfc; }
+.sample-plan strong { color: var(--primary-dark); font-size: .86rem; }
+.sample-plan span { color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.sample-number { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #fff; background: var(--primary); }
+.investigation-stack { display: grid; gap: 22px; }
+.investigation-card { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: #fbfdfe; }
+.investigation-header { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.investigation-header > span { flex: 0 0 auto; padding: 6px 9px; border-radius: 999px; color: var(--primary-dark); background: var(--accent); font-size: .75rem; font-weight: 700; }
+.investigation-header h3 { margin: 1px 0 4px; font-size: 1.05rem; }
+.investigation-header p { margin: 0; color: var(--muted); font-size: .86rem; }
+.factor-review-table { min-width: 780px; background: #fff; }
+.factor-review-table td { font-variant-numeric: tabular-nums; }
+.investigation-chart { margin-top: 12px; }
+.investigation-card > .conclusion-prompt { margin-top: 10px; }
 
 .submit-row { display: flex; align-items: center; gap: 18px; justify-content: flex-end; padding: 22px 30px; }
 .form-message { flex: 1; font-size: .92rem; }
@@ -212,6 +227,7 @@ details .table-scroll { margin-top: 12px; }
   .activity-control-actions { justify-content: flex-start; }
   .status-badge { text-align: left; }
   .group-progress-grid { grid-template-columns: repeat(2, 1fr); }
+  .sample-plan { grid-template-columns: repeat(3, 1fr); }
   .presentation-header { align-items: flex-start; flex-direction: column; }
   .presentation-header > div:last-child { justify-items: start; }
 }
@@ -232,6 +248,8 @@ details .table-scroll { margin-top: 12px; }
   .submission-summary { grid-template-columns: 1fr 1fr; gap: 14px; }
   .factor-tabs { grid-template-columns: 1fr; }
   .factor-toolbar { align-items: stretch; flex-direction: column; }
+  .sample-plan { grid-template-columns: 1fr 1fr; }
+  .investigation-card { padding: 16px 12px; }
   .result-strip { align-items: flex-end; flex-direction: column; gap: 5px; }
   .bar-row { grid-template-columns: 70px minmax(100px, 1fr) 62px; gap: 8px; }
   .class-progress-header { align-items: stretch; flex-direction: column; }
