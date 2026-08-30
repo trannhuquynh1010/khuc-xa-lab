@@ -9,6 +9,7 @@ import { OhmResults, RefractionResults, ResistanceFactorsResults } from "./Teach
 import TeacherClassFilter from "./TeacherClassFilter";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
+import PhysicsBrand from "../PhysicsBrand";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +21,13 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
     return (
       <main className="teacher-login-shell">
         <form action={login} className="teacher-login-card">
-          <p className="eyebrow">KHU VỰC GIÁO VIÊN</p>
-          <h1>Điều khiển phòng thí nghiệm</h1>
-          <p>Đăng nhập để mở hoạt động, xem bài nộp và trình chiếu kết quả.</p>
+          <PhysicsBrand />
+          <p className="eyebrow">GIÁO VIÊN</p>
+          <h1>Đăng nhập</h1>
           <label>Mật khẩu<input type="password" name="password" required autoComplete="current-password" autoFocus /></label>
-          {params.error && <p className="error-text" role="alert">Mật khẩu chưa đúng.</p>}
-          <button className="primary-button" type="submit">Đăng nhập</button>
-          <Link href="/">← Quay lại trang học sinh</Link>
+          {params.error && <p className="error-text" role="alert">Sai mật khẩu.</p>}
+          <button className="primary-button" type="submit">Tiếp tục →</button>
+          <Link href="/">← Học sinh</Link>
         </form>
       </main>
     );
@@ -65,46 +66,46 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   return (
     <main className="teacher-shell">
       <header className="teacher-header">
-        <div><p className="eyebrow">KHU VỰC GIÁO VIÊN</p><h1>Phòng thí nghiệm số</h1><p>Mở bài cho học sinh, theo dõi dữ liệu và trình chiếu kết quả.</p></div>
-        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}&year=${selectedYear}`}>Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Đăng xuất</button></form></div>
+        <div><PhysicsBrand /><p className="eyebrow">GIÁO VIÊN</p><h1>Bảng điều khiển</h1></div>
+        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}&year=${selectedYear}`}>↻ Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Thoát</button></form></div>
       </header>
 
       <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm">
         {activityDefinitions.map((activity) => {
           const setting = settings.find((item) => item.key === activity.key);
-          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}&class=${selectedClass}&year=${selectedYear}`}><span>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Đang mở" : "Đang đóng"}</small></Link>;
+          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}&class=${selectedClass}&year=${selectedYear}`}><span className="teacher-tab-label"><b aria-hidden="true">{activity.symbol}</b>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Mở" : "Đóng"}</small></Link>;
         })}
       </nav>
 
       <section className="academic-year-panel">
-        <div><p className="eyebrow">DỮ LIỆU THEO NĂM HỌC</p><h2>Năm học {selectedYear}</h2><p>Bài nộp mới được tự động xếp vào năm học hiện hành.</p></div>
+        <div><p className="eyebrow">NĂM HỌC</p><h2>{selectedYear}</h2></div>
         <div className="academic-year-actions"><TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} /><ResetYearButton schoolYear={selectedYear} /></div>
       </section>
 
       <section className="activity-control-panel">
-        <div><p className="eyebrow">HOẠT ĐỘNG ĐANG CHỌN</p><h2>{definition.label}</h2><p>{definition.description}</p></div>
+        <div className="activity-control-title"><span aria-hidden="true">{definition.symbol}</span><div><p className="eyebrow">HOẠT ĐỘNG</p><h2>{definition.label}</h2></div></div>
         <div className="activity-control-actions">
-          <span className={`status-badge ${currentSetting.isOpen ? "open" : "closed"}`}>{currentSetting.isOpen ? "Học sinh đang thấy bài" : "Học sinh chưa thấy bài"}</span>
+          <span className={`status-badge ${currentSetting.isOpen ? "open" : "closed"}`}>{currentSetting.isOpen ? "● Đang mở" : "○ Đang đóng"}</span>
           <form action={toggleActivity}>
             <input type="hidden" name="activityKey" value={selectedKey} />
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
-            <button className={currentSetting.isOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.isOpen ? "Đóng hoạt động" : "Mở cho học sinh"}</button>
+            <button className={currentSetting.isOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.isOpen ? "Đóng bài" : "Mở bài"}</button>
           </form>
           <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
         </div>
       </section>
 
       <section className="class-progress-panel">
-        <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ NỘP BÀI · {selectedYear}</p><h2>{selectedClass} · {definition.shortLabel}</h2><p><strong>{submittedCount}/8 nhóm</strong> đã nộp</p></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
+        <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ</p><h2>{selectedClass} · {submittedCount}/8</h2></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
         <div className="group-progress-grid">
           {groupNames.map((group) => {
             const submitted = submittedGroupSet.has(group);
-            return <div key={group} className={`group-progress-item ${submitted ? "submitted" : "pending"}`}><span>{submitted ? "✓" : "○"}</span><div><strong>{group}</strong><small>{submitted ? "Đã nộp" : "Chưa nộp"}</small></div></div>;
+            return <div key={group} className={`group-progress-item ${submitted ? "submitted" : "pending"}`}><span>{submitted ? "✓" : "·"}</span><div><strong>{group}</strong><small>{submitted ? "Đã nộp" : "Chờ"}</small></div></div>;
           })}
         </div>
       </section>
 
-      <div className="results-heading"><div><h2>Bài nộp: {definition.shortLabel}</h2><p>{resultCount} nhóm của lớp {selectedClass} · Năm học {selectedYear}</p></div></div>
+      <div className="results-heading"><div><p className="eyebrow">BÀI NỘP</p><h2>{selectedClass} · {resultCount} nhóm</h2></div></div>
       {resultContent}
     </main>
   );

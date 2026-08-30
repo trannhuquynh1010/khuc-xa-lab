@@ -1,21 +1,24 @@
 export const activityDefinitions = [
   {
     key: "refraction",
+    symbol: "↘",
     shortLabel: "Khúc xạ",
     label: "Khúc xạ ánh sáng",
-    description: "Đo góc tới, góc khúc xạ và kiểm tra định luật khúc xạ.",
+    description: "Đo i, r và kiểm tra định luật khúc xạ.",
   },
   {
     key: "ohm",
+    symbol: "I–U",
     shortLabel: "Sự phụ thuộc của I vào U",
     label: "Sự phụ thuộc của cường độ dòng điện vào hiệu điện thế",
-    description: "Đo hiệu điện thế, cường độ dòng điện và quan sát mối liên hệ giữa I và U.",
+    description: "Đo U, I và quan sát mối liên hệ.",
   },
   {
     key: "resistance-factors",
+    symbol: "Ω",
     shortLabel: "Yếu tố của R",
     label: "Các yếu tố ảnh hưởng đến điện trở",
-    description: "Khảo sát chất liệu, chiều dài và tiết diện của dây dẫn.",
+    description: "Khảo sát chất liệu, chiều dài và tiết diện.",
   },
 ] as const;
 

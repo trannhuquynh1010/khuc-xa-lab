@@ -13,7 +13,7 @@ function formatDate(value: string) {
 }
 
 export function EmptyResults() {
-  return <div className="empty-state"><h2>Chưa có dữ liệu</h2><p>Kết quả học sinh gửi sẽ xuất hiện tại đây.</p></div>;
+  return <div className="empty-state"><span aria-hidden="true">⌁</span><h2>Chưa có bài nộp</h2></div>;
 }
 
 export function RefractionResults({ submissions }: { submissions: Submission[] }) {
@@ -31,7 +31,7 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
           <details open={index === 0}>
-            <summary>Xem bảng số liệu và đồ thị</summary>
+            <summary>Xem kết quả</summary>
             <div className="table-scroll">
               <table>
                 <thead><tr><th>Lần đo</th><th>i (°)</th><th>r (°)</th><th>sin i</th><th>sin r</th><th>sin i / sin r</th></tr></thead>
@@ -63,7 +63,7 @@ export function OhmResults({ submissions }: { submissions: ExperimentSubmission<
               <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
             </div>
             <details open={index === 0}>
-              <summary>Xem bảng số liệu và đồ thị U – I</summary>
+              <summary>Xem kết quả</summary>
               <div className="table-scroll"><table className="compact-data-table"><thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th></tr></thead><tbody>{submission.payload.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.voltage}</td><td>{item.current}</td></tr>)}</tbody></table></div>
               <div className="single-chart teacher-chart-grid"><RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={submission.payload.measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...submission.payload.measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...submission.payload.measurements.map((point) => point.current * 1.2))} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.payload.conclusion ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
             </details>
@@ -93,7 +93,7 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
           <details open={index === 0}>
-            <summary>Xem ba phần khảo sát</summary>
+            <summary>Xem kết quả</summary>
             <div className="teacher-investigations">
               {factorLabels.map((factor) => {
                 const points = submission.payload.investigations[factor.key];

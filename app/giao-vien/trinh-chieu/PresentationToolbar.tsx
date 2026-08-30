@@ -21,7 +21,7 @@ export default function PresentationToolbar() {
 
   return (
     <div className="presentation-toolbar">
-      <span><i /> Tự cập nhật mỗi 8 giây</span>
+      <span><i /> 8s</span>
       <button type="button" className="presentation-button" onClick={enterFullscreen}>⛶ Toàn màn hình</button>
     </div>
   );

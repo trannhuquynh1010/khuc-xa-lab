@@ -109,7 +109,7 @@ export default function LabForm() {
       <section className="identity-grid" aria-labelledby="group-heading">
         <div className="section-heading">
           <span>1</span>
-          <div><h2 id="group-heading">Thông tin nhóm</h2><p>Điền thông tin để giáo viên nhận đúng bài.</p></div>
+          <div><h2 id="group-heading">Nhóm</h2></div>
         </div>
         <label>Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label>Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
@@ -120,8 +120,8 @@ export default function LabForm() {
       <section aria-labelledby="data-heading">
         <div className="section-heading data-heading">
           <span>2</span>
-          <div><h2 id="data-heading">Số liệu thí nghiệm</h2><p>Tự tính và nhập các giá trị sin; tỉ số sẽ xuất hiện tự động.</p></div>
-          <button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button>
+          <div><h2 id="data-heading">Số liệu</h2><p>Tự tính sin i và sin r.</p></div>
+          <button type="button" className="secondary-button" onClick={addRow}>＋ Thêm dòng</button>
         </div>
         <div className="table-scroll">
           <table>
@@ -140,11 +140,11 @@ export default function LabForm() {
             </tbody>
           </table>
         </div>
-        <p className="data-status" aria-live="polite">Đã vẽ {points.length} điểm dữ liệu hoàn chỉnh.</p>
+        <p className="data-status" aria-live="polite">{points.length} điểm dữ liệu</p>
       </section>
 
       <section aria-labelledby="chart-heading">
-        <div className="section-heading"><span>3</span><div><h2 id="chart-heading">Đồ thị kết quả</h2><p>Điểm trên đồ thị được đánh số theo lần đo.</p></div></div>
+        <div className="section-heading"><span>3</span><div><h2 id="chart-heading">Đồ thị</h2></div></div>
         <div className="chart-grid">
           <div className="chart-with-conclusion">
             <RelationshipChart title="Góc tới và góc khúc xạ" xLabel="Góc tới i (°)" yLabel="Góc khúc xạ r (°)" points={points} xValue={(point) => point.incidenceAngle} yValue={(point) => point.refractionAngle} ceiling={90} />
@@ -159,7 +159,7 @@ export default function LabForm() {
 
       <div className="submit-row">
         <div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div>
-        <button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Gửi số liệu cho giáo viên"}</button>
+        <button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button>
       </div>
     </form>
   );

@@ -131,13 +131,13 @@ export default function ResistanceFactorsLabForm() {
   return (
     <form className="lab-card" onSubmit={handleSubmit}>
       <section className="identity-grid" aria-labelledby="factors-group-heading">
-        <div className="section-heading"><span>1</span><div><h2 id="factors-group-heading">Thông tin nhóm</h2><p>Hoàn thành cả ba phần khảo sát trước khi nộp.</p></div></div>
+        <div className="section-heading"><span>1</span><div><h2 id="factors-group-heading">Nhóm</h2></div></div>
         <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </section>
 
       <section aria-labelledby="factors-samples-heading">
-        <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-samples-heading">Số liệu của 5 mẫu dây</h2><p>Chỉ nhập mỗi mẫu một lần. U, I và R sẽ tự xuất hiện lại trong các bảng khảo sát bên dưới.</p></div></div>
+        <div className="section-heading data-heading"><span>2</span><div><h2 id="factors-samples-heading">5 mẫu dây</h2><p>Nhập một lần; U, I, R được dùng chung.</p></div></div>
         <div className="sample-plan" aria-label="Cách sử dụng năm mẫu">
           {samplePurposes.map((purpose, index) => <div key={purpose + index}><strong>Mẫu {index + 1}</strong><span>{purpose}</span></div>)}
         </div>
@@ -159,7 +159,7 @@ export default function ResistanceFactorsLabForm() {
       </section>
 
       <section aria-labelledby="factors-investigations-heading">
-        <div className="section-heading data-heading"><span>3</span><div><h2 id="factors-investigations-heading">Ba lượt khảo sát</h2><p>Số đo của các mẫu dùng chung được lấy tự động từ bảng trên.</p></div></div>
+        <div className="section-heading data-heading"><span>3</span><div><h2 id="factors-investigations-heading">3 lượt khảo sát</h2></div></div>
         <div className="investigation-stack">
           {factorDefinitions.map((definition, investigationIndex) => {
             const points = measurements[definition.key];
@@ -205,7 +205,7 @@ export default function ResistanceFactorsLabForm() {
         </div>
       </section>
 
-      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Gửi ba phần khảo sát"}</button></div>
+      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
     </form>
   );
 }

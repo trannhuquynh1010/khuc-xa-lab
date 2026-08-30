@@ -6,7 +6,7 @@ export default function Home() {
     <main className="page-shell">
       <StudentWorkspace />
       <footer>
-        <Link href="/giao-vien">Dành cho giáo viên</Link>
+        <Link href="/giao-vien">Giáo viên →</Link>
       </footer>
     </main>
   );

@@ -5,6 +5,7 @@ import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import LabForm from "./LabForm";
 import OhmLabForm from "./OhmLabForm";
 import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
+import PhysicsBrand from "./PhysicsBrand";
 
 type ActivityStatus = { key: ActivityKey; isOpen: boolean; updatedAt: string };
 
@@ -44,21 +45,22 @@ export default function StudentWorkspace() {
   return (
     <>
       <header className="hero workspace-hero">
-        <div><p className="eyebrow">PHÒNG THÍ NGHIỆM SỐ</p><h1>{activeDefinition?.label ?? "Hoạt động thí nghiệm"}</h1><p>{activeDefinition?.description ?? "Giáo viên sẽ mở hoạt động khi lớp bắt đầu thực hành."}</p></div>
-        <span className="live-indicator"><i /> Tự động cập nhật</span>
+        <div className="hero-copy"><PhysicsBrand /><p className="eyebrow">THÍ NGHIỆM TRỰC TUYẾN</p><h1>{activeDefinition?.label ?? "Phòng thí nghiệm"}</h1><p>{activeDefinition?.description ?? "Chờ giáo viên mở bài."}</p></div>
+        <div className="physics-hero-art" aria-hidden="true"><span>λ</span><span>Ω</span><span>↗</span><i /></div>
+        <span className="live-indicator"><i /> Trực tuyến</span>
       </header>
 
       {activities === null && !loadError ? (
-        <div className="waiting-card"><span className="loading-dot" /><h2>Đang tải hoạt động…</h2></div>
+        <div className="waiting-card"><span className="loading-dot" /><h2>Đang tải…</h2></div>
       ) : loadError && activities === null ? (
-        <div className="waiting-card"><h2>Chưa tải được hoạt động</h2><p>Kiểm tra kết nối rồi thử lại.</p><button type="button" className="secondary-button" onClick={loadActivities}>Thử lại</button></div>
+        <div className="waiting-card"><h2>Mất kết nối</h2><button type="button" className="secondary-button" onClick={loadActivities}>Thử lại</button></div>
       ) : !openKeys.length ? (
-        <div className="waiting-card"><span className="lock-symbol">⌛</span><h2>Chưa có hoạt động đang mở</h2><p>Trang sẽ tự hiển thị công cụ ngay khi giáo viên mở bài.</p></div>
+        <div className="waiting-card"><span className="lock-symbol">⌁</span><h2>Đang chờ giáo viên</h2></div>
       ) : (
         <>
           <nav className="activity-tabs" role="tablist" aria-label="Công cụ thí nghiệm đang mở">
             {activityDefinitions.filter((activity) => openKeys.includes(activity.key)).map((activity) => (
-              <button key={activity.key} type="button" role="tab" aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}>{activity.shortLabel}</button>
+              <button key={activity.key} type="button" role="tab" aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
             ))}
           </nav>
           <div hidden={visibleActiveKey !== "refraction"}><LabForm /></div>

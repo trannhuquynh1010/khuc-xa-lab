@@ -11,7 +11,7 @@ export default function ResetYearButton({ schoolYear }: { schoolYear: string }) 
       }}
     >
       <input type="hidden" name="schoolYear" value={schoolYear} />
-      <button type="submit" className="reset-data-button">Reset dữ liệu năm {schoolYear}</button>
+      <button type="submit" className="reset-data-button">Xóa dữ liệu {schoolYear}</button>
     </form>
   );
 }

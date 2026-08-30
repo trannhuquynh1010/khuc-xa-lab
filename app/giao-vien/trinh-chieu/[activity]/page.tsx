@@ -7,6 +7,7 @@ import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import { listExperimentSubmissions, listSubmissions } from "@/lib/db";
 import { OhmResults, RefractionResults, ResistanceFactorsResults } from "../../TeacherResults";
 import PresentationToolbar from "../PresentationToolbar";
+import PhysicsBrand from "../../../PhysicsBrand";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +39,8 @@ export default async function PresentationPage({ params, searchParams }: { param
   return (
     <main className="presentation-shell">
       <header className="presentation-header">
-        <div><p className="eyebrow">KẾT QUẢ MỚI NHẤT · {selectedClass} · {selectedYear}</p><h1>{definition.label}</h1><p>{groupLabel}</p></div>
-        <div><PresentationToolbar /><Link href={`/giao-vien?tab=${activity}&class=${selectedClass}&year=${selectedYear}`}>← Quay lại bảng giáo viên</Link></div>
+        <div><PhysicsBrand inverse /><p className="eyebrow">{selectedClass} · {selectedYear}</p><h1>{definition.label}</h1><p>{groupLabel}</p></div>
+        <div><PresentationToolbar /><Link href={`/giao-vien?tab=${activity}&class=${selectedClass}&year=${selectedYear}`}>← Bảng giáo viên</Link></div>
       </header>
       {latestResult}
     </main>

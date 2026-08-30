@@ -88,16 +88,16 @@ export default function OhmLabForm() {
   return (
     <form className="lab-card" onSubmit={handleSubmit}>
       <section className="identity-grid" aria-labelledby="ohm-group-heading">
-        <div className="section-heading"><span>1</span><div><h2 id="ohm-group-heading">Thông tin nhóm</h2><p>Chọn đúng lớp và nhóm trước khi nhập số liệu.</p></div></div>
+        <div className="section-heading"><span>1</span><div><h2 id="ohm-group-heading">Nhóm</h2></div></div>
         <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </section>
 
       <section aria-labelledby="ohm-workspace-heading">
-        <div className="section-heading data-heading"><span>2</span><div><h2 id="ohm-workspace-heading">Số liệu và đồ thị I theo U</h2><p>Nhập số đo và quan sát đồ thị thay đổi ngay bên cạnh.</p></div></div>
+        <div className="section-heading data-heading"><span>2</span><div><h2 id="ohm-workspace-heading">Số liệu & đồ thị</h2></div></div>
         <div className="ohm-workspace-grid">
           <div className="ohm-panel">
-            <div className="ohm-panel-header"><div><h3>Bảng số liệu U và I</h3><p>Giá trị đọc từ vôn kế và ampe kế.</p></div><button type="button" className="secondary-button" onClick={addRow}>+ Thêm lần đo</button></div>
+            <div className="ohm-panel-header"><div><h3>U – I</h3></div><button type="button" className="secondary-button" onClick={addRow}>＋ Thêm dòng</button></div>
             <div className="table-scroll">
               <table className="compact-data-table ohm-data-table">
                 <thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
@@ -111,7 +111,7 @@ export default function OhmLabForm() {
                 ))}</tbody>
               </table>
             </div>
-            <div className="result-strip"><span>Điểm dữ liệu hoàn chỉnh: <strong>{measurements.length}</strong></span></div>
+            <div className="result-strip"><span><strong>{measurements.length}</strong> điểm dữ liệu</span></div>
           </div>
           <div className="ohm-panel ohm-graph-panel">
             <RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...measurements.map((point) => point.current * 1.2))} />
@@ -120,7 +120,7 @@ export default function OhmLabForm() {
         <label className="conclusion-prompt ohm-conclusion">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
       </section>
 
-      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Gửi số liệu cho giáo viên"}</button></div>
+      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
     </form>
   );
 }
