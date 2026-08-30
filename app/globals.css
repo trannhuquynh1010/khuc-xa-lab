@@ -44,7 +44,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .workspace-hero { position: relative; min-height: 285px; display: flex; align-items: flex-end; margin-bottom: 14px; padding: 30px 34px; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 30px; background: var(--lime); box-shadow: 6px 6px 0 var(--ink); }
 .hero-copy { z-index: 2; width: min(850px, 76%); }
-.workspace-hero .physics-brand { position: absolute; top: 25px; left: 34px; margin: 0; }
+.workspace-hero .physics-brand { position: relative; z-index: 2; margin: 0 0 12px; }
 .course-identity { display: grid; gap: 4px; margin-bottom: 14px; }
 .course-identity > div { display: flex; flex-wrap: wrap; gap: 5px 12px; align-items: center; }
 .course-identity strong { font-size: .95rem; letter-spacing: -.015em; }
@@ -305,7 +305,7 @@ details .table-scroll { margin-top: 12px; }
 @media (max-width: 620px) {
   .page-shell, .teacher-shell { width: min(100% - 18px, 1240px); padding-top: 12px; }
   .workspace-hero { min-height: 255px; padding: 23px 20px; border-radius: 22px; }
-  .workspace-hero .physics-brand { top: 18px; left: 20px; }
+  .workspace-hero .physics-brand { margin-bottom: 10px; }
   .hero-copy { width: 100%; }
   .course-identity > div { align-items: flex-start; flex-direction: column; }
   .course-identity span { padding-left: 0; border-left: 0; }
