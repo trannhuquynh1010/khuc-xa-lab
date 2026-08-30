@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Phòng thí nghiệm Khúc xạ ánh sáng",
-  description: "Nhập số liệu thí nghiệm và quan sát đồ thị khúc xạ ánh sáng.",
+  title: "Phòng thí nghiệm số Vật lí",
+  description: "Nhập số liệu, quan sát đồ thị và nộp kết quả thí nghiệm Vật lí.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -13,4 +13,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

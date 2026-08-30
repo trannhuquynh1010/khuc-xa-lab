@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSubmission, type Measurement } from "@/lib/db";
+import { createSubmission, isActivityOpen, type Measurement } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -23,6 +23,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (body.website) return NextResponse.json({ ok: true });
+
+    if (!(await isActivityOpen("refraction"))) {
+      return NextResponse.json({ error: "Giáo viên đã đóng hoạt động này." }, { status: 403 });
+    }
 
     if (!isText(body.className, 30) || !isText(body.groupName, 60)) {
       return NextResponse.json({ error: "Thông tin lớp hoặc nhóm chưa hợp lệ." }, { status: 400 });

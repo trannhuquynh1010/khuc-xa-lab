@@ -1,21 +1,13 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
-import { listSubmissions } from "@/lib/db";
-import { formatSineRatio } from "@/lib/physics";
+import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
+import { listActivitySettings, listExperimentSubmissions, listSubmissions } from "@/lib/db";
 import Link from "next/link";
-import RelationshipChart from "../RelationshipChart";
-import { login, logout } from "./actions";
+import { login, logout, toggleActivity } from "./actions";
+import { OhmResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "Asia/Ho_Chi_Minh",
-  }).format(new Date(value));
-}
-
-export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
   const params = await searchParams;
 
@@ -24,8 +16,8 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       <main className="teacher-login-shell">
         <form action={login} className="teacher-login-card">
           <p className="eyebrow">KHU VỰC GIÁO VIÊN</p>
-          <h1>Xem dữ liệu thí nghiệm</h1>
-          <p>Đăng nhập bằng mật khẩu giáo viên để xem bài nộp của các nhóm.</p>
+          <h1>Điều khiển phòng thí nghiệm</h1>
+          <p>Đăng nhập để mở hoạt động, xem bài nộp và trình chiếu kết quả.</p>
           <label>Mật khẩu<input type="password" name="password" required autoComplete="current-password" autoFocus /></label>
           {params.error && <p className="error-text" role="alert">Mật khẩu chưa đúng.</p>}
           <button className="primary-button" type="submit">Đăng nhập</button>
@@ -35,62 +27,56 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
     );
   }
 
-  const submissions = await listSubmissions();
+  const selectedKey: ActivityKey = isActivityKey(params.tab) ? params.tab : "refraction";
+  const definition = getActivityDefinition(selectedKey);
+  const settings = await listActivitySettings();
+  const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
+
+  let resultContent;
+  let resultCount = 0;
+  if (selectedKey === "refraction") {
+    const submissions = await listSubmissions();
+    resultCount = submissions.length;
+    resultContent = <RefractionResults submissions={submissions} />;
+  } else if (selectedKey === "ohm") {
+    const submissions = await listExperimentSubmissions("ohm");
+    resultCount = submissions.length;
+    resultContent = <OhmResults submissions={submissions} />;
+  } else {
+    const submissions = await listExperimentSubmissions("resistance-factors");
+    resultCount = submissions.length;
+    resultContent = <ResistanceFactorsResults submissions={submissions} />;
+  }
 
   return (
     <main className="teacher-shell">
       <header className="teacher-header">
-        <div><p className="eyebrow">KHU VỰC GIÁO VIÊN</p><h1>Dữ liệu thí nghiệm</h1><p>{submissions.length} lượt gửi gần nhất</p></div>
-        <div className="teacher-actions"><Link className="secondary-button" href="/giao-vien">Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Đăng xuất</button></form></div>
+        <div><p className="eyebrow">KHU VỰC GIÁO VIÊN</p><h1>Phòng thí nghiệm số</h1><p>Mở bài cho học sinh, theo dõi dữ liệu và trình chiếu kết quả.</p></div>
+        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}`}>Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Đăng xuất</button></form></div>
       </header>
 
-      {!submissions.length ? (
-        <div className="empty-state"><h2>Chưa có dữ liệu</h2><p>Kết quả học sinh gửi sẽ xuất hiện tại đây.</p></div>
-      ) : (
-        <div className="submission-list">
-          {submissions.map((submission, index) => (
-            <article className="submission-card" key={submission.id}>
-              <div className="submission-summary">
-                <div><span>Lớp</span><strong>{submission.className}</strong></div>
-                <div><span>Nhóm</span><strong>{submission.groupName}</strong></div>
-                <div><span>Môi trường tới</span><strong>{submission.incidenceMedium ?? "—"}</strong></div>
-                <div><span>Môi trường khúc xạ</span><strong>{submission.refractionMedium ?? "—"}</strong></div>
-                <div><span>Số lần đo</span><strong>{submission.measurements.length}</strong></div>
-                <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
-              </div>
-              <details open={index === 0}>
-                <summary>Xem bảng số liệu và đồ thị</summary>
-                <div className="table-scroll">
-                  <table>
-                    <thead><tr><th>Lần đo</th><th>i (°)</th><th>r (°)</th><th>sin i</th><th>sin r</th><th>sin i / sin r</th></tr></thead>
-                    <tbody>{submission.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.incidenceAngle}</td><td>{item.refractionAngle}</td><td>{item.sinIncidence}</td><td>{item.sinRefraction}</td><td className="ratio-cell">{formatSineRatio(item.sinIncidence, item.sinRefraction)}</td></tr>)}</tbody>
-                  </table>
-                </div>
-                <div className="chart-grid teacher-chart-grid">
-                  <RelationshipChart
-                    title="Góc tới và góc khúc xạ"
-                    xLabel="Góc tới i (°)"
-                    yLabel="Góc khúc xạ r (°)"
-                    points={submission.measurements}
-                    xValue={(point) => point.incidenceAngle}
-                    yValue={(point) => point.refractionAngle}
-                    ceiling={90}
-                  />
-                  <RelationshipChart
-                    title="sin i và sin r"
-                    xLabel="sin i"
-                    yLabel="sin r"
-                    points={submission.measurements}
-                    xValue={(point) => point.sinIncidence}
-                    yValue={(point) => point.sinRefraction}
-                    ceiling={1}
-                  />
-                </div>
-              </details>
-            </article>
-          ))}
+      <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm">
+        {activityDefinitions.map((activity) => {
+          const setting = settings.find((item) => item.key === activity.key);
+          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}`}><span>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Đang mở" : "Đang đóng"}</small></Link>;
+        })}
+      </nav>
+
+      <section className="activity-control-panel">
+        <div><p className="eyebrow">HOẠT ĐỘNG ĐANG CHỌN</p><h2>{definition.label}</h2><p>{definition.description}</p></div>
+        <div className="activity-control-actions">
+          <span className={`status-badge ${currentSetting.isOpen ? "open" : "closed"}`}>{currentSetting.isOpen ? "Học sinh đang thấy bài" : "Học sinh chưa thấy bài"}</span>
+          <form action={toggleActivity}>
+            <input type="hidden" name="activityKey" value={selectedKey} />
+            <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
+            <button className={currentSetting.isOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.isOpen ? "Đóng hoạt động" : "Mở cho học sinh"}</button>
+          </form>
+          <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
         </div>
-      )}
+      </section>
+
+      <div className="results-heading"><div><h2>Bài nộp: {definition.shortLabel}</h2><p>{resultCount} lượt gửi gần nhất</p></div></div>
+      {resultContent}
     </main>
   );
 }

@@ -2,6 +2,8 @@ import "server-only";
 
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { activityDefinitions, type ActivityKey } from "@/lib/activities";
+import type { ExperimentSubmission, OhmPayload, ResistanceFactorsPayload } from "@/lib/experiments";
 
 export type Measurement = {
   sequence: number;
@@ -21,6 +23,12 @@ export type Submission = {
   measurements: Measurement[];
 };
 
+export type ActivitySetting = {
+  key: ActivityKey;
+  isOpen: boolean;
+  updatedAt: string;
+};
+
 function getSql() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -29,7 +37,9 @@ function getSql() {
   return neon(connectionString);
 }
 
-export async function ensureSchema() {
+let schemaPromise: Promise<void> | null = null;
+
+async function initializeSchema() {
   const sql = getSql();
 
   await sql`
@@ -66,6 +76,126 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS submissions_created_at_idx
     ON submissions (created_at DESC)
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS activity_settings (
+      activity_key VARCHAR(40) PRIMARY KEY,
+      is_open BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  for (const activity of activityDefinitions) {
+    await sql`
+      INSERT INTO activity_settings (activity_key, is_open)
+      VALUES (${activity.key}, ${activity.key === "refraction"})
+      ON CONFLICT (activity_key) DO NOTHING
+    `;
+  }
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS experiment_submissions (
+      id UUID PRIMARY KEY,
+      activity_key VARCHAR(40) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      group_name VARCHAR(60) NOT NULL,
+      payload JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS experiment_submissions_activity_created_idx
+    ON experiment_submissions (activity_key, created_at DESC)
+  `;
+}
+
+export async function ensureSchema() {
+  if (!schemaPromise) {
+    schemaPromise = initializeSchema().catch((error) => {
+      schemaPromise = null;
+      throw error;
+    });
+  }
+  await schemaPromise;
+}
+
+export async function listActivitySettings(): Promise<ActivitySetting[]> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT activity_key, is_open, updated_at
+    FROM activity_settings
+  `;
+  const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
+
+  return activityDefinitions.map((activity) => {
+    const row = settings.get(activity.key);
+    return {
+      key: activity.key,
+      isOpen: Boolean(row?.is_open),
+      updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
+    };
+  });
+}
+
+export async function isActivityOpen(key: ActivityKey) {
+  const settings = await listActivitySettings();
+  return settings.find((setting) => setting.key === key)?.isOpen ?? false;
+}
+
+export async function setActivityOpen(key: ActivityKey, isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    INSERT INTO activity_settings (activity_key, is_open, updated_at)
+    VALUES (${key}, ${isOpen}, NOW())
+    ON CONFLICT (activity_key)
+    DO UPDATE SET is_open = EXCLUDED.is_open, updated_at = NOW()
+  `;
+}
+
+type NewExperimentInput =
+  | { activityKey: "ohm"; className: string; groupName: string; payload: OhmPayload }
+  | { activityKey: "resistance-factors"; className: string; groupName: string; payload: ResistanceFactorsPayload };
+
+export async function createExperimentSubmission(input: NewExperimentInput) {
+  await ensureSchema();
+  const sql = getSql();
+  const id = randomUUID();
+
+  const rows = await sql`
+    INSERT INTO experiment_submissions (id, activity_key, class_name, group_name, payload)
+    VALUES (${id}, ${input.activityKey}, ${input.className}, ${input.groupName}, ${JSON.stringify(input.payload)}::jsonb)
+    RETURNING id, created_at
+  `;
+
+  return {
+    id: String(rows[0].id),
+    createdAt: new Date(String(rows[0].created_at)).toISOString(),
+  };
+}
+
+export async function listExperimentSubmissions(key: "ohm"): Promise<ExperimentSubmission<OhmPayload>[]>;
+export async function listExperimentSubmissions(key: "resistance-factors"): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
+export async function listExperimentSubmissions(key: "ohm" | "resistance-factors") {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, class_name, group_name, payload, created_at
+    FROM experiment_submissions
+    WHERE activity_key = ${key}
+    ORDER BY created_at DESC
+    LIMIT 200
+  `;
+
+  return rows.map((row) => ({
+    id: String(row.id),
+    className: String(row.class_name),
+    groupName: String(row.group_name),
+    payload: row.payload,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+  }));
 }
 
 export async function createSubmission(input: {
