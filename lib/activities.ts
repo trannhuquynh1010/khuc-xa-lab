@@ -20,6 +20,13 @@ export const activityDefinitions = [
     label: "Các yếu tố ảnh hưởng đến điện trở",
     description: "Khảo sát chất liệu, chiều dài và tiết diện.",
   },
+  {
+    key: "prism-colors",
+    symbol: "△",
+    shortLabel: "Lăng kính & màu sắc",
+    label: "Lăng kính và màu sắc của vật",
+    description: "Dựng tia tán sắc và dự đoán màu quan sát.",
+  },
 ] as const;
 
 export type ActivityKey = (typeof activityDefinitions)[number]["key"];

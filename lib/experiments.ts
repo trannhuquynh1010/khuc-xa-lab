@@ -31,6 +31,14 @@ export type ResistanceFactorsPayload = {
   overallConclusion?: string;
 };
 
+export type PrismColorPayload = {
+  teamAssignments?: TeamAssignments;
+  constructionCompleted: boolean;
+  colorChallengeCompleted: boolean;
+  dispersionConclusion: string;
+  colorConclusion: string;
+};
+
 export type ExperimentSubmission<TPayload> = {
   id: string;
   schoolYear: string;

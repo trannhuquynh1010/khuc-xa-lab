@@ -1,5 +1,5 @@
 import type { Submission } from "@/lib/db";
-import type { ExperimentSubmission, OhmPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
+import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
 import { formatSineRatio } from "@/lib/physics";
 import { teamTasks, type TeamAssignments } from "@/lib/team";
 import MaterialBarChart from "../MaterialBarChart";
@@ -129,6 +129,33 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
               })}
             </div>
             <div className="conclusion-answer overall-result-conclusion"><span>Kết luận tổng</span><p>{submission.payload.overallConclusion ?? "Bài nộp cũ chưa có kết luận tổng."}</p></div>
+          </details>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+export function PrismColorResults({ submissions }: { submissions: ExperimentSubmission<PrismColorPayload>[] }) {
+  if (!submissions.length) return <EmptyResults />;
+  return (
+    <div className="submission-list">
+      {submissions.map((submission, index) => (
+        <article className="submission-card" key={submission.id}>
+          <div className="submission-summary compact-summary prism-result-summary">
+            <div><span>Lớp</span><strong>{submission.className}</strong></div>
+            <div><span>Nhóm</span><strong>{submission.groupName}</strong></div>
+            <div><span>Dựng hình</span><strong>{submission.payload.constructionCompleted ? "✓ 7/7" : "Chưa xong"}</strong></div>
+            <div><span>Màu sắc</span><strong>{submission.payload.colorChallengeCompleted ? "✓ 4/4" : "Chưa xong"}</strong></div>
+            <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
+          </div>
+          <details open={index === 0}>
+            <summary>Xem kết quả</summary>
+            <TeamAssignmentsReview assignments={submission.payload.teamAssignments} />
+            <div className="prism-result-conclusions">
+              <div className="conclusion-answer"><span>Tán sắc qua lăng kính</span><p>{submission.payload.dispersionConclusion}</p></div>
+              <div className="conclusion-answer"><span>Màu sắc của vật</span><p>{submission.payload.colorConclusion}</p></div>
+            </div>
           </details>
         </article>
       ))}

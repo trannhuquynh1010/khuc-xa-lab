@@ -89,6 +89,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, ...result }, { status: 201 });
     }
 
+    if (body.activityKey === "prism-colors") {
+      if (
+        body.payload?.constructionCompleted !== true ||
+        body.payload?.colorChallengeCompleted !== true ||
+        !isText(body.payload?.dispersionConclusion, 700) ||
+        !isText(body.payload?.colorConclusion, 700)
+      ) {
+        return NextResponse.json({ error: "Hoạt động lăng kính và màu sắc chưa hoàn thành." }, { status: 400 });
+      }
+      const result = await createExperimentSubmission({
+        activityKey: "prism-colors",
+        className: body.className.trim(),
+        groupName: body.groupName.trim(),
+        payload: {
+          teamAssignments,
+          constructionCompleted: true,
+          colorChallengeCompleted: true,
+          dispersionConclusion: body.payload.dispersionConclusion.trim(),
+          colorConclusion: body.payload.colorConclusion.trim(),
+        },
+      });
+      return NextResponse.json({ ok: true, ...result }, { status: 201 });
+    }
+
     const investigations = body.payload?.investigations as ResistanceFactorsPayload["investigations"] | undefined;
     const conclusions = body.payload?.conclusions as ResistanceFactorsPayload["conclusions"] | undefined;
     const overallConclusion = body.payload?.overallConclusion;

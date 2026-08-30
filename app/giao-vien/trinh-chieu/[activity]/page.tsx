@@ -5,7 +5,7 @@ import { getActivityDefinition, isActivityKey } from "@/lib/activities";
 import { isClassName } from "@/lib/classes";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import { listExperimentSubmissions, listSubmissions } from "@/lib/db";
-import { OhmResults, RefractionResults, ResistanceFactorsResults } from "../../TeacherResults";
+import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "../../TeacherResults";
 import PresentationToolbar from "../PresentationToolbar";
 import PhysicsBrand from "../../../PhysicsBrand";
 
@@ -30,6 +30,10 @@ export default async function PresentationPage({ params, searchParams }: { param
     const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <OhmResults submissions={submissions} />;
+  } else if (activity === "prism-colors") {
+    const submissions = await listExperimentSubmissions("prism-colors", selectedYear, selectedClass, 1);
+    if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
+    latestResult = <PrismColorResults submissions={submissions} />;
   } else {
     const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;

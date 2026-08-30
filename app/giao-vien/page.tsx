@@ -5,7 +5,7 @@ import { listActivitySettings, listExperimentSubmissions, listSchoolYears, listS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { login, logout, toggleActivity, toggleRefractionConstruction } from "./actions";
-import { OhmResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
+import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 import TeacherClassFilter from "./TeacherClassFilter";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -45,6 +45,10 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
     if (selectedKey === "ohm") {
       const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass);
       return { resultContent: <OhmResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+    }
+    if (selectedKey === "prism-colors") {
+      const submissions = await listExperimentSubmissions("prism-colors", selectedYear, selectedClass);
+      return { resultContent: <PrismColorResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
     }
     const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass);
     return { resultContent: <ResistanceFactorsResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };

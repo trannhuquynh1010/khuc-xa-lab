@@ -3,7 +3,7 @@ import "server-only";
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
-import type { ExperimentSubmission, OhmPayload, ResistanceFactorsPayload } from "@/lib/experiments";
+import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactorsPayload } from "@/lib/experiments";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
 
@@ -66,7 +66,16 @@ async function initializeSchema() {
     ) AS ready
   `;
 
-  if (Boolean(schemaStatus[0]?.ready)) return;
+  if (Boolean(schemaStatus[0]?.ready)) {
+    for (const activity of activityDefinitions) {
+      await sql`
+        INSERT INTO activity_settings (activity_key, is_open)
+        VALUES (${activity.key}, ${activity.key === "refraction"})
+        ON CONFLICT (activity_key) DO NOTHING
+      `;
+    }
+    return;
+  }
 
   await sql`
     CREATE TABLE IF NOT EXISTS submissions (
@@ -289,7 +298,8 @@ export async function resetSchoolYearData(schoolYear: string) {
 
 type NewExperimentInput =
   | { activityKey: "ohm"; className: string; groupName: string; payload: OhmPayload }
-  | { activityKey: "resistance-factors"; className: string; groupName: string; payload: ResistanceFactorsPayload };
+  | { activityKey: "resistance-factors"; className: string; groupName: string; payload: ResistanceFactorsPayload }
+  | { activityKey: "prism-colors"; className: string; groupName: string; payload: PrismColorPayload };
 
 export async function createExperimentSubmission(input: NewExperimentInput) {
   await ensureSchema();
@@ -313,7 +323,8 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
 
 export async function listExperimentSubmissions(key: "ohm", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<OhmPayload>[]>;
 export async function listExperimentSubmissions(key: "resistance-factors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
-export async function listExperimentSubmissions(key: "ohm" | "resistance-factors", schoolYear = getCurrentSchoolYear(), className?: string, limit = 200) {
+export async function listExperimentSubmissions(key: "prism-colors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<PrismColorPayload>[]>;
+export async function listExperimentSubmissions(key: "ohm" | "resistance-factors" | "prism-colors", schoolYear = getCurrentSchoolYear(), className?: string, limit = 200) {
   await ensureSchema();
   const sql = getSql();
   const rows = className
