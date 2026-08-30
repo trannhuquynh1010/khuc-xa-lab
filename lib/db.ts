@@ -66,7 +66,15 @@ export async function createSubmission(input: {
   await ensureSchema();
   const sql = getSql();
   const id = randomUUID();
-  const measurementJson = JSON.stringify(input.measurements);
+  const measurementJson = JSON.stringify(
+    input.measurements.map((item) => ({
+      sequence: item.sequence,
+      incidence_angle: item.incidenceAngle,
+      refraction_angle: item.refractionAngle,
+      sin_incidence: item.sinIncidence,
+      sin_refraction: item.sinRefraction,
+    })),
+  );
 
   const rows = await sql`
     WITH new_submission AS (
@@ -145,4 +153,3 @@ export async function listSubmissions(): Promise<Submission[]> {
     measurements: row.measurements as Measurement[],
   }));
 }
-
