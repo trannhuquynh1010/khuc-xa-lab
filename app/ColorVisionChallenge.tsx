@@ -111,7 +111,6 @@ export default function ColorVisionChallenge({ value, onChange }: { value: Color
           <div className="light-beam" style={{ "--beam-color": task.beamColor } as React.CSSProperties} />
           <div className="object-sample source-color" style={{ "--object-color": task.objectColor } as React.CSSProperties}><span>Màu riêng</span><strong>{task.objectName}</strong></div>
           <div className={`object-sample observed-color ${currentCorrect ? "revealed" : ""}`} style={{ "--observed-color": task.observedColor } as React.CSSProperties}><span>Mắt nhìn thấy</span><strong>{currentCorrect ? task.answer : "?"}</strong></div>
-          <div className="eye-mini" aria-hidden="true">◉</div>
         </div>
 
         <div className="color-question">
