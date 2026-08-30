@@ -37,29 +37,22 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
+  const resultsPromise = (async () => {
+    if (selectedKey === "refraction") {
+      const submissions = await listSubmissions(selectedYear, selectedClass);
+      return { resultContent: <RefractionResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+    }
+    if (selectedKey === "ohm") {
+      const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass);
+      return { resultContent: <OhmResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+    }
+    const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass);
+    return { resultContent: <ResistanceFactorsResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+  })();
+  const [settings, knownSchoolYears, resultData] = await Promise.all([listActivitySettings(), listSchoolYears(), resultsPromise]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
   const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
-
-  let resultContent;
-  let resultCount = 0;
-  let submittedGroups: string[] = [];
-  if (selectedKey === "refraction") {
-    const submissions = (await listSubmissions(selectedYear)).filter((submission) => submission.className === selectedClass);
-    resultCount = submissions.length;
-    submittedGroups = submissions.map((submission) => submission.groupName);
-    resultContent = <RefractionResults submissions={submissions} />;
-  } else if (selectedKey === "ohm") {
-    const submissions = (await listExperimentSubmissions("ohm", selectedYear)).filter((submission) => submission.className === selectedClass);
-    resultCount = submissions.length;
-    submittedGroups = submissions.map((submission) => submission.groupName);
-    resultContent = <OhmResults submissions={submissions} />;
-  } else {
-    const submissions = (await listExperimentSubmissions("resistance-factors", selectedYear)).filter((submission) => submission.className === selectedClass);
-    resultCount = submissions.length;
-    submittedGroups = submissions.map((submission) => submission.groupName);
-    resultContent = <ResistanceFactorsResults submissions={submissions} />;
-  }
+  const { resultContent, resultCount, submittedGroups } = resultData;
   const submittedGroupSet = new Set(submittedGroups);
   const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
 

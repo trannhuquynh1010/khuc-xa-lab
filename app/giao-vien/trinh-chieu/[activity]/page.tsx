@@ -23,15 +23,15 @@ export default async function PresentationPage({ params, searchParams }: { param
   let latestResult;
   let groupLabel = "Chưa có bài nộp";
   if (activity === "refraction") {
-    const submissions = (await listSubmissions(selectedYear)).filter((submission) => submission.className === selectedClass).slice(0, 1);
+    const submissions = await listSubmissions(selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <RefractionResults submissions={submissions} />;
   } else if (activity === "ohm") {
-    const submissions = (await listExperimentSubmissions("ohm", selectedYear)).filter((submission) => submission.className === selectedClass).slice(0, 1);
+    const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <OhmResults submissions={submissions} />;
   } else {
-    const submissions = (await listExperimentSubmissions("resistance-factors", selectedYear)).filter((submission) => submission.className === selectedClass).slice(0, 1);
+    const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <ResistanceFactorsResults submissions={submissions} />;
   }

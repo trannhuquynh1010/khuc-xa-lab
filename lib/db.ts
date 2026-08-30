@@ -49,6 +49,25 @@ let schemaPromise: Promise<void> | null = null;
 async function initializeSchema() {
   const sql = getSql();
 
+  const schemaStatus = await sql`
+    SELECT (
+      to_regclass('public.submissions') IS NOT NULL AND
+      to_regclass('public.measurements') IS NOT NULL AND
+      to_regclass('public.activity_settings') IS NOT NULL AND
+      to_regclass('public.experiment_submissions') IS NOT NULL AND
+      to_regclass('public.submissions_year_class_group_unique_idx') IS NOT NULL AND
+      to_regclass('public.experiment_submissions_year_activity_class_group_unique_idx') IS NOT NULL AND
+      to_regclass('public.submissions_school_year_class_created_idx') IS NOT NULL AND
+      to_regclass('public.experiment_submissions_year_activity_class_created_idx') IS NOT NULL AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
+      )
+    ) AS ready
+  `;
+
+  if (Boolean(schemaStatus[0]?.ready)) return;
+
   await sql`
     CREATE TABLE IF NOT EXISTS submissions (
       id UUID PRIMARY KEY,
@@ -93,6 +112,11 @@ async function initializeSchema() {
   await sql`
     CREATE INDEX IF NOT EXISTS submissions_created_at_idx
     ON submissions (created_at DESC)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS submissions_school_year_class_created_idx
+    ON submissions (school_year, class_name, created_at DESC)
   `;
 
   await sql`
@@ -157,6 +181,11 @@ async function initializeSchema() {
   await sql`
     CREATE INDEX IF NOT EXISTS experiment_submissions_activity_created_idx
     ON experiment_submissions (activity_key, created_at DESC)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS experiment_submissions_year_activity_class_created_idx
+    ON experiment_submissions (school_year, activity_key, class_name, created_at DESC)
   `;
 
   await sql`
@@ -282,18 +311,26 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
   };
 }
 
-export async function listExperimentSubmissions(key: "ohm", schoolYear?: string): Promise<ExperimentSubmission<OhmPayload>[]>;
-export async function listExperimentSubmissions(key: "resistance-factors", schoolYear?: string): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
-export async function listExperimentSubmissions(key: "ohm" | "resistance-factors", schoolYear = getCurrentSchoolYear()) {
+export async function listExperimentSubmissions(key: "ohm", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<OhmPayload>[]>;
+export async function listExperimentSubmissions(key: "resistance-factors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
+export async function listExperimentSubmissions(key: "ohm" | "resistance-factors", schoolYear = getCurrentSchoolYear(), className?: string, limit = 200) {
   await ensureSchema();
   const sql = getSql();
-  const rows = await sql`
-    SELECT id, school_year, class_name, group_name, payload, created_at
-    FROM experiment_submissions
-    WHERE activity_key = ${key} AND school_year = ${schoolYear}
-    ORDER BY created_at DESC
-    LIMIT 200
-  `;
+  const rows = className
+    ? await sql`
+        SELECT id, school_year, class_name, group_name, payload, created_at
+        FROM experiment_submissions
+        WHERE activity_key = ${key} AND school_year = ${schoolYear} AND class_name = ${className}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT id, school_year, class_name, group_name, payload, created_at
+        FROM experiment_submissions
+        WHERE activity_key = ${key} AND school_year = ${schoolYear}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+      `;
 
   return rows.map((row) => ({
     id: String(row.id),
@@ -412,41 +449,57 @@ export async function createSubmission(input: {
   };
 }
 
-export async function listSubmissions(schoolYear = getCurrentSchoolYear()): Promise<Submission[]> {
+export async function listSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 200): Promise<Submission[]> {
   await ensureSchema();
   const sql = getSql();
 
-  const rows = await sql`
-    SELECT
-      s.id,
-      s.school_year,
-      s.class_name,
-      s.group_name,
-      s.team_assignments,
-      s.incidence_medium,
-      s.refraction_medium,
-      s.conclusion_angles,
-      s.conclusion_sines,
-      s.created_at,
-      COALESCE(
-        json_agg(
-          json_build_object(
-            'sequence', m.sequence,
-            'incidenceAngle', m.incidence_angle::FLOAT8,
-            'refractionAngle', m.refraction_angle::FLOAT8,
-            'sinIncidence', m.sin_incidence::FLOAT8,
-            'sinRefraction', m.sin_refraction::FLOAT8
-          ) ORDER BY m.sequence
-        ) FILTER (WHERE m.id IS NOT NULL),
-        '[]'::json
-      ) AS measurements
-    FROM submissions s
-    LEFT JOIN measurements m ON m.submission_id = s.id
-    WHERE s.school_year = ${schoolYear}
-    GROUP BY s.id
-    ORDER BY s.created_at DESC
-    LIMIT 200
-  `;
+  const rows = className
+    ? await sql`
+        SELECT
+          s.id, s.school_year, s.class_name, s.group_name, s.team_assignments,
+          s.incidence_medium, s.refraction_medium, s.conclusion_angles, s.conclusion_sines, s.created_at,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'sequence', m.sequence,
+                'incidenceAngle', m.incidence_angle::FLOAT8,
+                'refractionAngle', m.refraction_angle::FLOAT8,
+                'sinIncidence', m.sin_incidence::FLOAT8,
+                'sinRefraction', m.sin_refraction::FLOAT8
+              ) ORDER BY m.sequence
+            ) FILTER (WHERE m.id IS NOT NULL),
+            '[]'::json
+          ) AS measurements
+        FROM submissions s
+        LEFT JOIN measurements m ON m.submission_id = s.id
+        WHERE s.school_year = ${schoolYear} AND s.class_name = ${className}
+        GROUP BY s.id
+        ORDER BY s.created_at DESC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT
+          s.id, s.school_year, s.class_name, s.group_name, s.team_assignments,
+          s.incidence_medium, s.refraction_medium, s.conclusion_angles, s.conclusion_sines, s.created_at,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'sequence', m.sequence,
+                'incidenceAngle', m.incidence_angle::FLOAT8,
+                'refractionAngle', m.refraction_angle::FLOAT8,
+                'sinIncidence', m.sin_incidence::FLOAT8,
+                'sinRefraction', m.sin_refraction::FLOAT8
+              ) ORDER BY m.sequence
+            ) FILTER (WHERE m.id IS NOT NULL),
+            '[]'::json
+          ) AS measurements
+        FROM submissions s
+        LEFT JOIN measurements m ON m.submission_id = s.id
+        WHERE s.school_year = ${schoolYear}
+        GROUP BY s.id
+        ORDER BY s.created_at DESC
+        LIMIT ${limit}
+      `;
 
   return rows.map((row) => ({
     id: String(row.id),
