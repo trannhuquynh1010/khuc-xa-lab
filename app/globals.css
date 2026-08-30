@@ -147,6 +147,7 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .ray-step-indicator { display: flex; gap: 6px; align-items: center; }
 .ray-step-indicator span { display: grid; place-items: center; width: 31px; height: 31px; border: 1.4px solid var(--ink); border-radius: 50%; color: var(--muted); background: var(--paper); font-size: .74rem; font-weight: 900; }
 .ray-step-indicator span.done { color: var(--ink); background: var(--lime); }
+.ray-step-indicator span.current { box-shadow: 0 0 0 3px rgba(140, 108, 255, .3); }
 .ray-guide-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(270px, .65fr); gap: 14px; align-items: stretch; }
 .ray-diagram { display: block; width: 100%; height: auto; aspect-ratio: 720 / 380; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 16px; background: var(--paper); }
 .ray-diagram .air-zone { fill: var(--cream); }
@@ -169,14 +170,18 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .ray-step-panel h3 { margin: 8px 0 14px; font-size: 1rem; line-height: 1.5; }
 .ray-question { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--soft-line); }
 .ray-question > p { margin: 0 0 10px; font-weight: 800; }
-.ray-question > div { display: flex; flex-wrap: wrap; gap: 7px; }
-.ray-question button { padding: 7px 10px; border: 1.2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--paper); font-weight: 800; cursor: pointer; }
+.ray-question > div { display: grid; gap: 7px; }
+.ray-question button { width: 100%; padding: 8px 10px; border: 1.2px solid var(--ink); border-radius: 11px; color: var(--ink); background: var(--paper); font-weight: 800; line-height: 1.35; text-align: left; cursor: pointer; }
 .ray-question button:hover { background: var(--lime); }
 .ray-question button.selected { color: #fff; background: var(--ink); }
+.ray-question button.correct-choice { color: #fff; background: var(--success); }
+.ray-question button.incorrect-choice { color: #fff; background: var(--danger); }
 .ray-question p.correct { color: var(--success); }
 .ray-question p.incorrect { color: var(--danger); }
 .ray-step-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; }
 .ray-step-actions .primary-button:disabled, .ray-step-actions .secondary-button:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+.ray-complete-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 9px 14px; border: 1.5px solid var(--ink); border-radius: 999px; color: var(--muted); background: var(--paper); font-weight: 900; }
+.ray-complete-badge.complete { color: var(--ink); background: var(--lime); }
 .bar-chart { min-height: 250px; display: grid; align-content: center; gap: 14px; padding: 20px 4px; }
 .bar-row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(140px, 4fr) 72px; gap: 12px; align-items: center; }
 .bar-row > span { text-align: right; font-size: .84rem; overflow-wrap: anywhere; }

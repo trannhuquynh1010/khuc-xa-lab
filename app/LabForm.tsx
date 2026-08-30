@@ -204,7 +204,7 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
 
       {showConstruction && (
         <section aria-labelledby="construction-heading">
-          <div className="section-heading data-heading"><span>4</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Quan sát từng bước rồi tự rút ra kết luận.</p></div></div>
+          <div className="section-heading data-heading"><span>4</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Chọn cách dựng đúng ở mỗi bước để hoàn thành hình.</p></div></div>
           <RefractionConstructionGuide />
         </section>
       )}
