@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSubmission, isActivityOpen, type Measurement } from "@/lib/db";
 import { isClassName, isGroupName } from "@/lib/classes";
+import { isTeamAssignments, normalizeTeamAssignments } from "@/lib/team";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
     if (!isClassName(body.className) || !isGroupName(body.groupName)) {
       return NextResponse.json({ error: "Thông tin lớp hoặc nhóm chưa hợp lệ." }, { status: 400 });
     }
+    if (!isTeamAssignments(body.teamAssignments)) {
+      return NextResponse.json({ error: "Phân công nhiệm vụ của nhóm chưa đầy đủ." }, { status: 400 });
+    }
     if (!isText(body.incidenceMedium, 80) || !isText(body.refractionMedium, 80)) {
       return NextResponse.json({ error: "Thông tin môi trường thí nghiệm chưa hợp lệ." }, { status: 400 });
     }
@@ -45,6 +49,7 @@ export async function POST(request: Request) {
     const result = await createSubmission({
       className: body.className.trim(),
       groupName: body.groupName.trim(),
+      teamAssignments: normalizeTeamAssignments(body.teamAssignments),
       incidenceMedium: body.incidenceMedium.trim(),
       refractionMedium: body.refractionMedium.trim(),
       conclusionAngles: body.conclusionAngles.trim(),

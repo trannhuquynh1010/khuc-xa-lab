@@ -3,7 +3,9 @@
 import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import { formatSineRatio } from "@/lib/physics";
+import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
+import TeamAssignmentsFields from "./TeamAssignmentsFields";
 
 type InputRow = {
   id: number;
@@ -39,6 +41,7 @@ function rowsToPoints(rows: InputRow[]) {
 export default function LabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
   const [incidenceMedium, setIncidenceMedium] = useState("");
   const [refractionMedium, setRefractionMedium] = useState("");
   const [conclusionAngles, setConclusionAngles] = useState("");
@@ -50,6 +53,10 @@ export default function LabForm() {
   function updateRow(id: number, key: keyof Omit<InputRow, "id">, value: string) {
     setRows((current) => current.map((row) => row.id === id ? { ...row, [key]: value } : row));
     if (state.type !== "idle") setState({ type: "idle", message: "" });
+  }
+
+  function updateTeamAssignment(task: TeamTaskKey, memberName: string) {
+    setTeamAssignments((current) => ({ ...current, [task]: memberName }));
   }
 
   function addRow() {
@@ -70,6 +77,10 @@ export default function LabForm() {
 
     if (!className.trim() || !groupName.trim()) {
       setState({ type: "error", message: "Hãy nhập lớp và tên nhóm." });
+      return;
+    }
+    if (!isTeamAssignments(teamAssignments)) {
+      setState({ type: "error", message: "Hãy phân công thành viên cho đủ bốn nhiệm vụ." });
       return;
     }
     if (!incidenceMedium.trim() || !refractionMedium.trim()) {
@@ -94,7 +105,7 @@ export default function LabForm() {
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ className, groupName, incidenceMedium, refractionMedium, conclusionAngles, conclusionSines, measurements: points, website: "" }),
+        body: JSON.stringify({ className, groupName, teamAssignments, incidenceMedium, refractionMedium, conclusionAngles, conclusionSines, measurements: points, website: "" }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể gửi số liệu.");
@@ -115,6 +126,7 @@ export default function LabForm() {
         <label>Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label>Môi trường tới<input required maxLength={80} value={incidenceMedium} onChange={(event) => setIncidenceMedium(event.target.value)} placeholder="Ví dụ: Không khí" /></label>
         <label>Môi trường khúc xạ<input required maxLength={80} value={refractionMedium} onChange={(event) => setRefractionMedium(event.target.value)} placeholder="Ví dụ: Thủy tinh" /></label>
+        <TeamAssignmentsFields value={teamAssignments} onChange={updateTeamAssignment} />
       </section>
 
       <section aria-labelledby="data-heading">

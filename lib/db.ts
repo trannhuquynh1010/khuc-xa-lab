@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, ResistanceFactorsPayload } from "@/lib/experiments";
 import { getCurrentSchoolYear } from "@/lib/school-years";
+import type { TeamAssignments } from "@/lib/team";
 
 export type Measurement = {
   sequence: number;
@@ -19,6 +20,7 @@ export type Submission = {
   schoolYear: string;
   className: string;
   groupName: string;
+  teamAssignments: TeamAssignments | null;
   incidenceMedium: string | null;
   refractionMedium: string | null;
   conclusionAngles: string | null;
@@ -52,6 +54,7 @@ async function initializeSchema() {
       school_year VARCHAR(5) NOT NULL,
       class_name VARCHAR(30) NOT NULL,
       group_name VARCHAR(60) NOT NULL,
+      team_assignments JSONB,
       incidence_medium VARCHAR(80),
       refraction_medium VARCHAR(80),
       conclusion_angles VARCHAR(600),
@@ -63,6 +66,7 @@ async function initializeSchema() {
   await sql`
     ALTER TABLE submissions
       ADD COLUMN IF NOT EXISTS school_year VARCHAR(5),
+      ADD COLUMN IF NOT EXISTS team_assignments JSONB,
       ADD COLUMN IF NOT EXISTS incidence_medium VARCHAR(80),
       ADD COLUMN IF NOT EXISTS refraction_medium VARCHAR(80),
       ADD COLUMN IF NOT EXISTS conclusion_angles VARCHAR(600),
@@ -286,6 +290,7 @@ export async function listExperimentSubmissions(key: "ohm" | "resistance-factors
 export async function createSubmission(input: {
   className: string;
   groupName: string;
+  teamAssignments: TeamAssignments;
   incidenceMedium: string;
   refractionMedium: string;
   conclusionAngles: string;
@@ -313,6 +318,7 @@ export async function createSubmission(input: {
         school_year,
         class_name,
         group_name,
+        team_assignments,
         incidence_medium,
         refraction_medium,
         conclusion_angles,
@@ -323,6 +329,7 @@ export async function createSubmission(input: {
         ${schoolYear},
         ${input.className},
         ${input.groupName},
+        ${JSON.stringify(input.teamAssignments)}::jsonb,
         ${input.incidenceMedium},
         ${input.refractionMedium},
         ${input.conclusionAngles},
@@ -331,6 +338,7 @@ export async function createSubmission(input: {
       ON CONFLICT (school_year, class_name, group_name)
       DO UPDATE SET
         incidence_medium = EXCLUDED.incidence_medium,
+        team_assignments = EXCLUDED.team_assignments,
         refraction_medium = EXCLUDED.refraction_medium,
         conclusion_angles = EXCLUDED.conclusion_angles,
         conclusion_sines = EXCLUDED.conclusion_sines,
@@ -396,6 +404,7 @@ export async function listSubmissions(schoolYear = getCurrentSchoolYear()): Prom
       s.school_year,
       s.class_name,
       s.group_name,
+      s.team_assignments,
       s.incidence_medium,
       s.refraction_medium,
       s.conclusion_angles,
@@ -426,6 +435,7 @@ export async function listSubmissions(schoolYear = getCurrentSchoolYear()): Prom
     schoolYear: String(row.school_year),
     className: String(row.class_name),
     groupName: String(row.group_name),
+    teamAssignments: row.team_assignments ? row.team_assignments as TeamAssignments : null,
     incidenceMedium: row.incidence_medium ? String(row.incidence_medium) : null,
     refractionMedium: row.refraction_medium ? String(row.refraction_medium) : null,
     conclusionAngles: row.conclusion_angles ? String(row.conclusion_angles) : null,

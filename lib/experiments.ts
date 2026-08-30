@@ -1,3 +1,5 @@
+import type { TeamAssignments } from "@/lib/team";
+
 export type OhmMeasurement = {
   sequence: number;
   voltage: number;
@@ -5,6 +7,7 @@ export type OhmMeasurement = {
 };
 
 export type OhmPayload = {
+  teamAssignments?: TeamAssignments;
   measurements: OhmMeasurement[];
   conclusion: string;
 };
@@ -22,6 +25,7 @@ export type ResistanceFactorMeasurement = {
 };
 
 export type ResistanceFactorsPayload = {
+  teamAssignments?: TeamAssignments;
   investigations: Record<ResistanceFactor, ResistanceFactorMeasurement[]>;
   conclusions: Record<ResistanceFactor, string>;
 };

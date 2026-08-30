@@ -3,7 +3,9 @@
 import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
+import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
+import TeamAssignmentsFields from "./TeamAssignmentsFields";
 
 type InputRow = { id: number; voltage: string; current: string };
 const blankRow = (id: number): InputRow => ({ id, voltage: "", current: "" });
@@ -26,6 +28,7 @@ function rowsToMeasurements(rows: InputRow[]): OhmMeasurement[] {
 export default function OhmLabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
   const [conclusion, setConclusion] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
@@ -34,6 +37,10 @@ export default function OhmLabForm() {
   function updateRow(id: number, key: "voltage" | "current", value: string) {
     setRows((current) => current.map((row) => row.id === id ? { ...row, [key]: value } : row));
     if (state.type !== "idle") setState({ type: "idle", message: "" });
+  }
+
+  function updateTeamAssignment(task: TeamTaskKey, memberName: string) {
+    setTeamAssignments((current) => ({ ...current, [task]: memberName }));
   }
 
   function addRow() {
@@ -49,6 +56,10 @@ export default function OhmLabForm() {
     const hasPartialRow = rows.some((row) => [row.voltage, row.current].filter((value) => value.trim()).length === 1);
     if (!className.trim() || !groupName.trim()) {
       setState({ type: "error", message: "Hãy chọn lớp và tên nhóm." });
+      return;
+    }
+    if (!isTeamAssignments(teamAssignments)) {
+      setState({ type: "error", message: "Hãy phân công thành viên cho đủ bốn nhiệm vụ." });
       return;
     }
     if (hasPartialRow) {
@@ -73,7 +84,7 @@ export default function OhmLabForm() {
           activityKey: "ohm",
           className,
           groupName,
-          payload: { measurements, conclusion },
+          payload: { teamAssignments, measurements, conclusion },
           website: "",
         }),
       });
@@ -91,6 +102,7 @@ export default function OhmLabForm() {
         <div className="section-heading"><span>1</span><div><h2 id="ohm-group-heading">Nhóm</h2></div></div>
         <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <TeamAssignmentsFields value={teamAssignments} onChange={updateTeamAssignment} />
       </section>
 
       <section aria-labelledby="ohm-workspace-heading">

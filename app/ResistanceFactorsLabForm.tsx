@@ -4,8 +4,10 @@ import { FormEvent, useMemo, useState } from "react";
 import { classNames, groupNames } from "@/lib/classes";
 import type { ResistanceFactor, ResistanceFactorMeasurement } from "@/lib/experiments";
 import { calculateResistance, formatResistance } from "@/lib/physics";
+import { createEmptyTeamAssignments, isTeamAssignments, type TeamTaskKey } from "@/lib/team";
 import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
+import TeamAssignmentsFields from "./TeamAssignmentsFields";
 
 type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
 type SampleSelection = number | "";
@@ -82,6 +84,7 @@ function controlStatus(factor: ResistanceFactor, points: ResistanceFactorMeasure
 export default function ResistanceFactorsLabForm() {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
   const [rows, setRows] = useState<FactorRowInput[]>(initialRows);
   const [sampleSelections, setSampleSelections] = useState<Record<ResistanceFactor, SampleSelection[]>>(initialSampleSelections);
   const [conclusions, setConclusions] = useState<Record<ResistanceFactor, string>>({ material: "", length: "", area: "" });
@@ -97,6 +100,10 @@ export default function ResistanceFactorsLabForm() {
     if (state.type !== "idle") setState({ type: "idle", message: "" });
   }
 
+  function updateTeamAssignment(task: TeamTaskKey, memberName: string) {
+    setTeamAssignments((current) => ({ ...current, [task]: memberName }));
+  }
+
   function updateSampleSelection(factor: ResistanceFactor, index: number, value: string) {
     const sampleId: SampleSelection = value ? Number(value) : "";
     setSampleSelections((current) => ({
@@ -110,6 +117,10 @@ export default function ResistanceFactorsLabForm() {
     event.preventDefault();
     if (!className.trim() || !groupName.trim()) {
       setState({ type: "error", message: "Hãy nhập lớp và tên nhóm." });
+      return;
+    }
+    if (!isTeamAssignments(teamAssignments)) {
+      setState({ type: "error", message: "Hãy phân công thành viên cho đủ bốn nhiệm vụ." });
       return;
     }
     const incompleteSample = rows.find((row) => !rowToMeasurement(row));
@@ -137,7 +148,7 @@ export default function ResistanceFactorsLabForm() {
           activityKey: "resistance-factors",
           className,
           groupName,
-          payload: { investigations: measurements, conclusions },
+          payload: { teamAssignments, investigations: measurements, conclusions },
           website: "",
         }),
       });
@@ -155,6 +166,7 @@ export default function ResistanceFactorsLabForm() {
         <div className="section-heading"><span>1</span><div><h2 id="factors-group-heading">Nhóm</h2></div></div>
         <label className="field-span-2">Lớp<select required value={className} onChange={(event) => setClassName(event.target.value)}><option value="">Chọn lớp</option>{classNames.map((name) => <option key={name}>{name}</option>)}</select></label>
         <label className="field-span-2">Tên nhóm<select required value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <TeamAssignmentsFields value={teamAssignments} onChange={updateTeamAssignment} />
       </section>
 
       <section aria-labelledby="factors-samples-heading">

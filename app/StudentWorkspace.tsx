@@ -52,10 +52,13 @@ export default function StudentWorkspace() {
     <>
       <header className="hero workspace-hero">
         <div className="hero-copy">
-          <PhysicsBrand />
-          <div className="course-identity">
-            <div><strong>Lawrence S. Ting School</strong><span>Teacher: Ms. Quỳnh</span></div>
-            <p>Lớp: Natural Science - Physics 9</p>
+          <div className="hero-meta">
+            <PhysicsBrand />
+            <div className="course-identity">
+              <strong>Lawrence S. Ting School</strong>
+              <span>Ms. Quỳnh</span>
+              <span>Natural Science - Physics 9</span>
+            </div>
           </div>
           <p className="eyebrow">THÍ NGHIỆM TRỰC TUYẾN</p>
           <h1>{activeDefinition?.label ?? "Phòng thí nghiệm"}</h1>
