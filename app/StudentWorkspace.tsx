@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { activityDefinitions, type ActivityKey } from "@/lib/activities";
+import { activityDefinitions, isActivityKey, type ActivityKey } from "@/lib/activities";
 import LabForm from "./LabForm";
 import OhmLabForm from "./OhmLabForm";
 import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
@@ -35,6 +35,11 @@ export default function StudentWorkspace() {
       window.clearInterval(interval);
     };
   }, [loadActivities]);
+
+  useEffect(() => {
+    const requestedActivity = new URLSearchParams(window.location.search).get("activity");
+    if (isActivityKey(requestedActivity)) setActiveKey(requestedActivity);
+  }, []);
 
   const openKeys = useMemo(() => activityDefinitions
     .filter((definition) => activities?.some((activity) => activity.key === definition.key && activity.isOpen))
