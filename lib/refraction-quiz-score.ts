@@ -28,6 +28,8 @@ const sortingKey: Record<string, Exclude<RefractionSortBucket, "">> = {
   "glass-air": "away",
 };
 
+const correctStatementIds = new Set(["a", "d", "f"]);
+
 export type RefractionQuizEvaluation = {
   bonusPoint: 0 | 1;
   correctCount: number;
@@ -66,14 +68,14 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
   const phenomenonCorrect = answers.phenomenon === "chopstick-water";
   const refractiveIndexCorrect = answers.refractiveIndex === "speed-c-over-1-5";
   const selectedStatements = new Set(answers.statements);
-  const statementsCorrect = selectedStatements.size === 3
-    && ["a", "d", "f"].every((id) => selectedStatements.has(id));
+  const statementResults = refractionStatementChoices.map((statement) =>
+    selectedStatements.has(statement.id) === correctStatementIds.has(statement.id));
   const correctCount = [
     ...trueFalseResults,
     phenomenonCorrect,
     refractiveIndexCorrect,
     ...sortingResults,
-    statementsCorrect,
+    ...statementResults,
   ].filter(Boolean).length;
   const bonusPoint = correctCount >= refractionQuizBonusThreshold ? refractionQuizBonusPoint : 0;
 
@@ -86,7 +88,7 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
       phenomenon: phenomenonCorrect,
       refractiveIndex: refractiveIndexCorrect,
       sorting: sortingResults.every(Boolean),
-      statements: statementsCorrect,
+      statements: statementResults.every(Boolean),
     },
   };
 }

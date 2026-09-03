@@ -55,15 +55,17 @@ export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
 }
 
 export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
-  return [
+  const completedRequiredResponses = [
     ...trueFalseQuestions.map((question) => answers.trueFalse[question.id]),
     answers.phenomenon,
     answers.refractiveIndex,
     ...sortingItems.map((item) => answers.sorting[item.id]),
-    answers.statements.length ? "answered" : "",
   ].filter(Boolean).length;
+
+  return completedRequiredResponses
+    + (answers.statements.length > 0 ? refractionStatementChoices.length : 0);
 }
 
-export const refractionQuizItemCount = 11;
-export const refractionQuizBonusThreshold = 10;
+export const refractionQuizItemCount = 16;
+export const refractionQuizBonusThreshold = 15;
 export const refractionQuizBonusPoint = 1;

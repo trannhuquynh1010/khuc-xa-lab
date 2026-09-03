@@ -101,7 +101,7 @@ export default function RefractionApplicationQuiz() {
           setResult({ bonusPoint: status.bonusPoint, correctCount: status.correctCount, totalItems: status.totalItems });
           setState({ type: "success", message: "Giáo viên đã công bố điểm." });
         } else {
-          setState({ type: "success", message: "Bài đã được ghi nhận. Chờ giáo viên công bố điểm." });
+          setState({ type: "success", message: "Bài đã được ghi nhận." });
         }
       })
       .catch((error: unknown) => {
@@ -159,7 +159,7 @@ export default function RefractionApplicationQuiz() {
       return;
     }
     if (hasSubmitted) {
-      setState({ type: "success", message: result ? "Giáo viên đã công bố điểm." : "Bài đã được ghi nhận. Chờ giáo viên công bố điểm." });
+      setState({ type: "success", message: result ? "Giáo viên đã công bố điểm." : "Bài đã được ghi nhận." });
       return;
     }
     if (!className) {
@@ -186,7 +186,7 @@ export default function RefractionApplicationQuiz() {
       if (!response.ok) throw new Error(data.error || "Chưa thể nộp bài.");
       setSubmissionStatus("submitted");
       setResult(null);
-      setState({ type: "success", message: "Đã nộp bài. Chờ giáo viên công bố điểm." });
+      setState({ type: "success", message: "Đã nộp bài." });
     } catch (error) {
       setState({ type: "error", message: error instanceof Error ? error.message : "Chưa thể nộp bài." });
     }
@@ -206,13 +206,13 @@ export default function RefractionApplicationQuiz() {
 
       {hasSubmitted && !result && (
         <div className="quiz-submission-notice" aria-live="polite">
-          <span>✓</span><div><strong>Đã nộp bài</strong><p>Giáo viên đang sửa bài. Em quay lại và chọn đúng lớp, STT để xem điểm sau khi được công bố.</p></div>
+          <span>✓</span><div><strong>Đã nộp bài</strong><p>Kết quả đã được lưu.</p></div>
         </div>
       )}
 
       <fieldset className="quiz-grid quiz-question-fieldset" disabled={hasSubmitted || checkingSubmission || state.type === "sending"}>
         <article className="quiz-card quiz-card-wide">
-          <div className="quiz-card-title"><span>01</span><div><h4>Đúng hay sai?</h4><p>4 ý</p></div></div>
+          <div className="quiz-card-title"><span>01</span><div><h4>Đúng hay sai?</h4><p>Chọn Đúng hoặc Sai cho từng nhận định.</p></div></div>
           <div className="true-false-list">
             {trueFalseQuestions.map((question, index) => (
               <div key={question.id}><p><b>{String.fromCharCode(97 + index)}.</b> {question.text}</p><div role="group" aria-label={`Chọn đúng hoặc sai cho ý ${index + 1}`}><button type="button" className={answers.trueFalse[question.id] === "true" ? "selected" : ""} onClick={() => setTrueFalse(question.id, "true")}>Đúng</button><button type="button" className={answers.trueFalse[question.id] === "false" ? "selected" : ""} onClick={() => setTrueFalse(question.id, "false")}>Sai</button></div></div>
@@ -221,19 +221,19 @@ export default function RefractionApplicationQuiz() {
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>02</span><div><h4>Nhận diện hiện tượng</h4><p>1 ý</p></div></div>
+          <div className="quiz-card-title"><span>02</span><div><h4>Nhận diện hiện tượng</h4><p>Chọn một đáp án.</p></div></div>
           <p className="quiz-prompt">Hiện tượng nào chủ yếu do khúc xạ ánh sáng?</p>
           <div className="quiz-options">{phenomenonChoices.map((choice) => <button key={choice.id} type="button" className={answers.phenomenon === choice.id ? "selected" : ""} onClick={() => updateAnswer("phenomenon", choice.id)}>{choice.text}</button>)}</div>
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>03</span><div><h4>Hiểu chiết suất</h4><p>1 ý</p></div></div>
+          <div className="quiz-card-title"><span>03</span><div><h4>Hiểu chiết suất</h4><p>Chọn một cách giải thích.</p></div></div>
           <p className="quiz-prompt">Một môi trường có chiết suất n = 1,5. Điều đó có nghĩa là gì?</p>
           <div className="quiz-options">{refractiveIndexChoices.map((choice) => <button key={choice.id} type="button" className={answers.refractiveIndex === choice.id ? "selected" : ""} onClick={() => updateAnswer("refractiveIndex", choice.id)}>{choice.text}</button>)}</div>
         </article>
 
         <article className="quiz-card quiz-card-wide">
-          <div className="quiz-card-title"><span>04</span><div><h4>Kéo thả theo hướng lệch</h4><p>4 ý · Có thể chọn thẻ rồi chọn ô</p></div></div>
+          <div className="quiz-card-title"><span>04</span><div><h4>Kéo thả theo hướng lệch</h4><p>Kéo từng thẻ vào ô phù hợp; cũng có thể chọn thẻ rồi chọn ô.</p></div></div>
           <div className="sort-bank" aria-label="Các thẻ chưa phân loại">
             {sortingItems.filter((item) => !answers.sorting[item.id]).map((item) => <button key={item.id} type="button" draggable className={selectedSortItem === item.id ? "selected" : ""} onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); setSelectedSortItem(item.id); }} onClick={() => setSelectedSortItem(item.id)}>{item.text}</button>)}
             {sortingItems.every((item) => answers.sorting[item.id]) && <p>Đã xếp đủ 4 thẻ.</p>}
@@ -249,8 +249,7 @@ export default function RefractionApplicationQuiz() {
         </article>
 
         <article className="quiz-card quiz-card-wide quiz-statements-card">
-          <div className="quiz-card-title"><span>05</span><div><h4>Chọn khẳng định đúng</h4><p>1 ý · Có thể chọn nhiều đáp án</p></div></div>
-          <p className="quiz-prompt">Hãy chọn tất cả các khẳng định đúng.</p>
+          <div className="quiz-card-title"><span>05</span><div><h4>Chọn khẳng định đúng</h4><p>Chọn tất cả các khẳng định đúng; có thể chọn nhiều đáp án.</p></div></div>
           <div className="quiz-options multi-select-options" role="group" aria-label="Chọn tất cả các khẳng định đúng">
             {refractionStatementChoices.map((choice) => (
               <button key={choice.id} type="button" aria-pressed={answers.statements.includes(choice.id)} className={answers.statements.includes(choice.id) ? "selected" : ""} onClick={() => toggleStatement(choice.id)}>

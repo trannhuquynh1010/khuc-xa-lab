@@ -4,8 +4,8 @@ import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactorsPayload } from "@/lib/experiments";
-import { refractionQuizBonusThreshold, type RefractionQuizAnswers } from "@/lib/refraction-quiz";
-import type { RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
+import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
+import { scoreRefractionQuiz, type RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
 import { formatStudentNumber } from "@/lib/classes";
@@ -425,31 +425,34 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
   const sql = getSql();
   const rows = className
     ? await sql`
-        SELECT id, school_year, class_name, student_name, student_number, CASE WHEN correct_count >= ${refractionQuizBonusThreshold} THEN 1 ELSE 0 END AS bonus_point, correct_count, total_items, released_at, created_at
+        SELECT id, school_year, class_name, student_name, student_number, answers, released_at, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear} AND class_name = ${className}
         ORDER BY created_at DESC
         LIMIT ${limit}
       `
     : await sql`
-        SELECT id, school_year, class_name, student_name, student_number, CASE WHEN correct_count >= ${refractionQuizBonusThreshold} THEN 1 ELSE 0 END AS bonus_point, correct_count, total_items, released_at, created_at
+        SELECT id, school_year, class_name, student_name, student_number, answers, released_at, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear}
         ORDER BY created_at DESC
         LIMIT ${limit}
       `;
-  return rows.map((row) => ({
-    id: String(row.id),
-    schoolYear: String(row.school_year),
-    className: String(row.class_name),
-    studentName: String(row.student_name),
-    studentNumber: row.student_number === null ? null : Number(row.student_number),
-    bonusPoint: Number(row.bonus_point),
-    correctCount: Number(row.correct_count),
-    totalItems: Number(row.total_items),
-    releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
-    createdAt: new Date(String(row.created_at)).toISOString(),
-  }));
+  return rows.map((row) => {
+    const evaluation = scoreRefractionQuiz(row.answers as RefractionQuizAnswers);
+    return {
+      id: String(row.id),
+      schoolYear: String(row.school_year),
+      className: String(row.class_name),
+      studentName: String(row.student_name),
+      studentNumber: row.student_number === null ? null : Number(row.student_number),
+      bonusPoint: evaluation.bonusPoint,
+      correctCount: evaluation.correctCount,
+      totalItems: evaluation.totalItems,
+      releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
+      createdAt: new Date(String(row.created_at)).toISOString(),
+    };
+  });
 }
 
 export async function getRefractionQuizSubmissionStatus(
@@ -460,7 +463,7 @@ export async function getRefractionQuizSubmissionStatus(
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT correct_count, total_items, released_at
+    SELECT answers, released_at
     FROM refraction_quiz_submissions
     WHERE school_year = ${schoolYear}
       AND class_name = ${className}
@@ -470,12 +473,13 @@ export async function getRefractionQuizSubmissionStatus(
   const row = rows[0];
   if (!row) return { submitted: false, released: false };
   if (row.released_at === null) return { submitted: true, released: false };
+  const evaluation = scoreRefractionQuiz(row.answers as RefractionQuizAnswers);
   return {
     submitted: true,
     released: true,
-    bonusPoint: Number(row.correct_count) >= refractionQuizBonusThreshold ? 1 : 0,
-    correctCount: Number(row.correct_count),
-    totalItems: Number(row.total_items),
+    bonusPoint: evaluation.bonusPoint,
+    correctCount: evaluation.correctCount,
+    totalItems: evaluation.totalItems,
   };
 }
 
