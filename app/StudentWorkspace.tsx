@@ -38,7 +38,10 @@ export default function StudentWorkspace() {
 
   useEffect(() => {
     const requestedActivity = new URLSearchParams(window.location.search).get("activity");
-    if (isActivityKey(requestedActivity)) setActiveKey(requestedActivity);
+    const timer = window.setTimeout(() => {
+      if (isActivityKey(requestedActivity)) setActiveKey(requestedActivity);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const openKeys = useMemo(() => activityDefinitions

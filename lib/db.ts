@@ -4,6 +4,8 @@ import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactorsPayload } from "@/lib/experiments";
+import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
+import type { RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
 
@@ -37,6 +39,17 @@ export type ActivitySetting = {
   updatedAt: string;
 };
 
+export type RefractionQuizSubmission = {
+  id: string;
+  schoolYear: string;
+  className: string;
+  studentName: string;
+  score: number;
+  correctCount: number;
+  totalItems: number;
+  createdAt: string;
+};
+
 function getSql() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -56,10 +69,13 @@ async function initializeSchema() {
       to_regclass('public.measurements') IS NOT NULL AND
       to_regclass('public.activity_settings') IS NOT NULL AND
       to_regclass('public.experiment_submissions') IS NOT NULL AND
+      to_regclass('public.refraction_quiz_submissions') IS NOT NULL AND
       to_regclass('public.submissions_year_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_group_unique_idx') IS NOT NULL AND
+      to_regclass('public.refraction_quiz_year_class_student_unique_idx') IS NOT NULL AND
       to_regclass('public.submissions_school_year_class_created_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_created_idx') IS NOT NULL AND
+      to_regclass('public.refraction_quiz_year_class_created_idx') IS NOT NULL AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
@@ -225,6 +241,31 @@ async function initializeSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS experiment_submissions_year_activity_class_group_unique_idx
     ON experiment_submissions (school_year, activity_key, class_name, group_name)
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS refraction_quiz_submissions (
+      id UUID PRIMARY KEY,
+      school_year VARCHAR(5) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      student_name VARCHAR(100) NOT NULL,
+      student_key VARCHAR(120) NOT NULL,
+      answers JSONB NOT NULL,
+      score NUMERIC(4, 2) NOT NULL,
+      correct_count INTEGER NOT NULL,
+      total_items INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS refraction_quiz_year_class_student_unique_idx
+    ON refraction_quiz_submissions (school_year, class_name, student_key)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS refraction_quiz_year_class_created_idx
+    ON refraction_quiz_submissions (school_year, class_name, created_at DESC)
+  `;
 }
 
 export async function ensureSchema() {
@@ -301,6 +342,8 @@ export async function listSchoolYears() {
     SELECT school_year FROM submissions
     UNION
     SELECT school_year FROM experiment_submissions
+    UNION
+    SELECT school_year FROM refraction_quiz_submissions
   `;
   const years = new Set(rows.map((row) => String(row.school_year)));
   years.add(getCurrentSchoolYear());
@@ -312,6 +355,70 @@ export async function resetSchoolYearData(schoolYear: string) {
   const sql = getSql();
   await sql`DELETE FROM submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM experiment_submissions WHERE school_year = ${schoolYear}`;
+  await sql`DELETE FROM refraction_quiz_submissions WHERE school_year = ${schoolYear}`;
+}
+
+export async function createRefractionQuizSubmission(input: {
+  className: string;
+  studentName: string;
+  answers: RefractionQuizAnswers;
+  evaluation: RefractionQuizEvaluation;
+}) {
+  await ensureSchema();
+  const sql = getSql();
+  const id = randomUUID();
+  const schoolYear = getCurrentSchoolYear();
+  const studentName = input.studentName.trim().replace(/\s+/g, " ");
+  const studentKey = studentName.normalize("NFKC").toLocaleLowerCase("vi");
+  const rows = await sql`
+    INSERT INTO refraction_quiz_submissions (
+      id, school_year, class_name, student_name, student_key, answers, score, correct_count, total_items
+    )
+    VALUES (
+      ${id}, ${schoolYear}, ${input.className}, ${studentName}, ${studentKey}, ${JSON.stringify(input.answers)}::jsonb,
+      ${input.evaluation.score}, ${input.evaluation.correctCount}, ${input.evaluation.totalItems}
+    )
+    ON CONFLICT (school_year, class_name, student_key)
+    DO UPDATE SET
+      student_name = EXCLUDED.student_name,
+      answers = EXCLUDED.answers,
+      score = EXCLUDED.score,
+      correct_count = EXCLUDED.correct_count,
+      total_items = EXCLUDED.total_items,
+      created_at = NOW()
+    RETURNING id, created_at
+  `;
+  return { id: String(rows[0].id), createdAt: new Date(String(rows[0].created_at)).toISOString() };
+}
+
+export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 500): Promise<RefractionQuizSubmission[]> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = className
+    ? await sql`
+        SELECT id, school_year, class_name, student_name, score, correct_count, total_items, created_at
+        FROM refraction_quiz_submissions
+        WHERE school_year = ${schoolYear} AND class_name = ${className}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT id, school_year, class_name, student_name, score, correct_count, total_items, created_at
+        FROM refraction_quiz_submissions
+        WHERE school_year = ${schoolYear}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+      `;
+  return rows.map((row) => ({
+    id: String(row.id),
+    schoolYear: String(row.school_year),
+    className: String(row.class_name),
+    studentName: String(row.student_name),
+    score: Number(row.score),
+    correctCount: Number(row.correct_count),
+    totalItems: Number(row.total_items),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+  }));
 }
 
 type NewExperimentInput =

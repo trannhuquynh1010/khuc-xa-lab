@@ -1,0 +1,67 @@
+export type TrueFalseAnswer = "true" | "false" | "";
+export type RefractionSortBucket = "toward" | "away" | "";
+
+export type RefractionQuizAnswers = {
+  trueFalse: Record<string, TrueFalseAnswer>;
+  direction: string;
+  refractiveIndex: string;
+  sorting: Record<string, RefractionSortBucket>;
+  sineRatio: string;
+  apparentDepth: string;
+};
+
+export const trueFalseQuestions = [
+  { id: "angles-from-normal", text: "Góc tới và góc khúc xạ đều được đo từ pháp tuyến." },
+  { id: "air-to-glass-away", text: "Từ không khí vào thủy tinh, tia khúc xạ lệch xa pháp tuyến." },
+  { id: "same-plane", text: "Tia tới, tia khúc xạ và pháp tuyến cùng nằm trong một mặt phẳng." },
+  { id: "higher-index-faster", text: "Môi trường có chiết suất lớn hơn thì ánh sáng truyền nhanh hơn." },
+] as const;
+
+export const directionChoices = [
+  { id: "r-less-than-i", text: "Tia lệch gần pháp tuyến, nên r < i." },
+  { id: "r-equals-i", text: "Tia truyền thẳng, nên r = i." },
+  { id: "r-greater-than-i", text: "Tia lệch xa pháp tuyến, nên r > i." },
+] as const;
+
+export const refractiveIndexChoices = [
+  { id: "speed-c-over-1-5", text: "Ánh sáng truyền trong môi trường với tốc độ c/1,5." },
+  { id: "speed-times-1-5", text: "Ánh sáng truyền trong môi trường nhanh gấp 1,5 lần chân không." },
+  { id: "angle-always-1-5", text: "Góc khúc xạ luôn bằng 1,5 lần góc tới." },
+] as const;
+
+export const sortingItems = [
+  { id: "air-water", text: "Không khí → nước" },
+  { id: "water-air", text: "Nước → không khí" },
+  { id: "air-glass", text: "Không khí → thủy tinh" },
+  { id: "glass-air", text: "Thủy tinh → không khí" },
+] as const;
+
+export const apparentDepthChoices = [
+  { id: "shallower", text: "Nông hơn vị trí thật" },
+  { id: "same", text: "Đúng vị trí thật" },
+  { id: "deeper", text: "Sâu hơn vị trí thật" },
+] as const;
+
+export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
+  return {
+    trueFalse: Object.fromEntries(trueFalseQuestions.map((question) => [question.id, ""])),
+    direction: "",
+    refractiveIndex: "",
+    sorting: Object.fromEntries(sortingItems.map((item) => [item.id, ""])),
+    sineRatio: "",
+    apparentDepth: "",
+  };
+}
+
+export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
+  return [
+    ...trueFalseQuestions.map((question) => answers.trueFalse[question.id]),
+    answers.direction,
+    answers.refractiveIndex,
+    ...sortingItems.map((item) => answers.sorting[item.id]),
+    answers.sineRatio.trim(),
+    answers.apparentDepth,
+  ].filter(Boolean).length;
+}
+
+export const refractionQuizItemCount = 12;

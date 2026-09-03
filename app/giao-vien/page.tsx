@@ -1,11 +1,11 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
 import { groupNames, isClassName } from "@/lib/classes";
-import { listActivitySettings, listExperimentSubmissions, listSchoolYears, listSubmissions } from "@/lib/db";
+import { listActivitySettings, listExperimentSubmissions, listRefractionQuizSubmissions, listSchoolYears, listSubmissions } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { login, logout, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
-import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
+import { OhmResults, PrismColorResults, RefractionQuizResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 import TeacherClassFilter from "./TeacherClassFilter";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -39,8 +39,11 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const definition = getActivityDefinition(selectedKey);
   const resultsPromise = (async () => {
     if (selectedKey === "refraction") {
-      const submissions = await listSubmissions(selectedYear, selectedClass);
-      return { resultContent: <RefractionResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+      const [submissions, quizSubmissions] = await Promise.all([
+        listSubmissions(selectedYear, selectedClass),
+        listRefractionQuizSubmissions(selectedYear, selectedClass),
+      ]);
+      return { resultContent: <><RefractionResults submissions={submissions} /><RefractionQuizResults submissions={quizSubmissions} /></>, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
     }
     if (selectedKey === "ohm") {
       const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass);

@@ -1,4 +1,4 @@
-import type { Submission } from "@/lib/db";
+import type { RefractionQuizSubmission, Submission } from "@/lib/db";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
 import { formatSineRatio } from "@/lib/physics";
 import { teamTasks, type TeamAssignments } from "@/lib/team";
@@ -61,6 +61,22 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
         </article>
       ))}
     </div>
+  );
+}
+
+export function RefractionQuizResults({ submissions }: { submissions: RefractionQuizSubmission[] }) {
+  return (
+    <section className="individual-results">
+      <div className="results-heading"><div><p className="eyebrow">VẬN DỤNG CÁ NHÂN</p><h2>{submissions.length} học sinh</h2></div></div>
+      {!submissions.length ? <EmptyResults /> : (
+        <div className="table-scroll quiz-results-table-wrap">
+          <table className="quiz-results-table">
+            <thead><tr><th>STT</th><th>Họ và tên</th><th>Điểm</th><th>Số ý đúng</th><th>Lần nộp mới nhất</th></tr></thead>
+            <tbody>{submissions.map((submission, index) => <tr key={submission.id}><th scope="row">{index + 1}</th><td>{submission.studentName}</td><td><strong className={`quiz-score-chip ${submission.score >= 8 ? "high" : submission.score >= 5 ? "medium" : "low"}`}>{submission.score.toLocaleString("vi-VN")}/10</strong></td><td>{submission.correctCount}/{submission.totalItems}</td><td><time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time></td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
