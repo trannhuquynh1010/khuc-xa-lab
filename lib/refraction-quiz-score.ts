@@ -79,7 +79,7 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
   return {
     score,
     correctCount,
-    totalItems: 10,
+    totalItems: 11,
     sections: {
       trueFalse: trueFalseResults.every(Boolean),
       direction: directionCorrect,

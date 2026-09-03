@@ -55,4 +55,4 @@ export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
   ].filter(Boolean).length;
 }
 
-export const refractionQuizItemCount = 10;
+export const refractionQuizItemCount = 11;
