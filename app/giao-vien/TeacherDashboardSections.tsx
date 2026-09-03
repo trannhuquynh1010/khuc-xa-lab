@@ -18,20 +18,41 @@ export async function loadTeacherActivityData(activity: ActivityKey, schoolYear:
   return { activity, submissions: await listExperimentSubmissions("resistance-factors", schoolYear, className, 8) } as const;
 }
 
-export async function TeacherActivityData({
-  dataPromise,
-  selectedClass,
-  selectedYear,
-  selectedKey,
-}: {
+type TeacherActivityDataProps = {
   dataPromise: ReturnType<typeof loadTeacherActivityData>;
   selectedClass: string;
   selectedYear: string;
   selectedKey: ActivityKey;
-}) {
+};
+
+export async function TeacherClassProgress({
+  dataPromise,
+  selectedClass,
+  selectedYear,
+  selectedKey,
+}: TeacherActivityDataProps) {
   const data = await dataPromise;
   const submittedGroupSet = new Set(data.submissions.map((submission) => submission.groupName));
   const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
+
+  return (
+    <section className="class-progress-panel">
+      <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ</p><h2>{selectedClass} · {submittedCount}/8</h2></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
+      <div className="group-progress-grid">
+        {groupNames.map((group) => {
+          const submitted = submittedGroupSet.has(group);
+          return <div key={group} className={`group-progress-item ${submitted ? "submitted" : "pending"}`}><span>{submitted ? "✓" : "·"}</span><div><strong>{group}</strong><small>{submitted ? "Đã nộp" : "Chờ"}</small></div></div>;
+        })}
+      </div>
+    </section>
+  );
+}
+
+export async function TeacherSubmissionData({
+  dataPromise,
+  selectedClass,
+}: Pick<TeacherActivityDataProps, "dataPromise" | "selectedClass">) {
+  const data = await dataPromise;
   const resultContent = data.activity === "refraction"
     ? <RefractionResults submissions={data.submissions} />
     : data.activity === "ohm"
@@ -41,22 +62,10 @@ export async function TeacherActivityData({
         : <ResistanceFactorsResults submissions={data.submissions} />;
 
   return (
-    <>
-      <section className="class-progress-panel">
-        <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ</p><h2>{selectedClass} · {submittedCount}/8</h2></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
-        <div className="group-progress-grid">
-          {groupNames.map((group) => {
-            const submitted = submittedGroupSet.has(group);
-            return <div key={group} className={`group-progress-item ${submitted ? "submitted" : "pending"}`}><span>{submitted ? "✓" : "·"}</span><div><strong>{group}</strong><small>{submitted ? "Đã nộp" : "Chờ"}</small></div></div>;
-          })}
-        </div>
-      </section>
-
-      <details className="teacher-data-disclosure">
-        <summary><span><small>BÀI NỘP</small><strong>{selectedClass} · {data.submissions.length} nhóm</strong></span><b>Mở / thu gọn</b></summary>
-        <div className="teacher-data-content">{resultContent}</div>
-      </details>
-    </>
+    <details className="teacher-data-disclosure">
+      <summary><span><small>BÀI NỘP</small><strong>{selectedClass} · {data.submissions.length} nhóm</strong></span><b>Mở / thu gọn</b></summary>
+      <div className="teacher-data-content">{resultContent}</div>
+    </details>
   );
 }
 

@@ -6,7 +6,7 @@ import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
 import { login, logout, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
-import { loadTeacherActivityData, RefractionQuizPanel, TeacherActivityData, TeacherDataSkeleton } from "./TeacherDashboardSections";
+import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
 import PhysicsBrand from "../PhysicsBrand";
@@ -64,6 +64,10 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         <div className="academic-year-actions"><TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} /><ResetYearButton schoolYear={selectedYear} /></div>
       </section>
 
+      <Suspense fallback={<TeacherDataSkeleton />}>
+        <TeacherClassProgress dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
+      </Suspense>
+
       <section className="activity-control-panel">
         <div className="activity-control-title"><span aria-hidden="true">{definition.symbol}</span><div><p className="eyebrow">HOẠT ĐỘNG</p><h2>{definition.label}</h2></div></div>
         <div className="activity-control-actions">
@@ -110,7 +114,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       )}
 
       <Suspense fallback={<TeacherDataSkeleton />}>
-        <TeacherActivityData dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
+        <TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} />
       </Suspense>
     </main>
   );
