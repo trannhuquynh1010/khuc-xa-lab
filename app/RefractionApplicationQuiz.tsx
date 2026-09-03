@@ -15,6 +15,7 @@ import {
   type TrueFalseAnswer,
 } from "@/lib/refraction-quiz";
 import type { RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
+import { formatStudentNumber, isRefractionQuizClassName, isStudentNumber, refractionQuizClassNames, studentNumbers } from "@/lib/classes";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 type SubmitState = { type: "idle" | "sending" | "success" | "error"; message: string };
@@ -52,15 +53,18 @@ function restoreAnswers(value: unknown) {
   } satisfies RefractionQuizAnswers;
 }
 
-export default function RefractionApplicationQuiz({ className }: { className: string }) {
-  const [studentName, setStudentName] = useState("");
+export default function RefractionApplicationQuiz() {
+  const [className, setClassName] = useState("");
+  const [studentNumber, setStudentNumber] = useState("");
   const [answers, setAnswers] = useState<RefractionQuizAnswers>(createEmptyRefractionQuizAnswers);
   const [selectedSortItem, setSelectedSortItem] = useState<string | null>(null);
   const [result, setResult] = useState<RefractionQuizEvaluation | null>(null);
   const [state, setState] = useState<SubmitState>({ type: "idle", message: "" });
-  const { draftStatus } = useDeviceDraft(deviceDraftKey("refraction-application"), { studentName, answers }, (value) => {
+  const { draftStatus } = useDeviceDraft(deviceDraftKey("refraction-application"), { className, studentNumber, answers }, (value) => {
     if (!isDraftRecord(value)) return;
-    if (typeof value.studentName === "string") setStudentName(value.studentName);
+    if (isRefractionQuizClassName(value.className)) setClassName(value.className);
+    const restoredStudentNumber = Number(value.studentNumber);
+    if (isStudentNumber(restoredStudentNumber)) setStudentNumber(String(restoredStudentNumber));
     const restored = restoreAnswers(value.answers);
     if (restored) setAnswers(restored);
   });
@@ -87,8 +91,16 @@ export default function RefractionApplicationQuiz({ className }: { className: st
       : [...answers.statements, id]);
   }
 
+  function updateIdentity(field: "className" | "studentNumber", value: string) {
+    if (field === "className") setClassName(value);
+    else setStudentNumber(value);
+    setResult(null);
+    setState({ type: "idle", message: "" });
+  }
+
   function resetQuiz() {
-    setStudentName("");
+    setClassName("");
+    setStudentNumber("");
     setAnswers(createEmptyRefractionQuizAnswers());
     setSelectedSortItem(null);
     setResult(null);
@@ -97,11 +109,11 @@ export default function RefractionApplicationQuiz({ className }: { className: st
 
   async function submitQuiz() {
     if (!className) {
-      setState({ type: "error", message: "Hãy chọn lớp ở mục 1 trước khi làm bài cá nhân." });
+      setState({ type: "error", message: "Hãy chọn lớp của em." });
       return;
     }
-    if (!studentName.trim()) {
-      setState({ type: "error", message: "Hãy nhập họ và tên học sinh." });
+    if (!isStudentNumber(Number(studentNumber))) {
+      setState({ type: "error", message: "Hãy chọn STT của em." });
       return;
     }
     if (completedItems < refractionQuizItemCount) {
@@ -114,7 +126,7 @@ export default function RefractionApplicationQuiz({ className }: { className: st
       const response = await fetch("/api/refraction-quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ className, studentName, answers, website: "" }),
+        body: JSON.stringify({ className, studentNumber: Number(studentNumber), answers, website: "" }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Chưa thể chấm điểm.");
@@ -133,8 +145,8 @@ export default function RefractionApplicationQuiz({ className }: { className: st
       </div>
 
       <div className="quiz-student-row">
-        <label>Họ và tên học sinh<input maxLength={100} value={studentName} onChange={(event) => setStudentName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Nhập đầy đủ họ và tên" /></label>
-        <div><span>Lớp</span><strong>{className || "Chưa chọn ở mục 1"}</strong></div>
+        <label>Lớp<select required value={className} onChange={(event) => updateIdentity("className", event.target.value)}><option value="">Chọn lớp</option>{refractionQuizClassNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <label>STT (01–33)<select required value={studentNumber} onChange={(event) => updateIdentity("studentNumber", event.target.value)}><option value="">Chọn STT</option>{studentNumbers.map((number) => <option key={number} value={number}>{formatStudentNumber(number)}</option>)}</select></label>
       </div>
 
       <div className="quiz-grid">

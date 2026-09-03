@@ -8,6 +8,7 @@ import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
 import type { RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
+import { formatStudentNumber } from "@/lib/classes";
 
 export type Measurement = {
   sequence: number;
@@ -44,6 +45,7 @@ export type RefractionQuizSubmission = {
   schoolYear: string;
   className: string;
   studentName: string;
+  studentNumber: number | null;
   score: number;
   correctCount: number;
   totalItems: number;
@@ -72,7 +74,7 @@ async function initializeSchema() {
       to_regclass('public.refraction_quiz_submissions') IS NOT NULL AND
       to_regclass('public.submissions_year_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_group_unique_idx') IS NOT NULL AND
-      to_regclass('public.refraction_quiz_year_class_student_unique_idx') IS NOT NULL AND
+      to_regclass('public.refraction_quiz_year_class_number_unique_idx') IS NOT NULL AND
       to_regclass('public.submissions_school_year_class_created_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_created_idx') IS NOT NULL AND
       to_regclass('public.refraction_quiz_year_class_created_idx') IS NOT NULL AND
@@ -83,6 +85,10 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'color_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'student_number'
       )
     ) AS ready
   `;
@@ -249,6 +255,7 @@ async function initializeSchema() {
       class_name VARCHAR(30) NOT NULL,
       student_name VARCHAR(100) NOT NULL,
       student_key VARCHAR(120) NOT NULL,
+      student_number SMALLINT,
       answers JSONB NOT NULL,
       score NUMERIC(4, 2) NOT NULL,
       correct_count INTEGER NOT NULL,
@@ -258,8 +265,15 @@ async function initializeSchema() {
   `;
 
   await sql`
-    CREATE UNIQUE INDEX IF NOT EXISTS refraction_quiz_year_class_student_unique_idx
-    ON refraction_quiz_submissions (school_year, class_name, student_key)
+    ALTER TABLE refraction_quiz_submissions
+    ADD COLUMN IF NOT EXISTS student_number SMALLINT
+  `;
+
+  await sql`DROP INDEX IF EXISTS refraction_quiz_year_class_student_unique_idx`;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS refraction_quiz_year_class_number_unique_idx
+    ON refraction_quiz_submissions (school_year, class_name, student_number)
   `;
 
   await sql`
@@ -360,7 +374,7 @@ export async function resetSchoolYearData(schoolYear: string) {
 
 export async function createRefractionQuizSubmission(input: {
   className: string;
-  studentName: string;
+  studentNumber: number;
   answers: RefractionQuizAnswers;
   evaluation: RefractionQuizEvaluation;
 }) {
@@ -368,19 +382,21 @@ export async function createRefractionQuizSubmission(input: {
   const sql = getSql();
   const id = randomUUID();
   const schoolYear = getCurrentSchoolYear();
-  const studentName = input.studentName.trim().replace(/\s+/g, " ");
-  const studentKey = studentName.normalize("NFKC").toLocaleLowerCase("vi");
+  const formattedStudentNumber = formatStudentNumber(input.studentNumber);
+  const studentName = `STT ${formattedStudentNumber}`;
+  const studentKey = `stt-${formattedStudentNumber}`;
   const rows = await sql`
     INSERT INTO refraction_quiz_submissions (
-      id, school_year, class_name, student_name, student_key, answers, score, correct_count, total_items
+      id, school_year, class_name, student_name, student_key, student_number, answers, score, correct_count, total_items
     )
     VALUES (
-      ${id}, ${schoolYear}, ${input.className}, ${studentName}, ${studentKey}, ${JSON.stringify(input.answers)}::jsonb,
+      ${id}, ${schoolYear}, ${input.className}, ${studentName}, ${studentKey}, ${input.studentNumber}, ${JSON.stringify(input.answers)}::jsonb,
       ${input.evaluation.score}, ${input.evaluation.correctCount}, ${input.evaluation.totalItems}
     )
-    ON CONFLICT (school_year, class_name, student_key)
+    ON CONFLICT (school_year, class_name, student_number)
     DO UPDATE SET
       student_name = EXCLUDED.student_name,
+      student_key = EXCLUDED.student_key,
       answers = EXCLUDED.answers,
       score = EXCLUDED.score,
       correct_count = EXCLUDED.correct_count,
@@ -396,14 +412,14 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
   const sql = getSql();
   const rows = className
     ? await sql`
-        SELECT id, school_year, class_name, student_name, score, correct_count, total_items, created_at
+        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear} AND class_name = ${className}
         ORDER BY created_at DESC
         LIMIT ${limit}
       `
     : await sql`
-        SELECT id, school_year, class_name, student_name, score, correct_count, total_items, created_at
+        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear}
         ORDER BY created_at DESC
@@ -414,6 +430,7 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
     schoolYear: String(row.school_year),
     className: String(row.class_name),
     studentName: String(row.student_name),
+    studentNumber: row.student_number === null ? null : Number(row.student_number),
     score: Number(row.score),
     correctCount: Number(row.correct_count),
     totalItems: Number(row.total_items),

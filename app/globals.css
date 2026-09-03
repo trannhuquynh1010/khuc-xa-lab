@@ -154,10 +154,7 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .quiz-progress strong { font-size: 1.05rem; }
 .quiz-progress > span { height: 9px; overflow: hidden; border: 1.3px solid var(--ink); border-radius: 999px; background: var(--paper); }
 .quiz-progress i { display: block; height: 100%; background: var(--purple); transition: width .2s ease; }
-.quiz-student-row { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 12px; align-items: end; }
-.quiz-student-row > div { display: grid; gap: 6px; }
-.quiz-student-row > div span { font-size: .82rem; font-weight: 800; }
-.quiz-student-row > div strong { display: flex; align-items: center; min-height: 43px; padding: 9px 11px; border: 1.4px solid var(--ink); border-radius: 10px; background: var(--cream); }
+.quiz-student-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .45fr); gap: 12px; align-items: end; }
 .quiz-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .quiz-card { min-width: 0; padding: 16px; border: 1.4px solid var(--ink); border-radius: 17px; background: #fff; box-shadow: 3px 3px 0 #e5ded2; }
 .quiz-card:nth-child(3n) { background: #f1edff; box-shadow: 3px 3px 0 rgba(140, 108, 255, .42); }
@@ -209,8 +206,16 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .quiz-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; padding-top: 2px; }
 .quiz-actions .form-message { min-width: 210px; }
 .individual-results { margin-top: 20px; }
-.quiz-results-table { min-width: 680px; }
-.quiz-results-table td:nth-child(2) { text-align: left; font-weight: 800; }
+.student-progress-grid { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 7px; margin-bottom: 12px; }
+.student-progress-item { display: grid; justify-items: center; gap: 3px; padding: 9px 4px; border: 1.2px solid var(--ink); border-radius: 10px; background: #fff; text-align: center; }
+.student-progress-item strong { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: #eee9e0; font-size: .75rem; }
+.student-progress-item span { color: var(--muted); font-size: .64rem; font-weight: 800; }
+.student-progress-item.submitted { background: var(--lime); }
+.student-progress-item.submitted strong { color: #fff; background: var(--ink); }
+.student-progress-item.submitted span { color: var(--ink); }
+.quiz-class-notice { padding: 16px; border: 1.3px solid var(--ink); border-radius: 14px; background: var(--cream); font-weight: 750; }
+.quiz-results-table-wrap { margin-top: 12px; }
+.quiz-results-table { min-width: 600px; }
 .quiz-score-chip { display: inline-flex; min-width: 68px; justify-content: center; padding: 5px 8px; border: 1.2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--paper); }
 .quiz-score-chip.high { background: var(--lime); }
 .quiz-score-chip.medium { background: var(--cream); }
@@ -558,6 +563,7 @@ details .table-scroll { margin-top: 12px; }
   .physics-hero-art { right: -28px; opacity: .55; }
   .hero-copy { width: calc(100% - 105px); }
   .group-progress-grid { grid-template-columns: repeat(4, 1fr); }
+  .student-progress-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .presentation-shell .refraction-result-layout, .presentation-shell .ohm-result-layout { grid-template-columns: 1fr; }
   .presentation-shell .refraction-result-layout > .table-scroll, .presentation-shell .refraction-result-layout .chart-grid.teacher-chart-grid { grid-column: 1; }
   .ray-guide-layout { grid-template-columns: 1fr; }
@@ -654,6 +660,7 @@ details .table-scroll { margin-top: 12px; }
   .class-progress-header { align-items: stretch; flex-direction: column; }
   .class-filter { width: 100%; }
   .group-progress-grid { grid-template-columns: repeat(2, 1fr); }
+  .student-progress-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .submission-summary { gap: 12px; }
   .presentation-shell { width: min(100% - 18px, 1540px); padding-top: 10px; }
   .presentation-header { padding: 22px 18px; border-radius: 22px; }

@@ -2,6 +2,7 @@ import type { RefractionQuizSubmission, Submission } from "@/lib/db";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
 import { formatSineRatio } from "@/lib/physics";
 import { teamTasks, type TeamAssignments } from "@/lib/team";
+import { formatStudentNumber, refractionQuizClassNames, studentNumbers } from "@/lib/classes";
 import MaterialBarChart from "../MaterialBarChart";
 import RelationshipChart from "../RelationshipChart";
 
@@ -64,18 +65,34 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
   );
 }
 
-export function RefractionQuizResults({ submissions }: { submissions: RefractionQuizSubmission[] }) {
+export function RefractionQuizResults({ submissions, className }: { submissions: RefractionQuizSubmission[]; className: string }) {
+  const submissionsByNumber = new Map(submissions
+    .filter((submission) => submission.studentNumber !== null)
+    .map((submission) => [submission.studentNumber!, submission]));
+  const rosterSubmissions = studentNumbers
+    .map((number) => submissionsByNumber.get(number))
+    .filter((submission): submission is RefractionQuizSubmission => Boolean(submission));
+  const isQuizClass = refractionQuizClassNames.some((name) => name === className);
+
   return (
     <section className="individual-results">
-      <div className="results-heading"><div><p className="eyebrow">VẬN DỤNG CÁ NHÂN</p><h2>{submissions.length} học sinh</h2></div></div>
-      {!submissions.length ? <EmptyResults /> : (
+      <div className="results-heading"><div><p className="eyebrow">VẬN DỤNG CÁ NHÂN</p><h2>{isQuizClass ? `${rosterSubmissions.length}/33 học sinh đã nộp` : "Không áp dụng cho lớp này"}</h2></div></div>
+      {!isQuizClass ? <div className="quiz-class-notice">Bài cá nhân được mở cho các lớp 9H04, 9H05, 9H08 và 9H09.</div> : <>
+        <div className="student-progress-grid" aria-label={`Tiến độ nộp bài cá nhân lớp ${className}`}>
+          {studentNumbers.map((number) => {
+            const submitted = submissionsByNumber.has(number);
+            return <div key={number} className={`student-progress-item ${submitted ? "submitted" : "pending"}`}><strong>{formatStudentNumber(number)}</strong><span>{submitted ? "✓ Đã nộp" : "Chưa nộp"}</span></div>;
+          })}
+        </div>
+      {rosterSubmissions.length > 0 && (
         <div className="table-scroll quiz-results-table-wrap">
           <table className="quiz-results-table">
-            <thead><tr><th>STT</th><th>Họ và tên</th><th>Điểm</th><th>Số ý đúng</th><th>Lần nộp mới nhất</th></tr></thead>
-            <tbody>{submissions.map((submission, index) => <tr key={submission.id}><th scope="row">{index + 1}</th><td>{submission.studentName}</td><td><strong className={`quiz-score-chip ${submission.score >= 8 ? "high" : submission.score >= 5 ? "medium" : "low"}`}>{submission.score.toLocaleString("vi-VN")}/10</strong></td><td>{submission.correctCount}/{submission.totalItems}</td><td><time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time></td></tr>)}</tbody>
+            <thead><tr><th>STT</th><th>Điểm</th><th>Số ý đúng</th><th>Lần nộp mới nhất</th></tr></thead>
+            <tbody>{rosterSubmissions.map((submission) => <tr key={submission.id}><th scope="row">{formatStudentNumber(submission.studentNumber!)}</th><td><strong className={`quiz-score-chip ${submission.score >= 8 ? "high" : submission.score >= 5 ? "medium" : "low"}`}>{submission.score.toLocaleString("vi-VN")}/10</strong></td><td>{submission.correctCount}/{submission.totalItems}</td><td><time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time></td></tr>)}</tbody>
           </table>
         </div>
       )}
+      </>}
     </section>
   );
 }

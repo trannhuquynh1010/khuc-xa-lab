@@ -34,7 +34,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   }
 
   const selectedKey: ActivityKey = isActivityKey(params.tab) ? params.tab : "refraction";
-  const selectedClass = isClassName(params.class) ? params.class : "9H01";
+  const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
   const resultsPromise = (async () => {
@@ -43,7 +43,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         listSubmissions(selectedYear, selectedClass),
         listRefractionQuizSubmissions(selectedYear, selectedClass),
       ]);
-      return { resultContent: <><RefractionResults submissions={submissions} /><RefractionQuizResults submissions={quizSubmissions} /></>, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+      return { resultContent: <><RefractionResults submissions={submissions} /><RefractionQuizResults submissions={quizSubmissions} className={selectedClass} /></>, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
     }
     if (selectedKey === "ohm") {
       const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass);
