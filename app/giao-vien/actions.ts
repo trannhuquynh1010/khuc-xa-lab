@@ -3,7 +3,7 @@
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
 import { isRefractionQuizClassName } from "@/lib/classes";
-import { resetSchoolYearData, setActivityOpen, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased } from "@/lib/db";
+import { resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmsLawPracticeOpen, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased } from "@/lib/db";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -50,6 +50,22 @@ export async function togglePrismColor(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setPrismColorOpen(formData.get("nextOpen") === "true");
+  revalidatePath("/");
+  revalidatePath("/giao-vien");
+}
+
+export async function toggleCurrentVoltagePractice(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setCurrentVoltagePracticeOpen(formData.get("nextOpen") === "true");
+  revalidatePath("/");
+  revalidatePath("/giao-vien");
+}
+
+export async function toggleOhmsLawPractice(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setOhmsLawPracticeOpen(formData.get("nextOpen") === "true");
   revalidatePath("/");
   revalidatePath("/giao-vien");
 }

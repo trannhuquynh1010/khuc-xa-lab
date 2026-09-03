@@ -38,6 +38,8 @@ export type ActivitySetting = {
   constructionOpen: boolean;
   applicationOpen: boolean;
   colorOpen: boolean;
+  iuPracticeOpen: boolean;
+  ohmLawPracticeOpen: boolean;
   updatedAt: string;
 };
 
@@ -103,6 +105,14 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'color_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'iu_practice_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_law_practice_open'
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -205,6 +215,8 @@ async function initializeSchema() {
       construction_open BOOLEAN NOT NULL DEFAULT TRUE,
       application_open BOOLEAN NOT NULL DEFAULT FALSE,
       color_open BOOLEAN NOT NULL DEFAULT FALSE,
+      iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -213,7 +225,9 @@ async function initializeSchema() {
     ALTER TABLE activity_settings
     ADD COLUMN IF NOT EXISTS construction_open BOOLEAN NOT NULL DEFAULT TRUE,
     ADD COLUMN IF NOT EXISTS application_open BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS color_open BOOLEAN NOT NULL DEFAULT FALSE
+    ADD COLUMN IF NOT EXISTS color_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE
   `;
 
   for (const activity of activityDefinitions) {
@@ -322,7 +336,7 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT activity_key, is_open, construction_open, application_open, color_open, updated_at
+    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -335,6 +349,8 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
       constructionOpen: Boolean(row?.construction_open),
       applicationOpen: Boolean(row?.application_open),
       colorOpen: Boolean(row?.color_open),
+      iuPracticeOpen: Boolean(row?.iu_practice_open),
+      ohmLawPracticeOpen: Boolean(row?.ohm_law_practice_open),
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
@@ -383,6 +399,26 @@ export async function setPrismColorOpen(isOpen: boolean) {
     UPDATE activity_settings
     SET color_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'prism-colors'
+  `;
+}
+
+export async function setCurrentVoltagePracticeOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET iu_practice_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'ohm'
+  `;
+}
+
+export async function setOhmsLawPracticeOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_law_practice_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'ohm'
   `;
 }
 

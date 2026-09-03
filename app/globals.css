@@ -451,6 +451,73 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .ohm-data-table { min-width: 500px; }
 .ohm-graph-panel { align-self: stretch; display: grid; align-content: center; }
 .ohm-conclusion { margin-top: 16px; }
+.electric-practice { display: grid; gap: 14px; margin-top: 16px; }
+.practice-intro { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 16px 18px; border: 1.5px solid var(--ink); border-radius: 17px; background: #e8f1ff; }
+.practice-intro.ohm-law-intro { background: #f1edff; }
+.practice-intro h3 { margin: 3px 0 4px; font-size: 1.2rem; letter-spacing: -.025em; }
+.practice-intro p:last-child { margin: 0; color: var(--muted); font-size: .8rem; font-weight: 700; }
+.practice-intro > strong { display: grid; place-items: center; width: 66px; height: 66px; flex: 0 0 66px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--paper); font-size: 1.1rem; box-shadow: 3px 3px 0 var(--orange); }
+.practice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.practice-card { min-width: 0; padding: 16px; border: 1.4px solid var(--ink); border-radius: 17px; background: #fff; box-shadow: 3px 3px 0 #e5ded2; }
+.practice-card:nth-child(3n) { background: #f1edff; box-shadow: 3px 3px 0 rgba(140, 108, 255, .42); }
+.practice-card-wide { grid-column: 1 / -1; }
+.practice-card-heading { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.practice-card-heading > span { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 36px; border: 1.3px solid var(--ink); border-radius: 50%; background: #e8f1ff; font-size: .72rem; font-weight: 900; }
+.ohms-law-practice .practice-card-heading > span { background: var(--orange); }
+.practice-card-heading h4 { margin: 0; font-size: .95rem; }
+.practice-card-heading p { margin: 2px 0 0; color: var(--muted); font-size: .72rem; font-weight: 750; }
+.practice-card > p { margin: 0 0 12px; font-size: .86rem; font-weight: 750; line-height: 1.5; }
+.meter-bank, .formula-bank { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
+.meter-bank button { display: flex; gap: 8px; align-items: center; padding: 7px 11px; border: 1.3px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--paper); font-weight: 850; cursor: grab; }
+.meter-bank button b { display: grid; place-items: center; width: 30px; height: 30px; border: 1.2px solid var(--ink); border-radius: 50%; background: #fff; }
+.meter-bank button.selected, .formula-bank button.selected { color: #fff; background: var(--ink); box-shadow: 2px 2px 0 var(--purple); }
+.circuit-builder { padding: 16px; overflow: hidden; border: 1.3px dashed var(--ink); border-radius: 15px; background: var(--cream); }
+.circuit-series-row { display: grid; grid-template-columns: 112px minmax(20px, 1fr) minmax(150px, 1.3fr) minmax(20px, 1fr) 112px minmax(20px, 1fr) 100px; align-items: center; }
+.circuit-series-row > i { border-top: 3px solid var(--ink); }
+.circuit-fixed { display: grid; place-items: center; min-height: 82px; padding: 8px; border: 1.3px solid var(--ink); border-radius: 13px; background: #fff; text-align: center; }
+.circuit-fixed b { font-size: 1.15rem; }
+.circuit-fixed small { color: var(--muted); font-weight: 800; }
+.circuit-fixed.conductor b { font-size: 1.8rem; transform: rotate(-8deg); }
+.circuit-drop-slot { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; min-height: 82px; padding: 9px; border: 2px dashed #807a70; border-radius: 13px; color: var(--ink); background: rgba(255, 255, 255, .7); text-align: left; cursor: pointer; }
+.circuit-drop-slot small { grid-column: 1 / -1; color: var(--muted); font-size: .66rem; font-weight: 800; }
+.circuit-drop-slot b { display: grid; place-items: center; width: 34px; height: 34px; border: 1.3px solid var(--ink); border-radius: 50%; background: #fff; }
+.circuit-drop-slot span { font-size: .78rem; font-weight: 850; }
+.circuit-drop-slot.filled { border-style: solid; background: #e8f1ff; }
+.circuit-parallel-row { display: flex; justify-content: center; gap: 15px; align-items: center; margin-top: 12px; color: var(--muted); font-size: .75rem; font-weight: 800; text-align: center; }
+.circuit-parallel-row .circuit-drop-slot { width: min(260px, 100%); flex: 0 1 260px; }
+.practice-options { display: grid; gap: 8px; }
+.practice-options-horizontal { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.practice-options button, .graph-choice-grid button { padding: 10px 12px; border: 1.3px solid var(--ink); border-radius: 12px; color: var(--ink); background: var(--paper); font-weight: 800; line-height: 1.45; text-align: left; cursor: pointer; }
+.practice-options button:hover, .graph-choice-grid button:hover { background: var(--lime); }
+.practice-options button.selected, .graph-choice-grid button.selected { color: #fff; background: var(--ink); box-shadow: 2px 2px 0 var(--purple); }
+.graph-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.graph-choice-grid button { display: grid; gap: 3px; padding: 8px; text-align: center; }
+.graph-choice-grid button span { font-size: .72rem; }
+.graph-choice-grid svg { width: 100%; max-height: 120px; color: var(--ink); }
+.practice-axis { fill: none; stroke: currentColor; stroke-width: 2; }
+.practice-graph-line { fill: none; stroke: var(--orange); stroke-width: 4; }
+.graph-choice-grid text { fill: currentColor; font-size: 11px; font-weight: 900; }
+.practice-correct { border-color: var(--success) !important; background: var(--lime) !important; color: var(--ink) !important; }
+.practice-incorrect { border-color: var(--danger) !important; background: #fff0eb !important; color: var(--ink) !important; }
+.practice-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; padding: 13px 0 2px; }
+.practice-actions .draft-status { margin-right: auto; }
+.practice-actions p { margin: 0; font-size: .8rem; font-weight: 850; }
+.practice-actions p.correct { color: var(--success); }
+.practice-actions p.incorrect { color: var(--danger); }
+.practice-actions button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; transform: none; }
+.formula-builder { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; }
+.formula-bank { margin: 0; }
+.formula-bank button { display: grid; place-items: center; width: 48px; height: 48px; border: 1.3px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--paper); font-size: 1.05rem; font-weight: 900; cursor: grab; }
+.formula-equation { display: flex; justify-content: center; gap: 8px; align-items: center; }
+.formula-equation > span { display: flex; gap: 8px; align-items: center; }
+.formula-equation > span > b { font-size: 1.4rem; }
+.formula-equation button { display: grid; place-items: center; width: 58px; height: 58px; border: 2px dashed var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-size: 1.25rem; font-weight: 900; cursor: pointer; }
+.formula-equation button.filled { border-style: solid; background: #e8f1ff; }
+.practice-calculation-card label { margin-top: 14px; }
+.practice-calculation-card label > div { display: grid; grid-template-columns: minmax(0, 1fr) 42px; align-items: center; }
+.practice-calculation-card input { border-radius: 11px 0 0 11px; font-size: 1.05rem; font-weight: 900; }
+.practice-calculation-card label span { display: grid; place-items: center; height: 100%; border: 1.4px solid var(--ink); border-left: 0; border-radius: 0 11px 11px 0; background: var(--cream); font-weight: 900; }
+.practice-safety-card { background: #fff0eb; }
 
 .submit-row { display: flex; align-items: center; gap: 18px; justify-content: flex-end; background: var(--lime); }
 .form-message { flex: 1; font-size: .86rem; font-weight: 700; }
@@ -618,6 +685,13 @@ details .table-scroll { margin-top: 12px; }
   .identity-grid { grid-template-columns: 1fr 1fr; }
   .team-assignment-grid, .team-assignments-review { grid-template-columns: 1fr 1fr; }
   .chart-grid, .ohm-workspace-grid { grid-template-columns: 1fr; }
+  .practice-grid { grid-template-columns: 1fr; }
+  .practice-card-wide { grid-column: auto; }
+  .practice-options-horizontal, .graph-choice-grid { grid-template-columns: 1fr; }
+  .circuit-series-row { grid-template-columns: 1fr; justify-items: stretch; }
+  .circuit-series-row > i { width: 0; height: 18px; justify-self: center; border-top: 0; border-left: 3px solid var(--ink); }
+  .circuit-parallel-row { align-items: stretch; flex-direction: column; }
+  .circuit-parallel-row .circuit-drop-slot { width: 100%; flex-basis: auto; }
   .quiz-grid { grid-template-columns: 1fr; }
   .quiz-card-wide { grid-column: auto; }
   .multi-select-options { grid-template-columns: 1fr; }
@@ -695,6 +769,14 @@ details .table-scroll { margin-top: 12px; }
   .ohm-panel { padding: 13px 9px; }
   .ohm-panel-header { align-items: stretch; flex-direction: column; }
   .ohm-panel-header .secondary-button { align-self: flex-start; }
+  .practice-intro { align-items: stretch; flex-direction: column; }
+  .practice-intro > strong { width: 56px; height: 56px; flex-basis: 56px; }
+  .practice-card { padding: 14px 10px; }
+  .formula-builder { grid-template-columns: 1fr; }
+  .formula-bank, .formula-equation { justify-content: center; }
+  .practice-actions { align-items: stretch; flex-direction: column; }
+  .practice-actions .draft-status { margin-right: 0; }
+  .practice-actions .secondary-button, .practice-actions .primary-button { width: 100%; }
   .bar-row { grid-template-columns: 70px minmax(100px, 1fr) 62px; gap: 8px; }
   .teacher-header { align-items: stretch; flex-direction: column; padding: 22px 18px; }
   .teacher-actions .secondary-button { flex: 1; }

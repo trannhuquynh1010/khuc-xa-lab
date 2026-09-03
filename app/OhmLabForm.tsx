@@ -1,12 +1,16 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
 import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
+
+const CurrentVoltagePractice = dynamic(() => import("./CurrentVoltagePractice"));
+const OhmsLawPractice = dynamic(() => import("./OhmsLawPractice"));
 
 type InputRow = { id: number; voltage: string; current: string };
 const blankRow = (id: number): InputRow => ({ id, voltage: "", current: "" });
@@ -34,7 +38,7 @@ function rowsToMeasurements(rows: InputRow[]): OhmMeasurement[] {
   });
 }
 
-export default function OhmLabForm() {
+export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPractice }: { showCurrentVoltagePractice: boolean; showOhmsLawPractice: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
@@ -158,6 +162,20 @@ export default function OhmLabForm() {
         </div>
         <label className="conclusion-prompt ohm-conclusion">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
       </section>
+
+      {showCurrentVoltagePractice && (
+        <section aria-labelledby="current-voltage-practice-heading">
+          <div className="section-heading data-heading"><span>3</span><div><h2 id="current-voltage-practice-heading">Luyện tập I phụ thuộc vào U</h2><p>Lắp mạch, dự đoán và đọc đồ thị.</p></div></div>
+          <CurrentVoltagePractice />
+        </section>
+      )}
+
+      {showOhmsLawPractice && (
+        <section aria-labelledby="ohms-law-practice-heading">
+          <div className="section-heading data-heading"><span>{showCurrentVoltagePractice ? 4 : 3}</span><div><h2 id="ohms-law-practice-heading">Luyện tập định luật Ohm</h2><p>Ghép công thức, tính nhanh và xử lí tình huống.</p></div></div>
+          <OhmsLawPractice />
+        </section>
+      )}
 
       <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
     </form>

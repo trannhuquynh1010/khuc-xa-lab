@@ -5,7 +5,7 @@ import { listActivitySettings, listRefractionQuizSubmissions, listSchoolYears } 
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, toggleActivity, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction } from "./actions";
+import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction } from "./actions";
 import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -111,6 +111,32 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         <Suspense fallback={<TeacherDataSkeleton />}>
           <RefractionQuizPanel submissionsPromise={quizSubmissionsPromise} selectedClass={selectedClass} selectedYear={selectedYear} />
         </Suspense>
+      )}
+
+      {selectedKey === "ohm" && (
+        <>
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">I↗</span><div><p className="eyebrow">BỘ BÀI TẬP 1</p><h2>Sự phụ thuộc của I vào U</h2><p>Lắp mạch, dự đoán và đọc đồ thị; chưa dùng khái niệm điện trở.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.iuPracticeOpen ? "open" : "closed"}`}>{currentSetting.iuPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleCurrentVoltagePractice}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.iuPracticeOpen)} />
+                <button className={currentSetting.iuPracticeOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.iuPracticeOpen ? "Đóng bộ 1" : "Mở bộ 1"}</button>
+              </form>
+            </div>
+          </section>
+
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">Ω</span><div><p className="eyebrow">BỘ BÀI TẬP 2</p><h2>Định luật Ohm</h2><p>Ghép công thức, tính nhanh và xử lí tình huống mạch điện.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.ohmLawPracticeOpen ? "open" : "closed"}`}>{currentSetting.ohmLawPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleOhmsLawPractice}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmLawPracticeOpen)} />
+                <button className={currentSetting.ohmLawPracticeOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.ohmLawPracticeOpen ? "Đóng bộ 2" : "Mở bộ 2"}</button>
+              </form>
+            </div>
+          </section>
+        </>
       )}
 
       {selectedKey === "prism-colors" && (
