@@ -2,6 +2,9 @@ import "server-only";
 
 import {
   phenomenonChoices,
+  refractionQuizBonusPoint,
+  refractionQuizBonusThreshold,
+  refractionQuizItemCount,
   refractionStatementChoices,
   refractiveIndexChoices,
   sortingItems,
@@ -26,7 +29,7 @@ const sortingKey: Record<string, Exclude<RefractionSortBucket, "">> = {
 };
 
 export type RefractionQuizEvaluation = {
-  score: number;
+  bonusPoint: 0 | 1;
   correctCount: number;
   totalItems: number;
   sections: {
@@ -72,16 +75,12 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
     ...sortingResults,
     statementsCorrect,
   ].filter(Boolean).length;
-  const score = trueFalseResults.filter(Boolean).length * 0.5
-    + (phenomenonCorrect ? 2 : 0)
-    + (refractiveIndexCorrect ? 2 : 0)
-    + sortingResults.filter(Boolean).length * 0.5
-    + (statementsCorrect ? 2 : 0);
+  const bonusPoint = correctCount >= refractionQuizBonusThreshold ? refractionQuizBonusPoint : 0;
 
   return {
-    score,
+    bonusPoint,
     correctCount,
-    totalItems: 11,
+    totalItems: refractionQuizItemCount,
     sections: {
       trueFalse: trueFalseResults.every(Boolean),
       phenomenon: phenomenonCorrect,

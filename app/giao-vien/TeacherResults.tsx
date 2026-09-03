@@ -5,6 +5,7 @@ import { teamTasks, type TeamAssignments } from "@/lib/team";
 import { formatStudentNumber, refractionQuizClassNames, studentNumbers } from "@/lib/classes";
 import MaterialBarChart from "../MaterialBarChart";
 import RelationshipChart from "../RelationshipChart";
+import RefractionQuizResultTable from "./RefractionQuizResultTable";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("vi-VN", {
@@ -85,12 +86,7 @@ export function RefractionQuizResults({ submissions, className }: { submissions:
           })}
         </div>
       {rosterSubmissions.length > 0 && (
-        <div className="table-scroll quiz-results-table-wrap">
-          <table className="quiz-results-table">
-            <thead><tr><th>STT</th><th>Điểm</th><th>Số ý đúng</th><th>Trạng thái điểm</th><th>Lần nộp</th></tr></thead>
-            <tbody>{rosterSubmissions.map((submission) => <tr key={submission.id}><th scope="row">{formatStudentNumber(submission.studentNumber!)}</th><td><strong className={`quiz-score-chip ${submission.score >= 8 ? "high" : submission.score >= 5 ? "medium" : "low"}`}>{submission.score.toLocaleString("vi-VN")}/10</strong></td><td>{submission.correctCount}/{submission.totalItems}</td><td><span className={`score-release-chip ${submission.releasedAt ? "released" : "pending"}`}>{submission.releasedAt ? "Đã công bố" : "Chưa công bố"}</span></td><td><time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time></td></tr>)}</tbody>
-          </table>
-        </div>
+        <RefractionQuizResultTable submissions={rosterSubmissions} />
       )}
       </>}
     </section>

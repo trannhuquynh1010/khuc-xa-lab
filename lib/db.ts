@@ -4,7 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactorsPayload } from "@/lib/experiments";
-import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
+import { refractionQuizBonusThreshold, type RefractionQuizAnswers } from "@/lib/refraction-quiz";
 import type { RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
@@ -46,7 +46,7 @@ export type RefractionQuizSubmission = {
   className: string;
   studentName: string;
   studentNumber: number | null;
-  score: number;
+  bonusPoint: number;
   correctCount: number;
   totalItems: number;
   releasedAt: string | null;
@@ -56,7 +56,7 @@ export type RefractionQuizSubmission = {
 export type RefractionQuizSubmissionStatus =
   | { submitted: false; released: false }
   | { submitted: true; released: false }
-  | { submitted: true; released: true; score: number; correctCount: number; totalItems: number };
+  | { submitted: true; released: true; bonusPoint: number; correctCount: number; totalItems: number };
 
 export class DuplicateRefractionQuizSubmissionError extends Error {
   constructor() {
@@ -410,7 +410,7 @@ export async function createRefractionQuizSubmission(input: {
     )
     VALUES (
       ${id}, ${schoolYear}, ${input.className}, ${studentName}, ${studentKey}, ${input.studentNumber}, ${JSON.stringify(input.answers)}::jsonb,
-      ${input.evaluation.score}, ${input.evaluation.correctCount}, ${input.evaluation.totalItems}
+      ${input.evaluation.bonusPoint}, ${input.evaluation.correctCount}, ${input.evaluation.totalItems}
     )
     ON CONFLICT (school_year, class_name, student_number)
     DO NOTHING
@@ -425,14 +425,14 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
   const sql = getSql();
   const rows = className
     ? await sql`
-        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, released_at, created_at
+        SELECT id, school_year, class_name, student_name, student_number, CASE WHEN correct_count >= ${refractionQuizBonusThreshold} THEN 1 ELSE 0 END AS bonus_point, correct_count, total_items, released_at, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear} AND class_name = ${className}
         ORDER BY created_at DESC
         LIMIT ${limit}
       `
     : await sql`
-        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, released_at, created_at
+        SELECT id, school_year, class_name, student_name, student_number, CASE WHEN correct_count >= ${refractionQuizBonusThreshold} THEN 1 ELSE 0 END AS bonus_point, correct_count, total_items, released_at, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear}
         ORDER BY created_at DESC
@@ -444,7 +444,7 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
     className: String(row.class_name),
     studentName: String(row.student_name),
     studentNumber: row.student_number === null ? null : Number(row.student_number),
-    score: Number(row.score),
+    bonusPoint: Number(row.bonus_point),
     correctCount: Number(row.correct_count),
     totalItems: Number(row.total_items),
     releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
@@ -460,7 +460,7 @@ export async function getRefractionQuizSubmissionStatus(
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT score, correct_count, total_items, released_at
+    SELECT correct_count, total_items, released_at
     FROM refraction_quiz_submissions
     WHERE school_year = ${schoolYear}
       AND class_name = ${className}
@@ -473,7 +473,7 @@ export async function getRefractionQuizSubmissionStatus(
   return {
     submitted: true,
     released: true,
-    score: Number(row.score),
+    bonusPoint: Number(row.correct_count) >= refractionQuizBonusThreshold ? 1 : 0,
     correctCount: Number(row.correct_count),
     totalItems: Number(row.total_items),
   };

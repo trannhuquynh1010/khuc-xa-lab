@@ -5,6 +5,7 @@ import {
   countCompletedQuizItems,
   createEmptyRefractionQuizAnswers,
   phenomenonChoices,
+  refractionQuizBonusThreshold,
   refractionStatementChoices,
   refractiveIndexChoices,
   refractionQuizItemCount,
@@ -19,7 +20,7 @@ import { formatStudentNumber, isRefractionQuizClassName, isStudentNumber, refrac
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 type SubmitState = { type: "idle" | "sending" | "success" | "error"; message: string };
-type PublishedQuizResult = Pick<RefractionQuizEvaluation, "score" | "correctCount" | "totalItems">;
+type PublishedQuizResult = Pick<RefractionQuizEvaluation, "bonusPoint" | "correctCount" | "totalItems">;
 type SubmissionStatus = "idle" | "available" | "submitted";
 type QuizStatusResponse =
   | { submitted: false; released: false }
@@ -97,7 +98,7 @@ export default function RefractionApplicationQuiz() {
         }
         setSubmissionStatus("submitted");
         if (status.released) {
-          setResult({ score: status.score, correctCount: status.correctCount, totalItems: status.totalItems });
+          setResult({ bonusPoint: status.bonusPoint, correctCount: status.correctCount, totalItems: status.totalItems });
           setState({ type: "success", message: "Giáo viên đã công bố điểm." });
         } else {
           setState({ type: "success", message: "Bài đã được ghi nhận. Chờ giáo viên công bố điểm." });
@@ -194,7 +195,7 @@ export default function RefractionApplicationQuiz() {
   return (
     <div className="refraction-quiz">
       <div className="quiz-intro">
-        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 5 nhiệm vụ. Điểm hiển thị sau khi giáo viên công bố.</p></div>
+        <div><p className="eyebrow">CÁ NHÂN · ĐIỂM CỘNG</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Đúng từ {refractionQuizBonusThreshold}/{refractionQuizItemCount} ý để nhận +1 điểm cộng sau khi giáo viên công bố.</p></div>
         <div className="quiz-progress" aria-label={`Đã trả lời ${completedItems} trên ${refractionQuizItemCount} ý`}><strong>{completedItems}/{refractionQuizItemCount}</strong><span><i style={{ width: `${completedItems / refractionQuizItemCount * 100}%` }} /></span></div>
       </div>
 
@@ -211,7 +212,7 @@ export default function RefractionApplicationQuiz() {
 
       <fieldset className="quiz-grid quiz-question-fieldset" disabled={hasSubmitted || checkingSubmission || state.type === "sending"}>
         <article className="quiz-card quiz-card-wide">
-          <div className="quiz-card-title"><span>01</span><div><h4>Đúng hay sai?</h4><p>Mỗi ý 0,5 điểm</p></div></div>
+          <div className="quiz-card-title"><span>01</span><div><h4>Đúng hay sai?</h4><p>4 ý</p></div></div>
           <div className="true-false-list">
             {trueFalseQuestions.map((question, index) => (
               <div key={question.id}><p><b>{String.fromCharCode(97 + index)}.</b> {question.text}</p><div role="group" aria-label={`Chọn đúng hoặc sai cho ý ${index + 1}`}><button type="button" className={answers.trueFalse[question.id] === "true" ? "selected" : ""} onClick={() => setTrueFalse(question.id, "true")}>Đúng</button><button type="button" className={answers.trueFalse[question.id] === "false" ? "selected" : ""} onClick={() => setTrueFalse(question.id, "false")}>Sai</button></div></div>
@@ -220,19 +221,19 @@ export default function RefractionApplicationQuiz() {
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>02</span><div><h4>Nhận diện hiện tượng</h4><p>2 điểm</p></div></div>
+          <div className="quiz-card-title"><span>02</span><div><h4>Nhận diện hiện tượng</h4><p>1 ý</p></div></div>
           <p className="quiz-prompt">Hiện tượng nào chủ yếu do khúc xạ ánh sáng?</p>
           <div className="quiz-options">{phenomenonChoices.map((choice) => <button key={choice.id} type="button" className={answers.phenomenon === choice.id ? "selected" : ""} onClick={() => updateAnswer("phenomenon", choice.id)}>{choice.text}</button>)}</div>
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>03</span><div><h4>Hiểu chiết suất</h4><p>2 điểm</p></div></div>
+          <div className="quiz-card-title"><span>03</span><div><h4>Hiểu chiết suất</h4><p>1 ý</p></div></div>
           <p className="quiz-prompt">Một môi trường có chiết suất n = 1,5. Điều đó có nghĩa là gì?</p>
           <div className="quiz-options">{refractiveIndexChoices.map((choice) => <button key={choice.id} type="button" className={answers.refractiveIndex === choice.id ? "selected" : ""} onClick={() => updateAnswer("refractiveIndex", choice.id)}>{choice.text}</button>)}</div>
         </article>
 
         <article className="quiz-card quiz-card-wide">
-          <div className="quiz-card-title"><span>04</span><div><h4>Kéo thả theo hướng lệch</h4><p>Mỗi thẻ 0,5 điểm · Có thể chọn thẻ rồi chọn ô</p></div></div>
+          <div className="quiz-card-title"><span>04</span><div><h4>Kéo thả theo hướng lệch</h4><p>4 ý · Có thể chọn thẻ rồi chọn ô</p></div></div>
           <div className="sort-bank" aria-label="Các thẻ chưa phân loại">
             {sortingItems.filter((item) => !answers.sorting[item.id]).map((item) => <button key={item.id} type="button" draggable className={selectedSortItem === item.id ? "selected" : ""} onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); setSelectedSortItem(item.id); }} onClick={() => setSelectedSortItem(item.id)}>{item.text}</button>)}
             {sortingItems.every((item) => answers.sorting[item.id]) && <p>Đã xếp đủ 4 thẻ.</p>}
@@ -248,7 +249,7 @@ export default function RefractionApplicationQuiz() {
         </article>
 
         <article className="quiz-card quiz-card-wide quiz-statements-card">
-          <div className="quiz-card-title"><span>05</span><div><h4>Chọn khẳng định đúng</h4><p>2 điểm · Có thể chọn nhiều đáp án</p></div></div>
+          <div className="quiz-card-title"><span>05</span><div><h4>Chọn khẳng định đúng</h4><p>1 ý · Có thể chọn nhiều đáp án</p></div></div>
           <p className="quiz-prompt">Hãy chọn tất cả các khẳng định đúng.</p>
           <div className="quiz-options multi-select-options" role="group" aria-label="Chọn tất cả các khẳng định đúng">
             {refractionStatementChoices.map((choice) => (
@@ -261,9 +262,9 @@ export default function RefractionApplicationQuiz() {
       </fieldset>
 
       {result && (
-        <div className="quiz-result" aria-live="polite">
-          <div className="quiz-score"><span>Điểm của em</span><strong>{result.score.toLocaleString("vi-VN")}</strong><b>/10</b></div>
-          <div><h4>Giáo viên đã công bố điểm.</h4><p>Em trả lời đúng {result.correctCount}/{result.totalItems} ý.</p></div>
+        <div className={`quiz-result ${result.bonusPoint ? "bonus-earned" : "bonus-missed"}`} aria-live="polite">
+          <div className="quiz-score"><span>Kết quả</span><strong>{result.bonusPoint ? "+1" : "—"}</strong><b>điểm cộng</b></div>
+          <div><h4>{result.bonusPoint ? "Chúc mừng! Em nhận +1 điểm cộng." : "Em chưa đạt điểm cộng lần này."}</h4><p>Em trả lời đúng {result.correctCount}/{result.totalItems} ý. Cần đạt ít nhất {refractionQuizBonusThreshold}/{result.totalItems} ý để nhận điểm cộng.</p></div>
         </div>
       )}
 

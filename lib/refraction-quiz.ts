@@ -65,3 +65,5 @@ export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
 }
 
 export const refractionQuizItemCount = 11;
+export const refractionQuizBonusThreshold = 10;
+export const refractionQuizBonusPoint = 1;
