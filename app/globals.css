@@ -32,6 +32,9 @@ a { color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid rgba(140, 108, 255, .38); outline-offset: 3px; }
 
 .page-shell, .teacher-shell { width: min(1240px, calc(100% - 36px)); margin: 0 auto; padding: 24px 0 30px; }
+.page-shell { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.page-shell input, .page-shell textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+.page-shell img, .page-shell svg { -webkit-user-drag: none; }
 .physics-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 24px; }
 .physics-brand strong { font-size: 1rem; letter-spacing: -.03em; }
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--lime); }
@@ -187,6 +190,10 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .sort-zone > div button b { color: var(--danger); }
 .quiz-number-answer { margin-top: 18px; }
 .quiz-number-answer input { max-width: 220px; font-size: 1.05rem; font-weight: 900; }
+.quiz-calculation-card { display: grid; grid-template-columns: minmax(230px, .7fr) minmax(260px, 1.3fr); gap: 0 24px; align-items: end; }
+.quiz-calculation-card .quiz-card-title { grid-row: span 2; align-self: center; margin: 0; }
+.quiz-calculation-card .quiz-prompt { align-self: end; }
+.quiz-calculation-card .quiz-number-answer { margin-top: 0; }
 .quiz-result { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; padding: 16px 18px; border: 1.5px solid var(--ink); border-radius: 17px; background: var(--lime); box-shadow: 4px 4px 0 var(--ink); }
 .quiz-score { display: grid; grid-template-columns: auto auto; align-items: baseline; padding-right: 18px; border-right: 1px solid rgba(23, 23, 23, .35); }
 .quiz-score span { grid-column: 1 / -1; font-size: .72rem; font-weight: 900; text-transform: uppercase; }
@@ -562,6 +569,9 @@ details .table-scroll { margin-top: 12px; }
   .chart-grid, .ohm-workspace-grid { grid-template-columns: 1fr; }
   .quiz-grid { grid-template-columns: 1fr; }
   .quiz-card-wide { grid-column: auto; }
+  .quiz-calculation-card { display: block; }
+  .quiz-calculation-card .quiz-card-title { margin-bottom: 12px; }
+  .quiz-calculation-card .quiz-number-answer { margin-top: 18px; }
   .conclusion-summary-grid, .resistivity-workspace { grid-template-columns: 1fr; }
   .submission-summary { grid-template-columns: 1fr 1fr; }
   .submission-summary time { grid-column: 1 / -1; }

@@ -1,7 +1,6 @@
 import "server-only";
 
 import {
-  apparentDepthChoices,
   directionChoices,
   refractiveIndexChoices,
   sortingItems,
@@ -35,7 +34,6 @@ export type RefractionQuizEvaluation = {
     refractiveIndex: boolean;
     sorting: boolean;
     sineRatio: boolean;
-    apparentDepth: boolean;
   };
 };
 
@@ -55,8 +53,7 @@ export function isRefractionQuizAnswers(value: unknown): value is RefractionQuiz
   const validSorting = sortingItems.every((item) => sorting[item.id] === "toward" || sorting[item.id] === "away");
   const validDirection = directionChoices.some((choice) => choice.id === answers.direction);
   const validIndex = refractiveIndexChoices.some((choice) => choice.id === answers.refractiveIndex);
-  const validDepth = apparentDepthChoices.some((choice) => choice.id === answers.apparentDepth);
-  return validTrueFalse && validSorting && validDirection && validIndex && validDepth && typeof answers.sineRatio === "string" && answers.sineRatio.trim().length <= 30;
+  return validTrueFalse && validSorting && validDirection && validIndex && typeof answers.sineRatio === "string" && answers.sineRatio.trim().length <= 30;
 }
 
 export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQuizEvaluation {
@@ -66,33 +63,29 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
   const refractiveIndexCorrect = answers.refractiveIndex === "speed-c-over-1-5";
   const ratio = parseDecimal(answers.sineRatio);
   const sineRatioCorrect = ratio !== null && Math.abs(ratio - 1.5) <= 0.02;
-  const apparentDepthCorrect = answers.apparentDepth === "shallower";
   const correctCount = [
     ...trueFalseResults,
     directionCorrect,
     refractiveIndexCorrect,
     ...sortingResults,
     sineRatioCorrect,
-    apparentDepthCorrect,
   ].filter(Boolean).length;
   const score = trueFalseResults.filter(Boolean).length * 0.5
-    + (directionCorrect ? 1.5 : 0)
-    + (refractiveIndexCorrect ? 1.5 : 0)
+    + (directionCorrect ? 2 : 0)
+    + (refractiveIndexCorrect ? 2 : 0)
     + sortingResults.filter(Boolean).length * 0.5
-    + (sineRatioCorrect ? 1.5 : 0)
-    + (apparentDepthCorrect ? 1.5 : 0);
+    + (sineRatioCorrect ? 2 : 0);
 
   return {
     score,
     correctCount,
-    totalItems: 12,
+    totalItems: 10,
     sections: {
       trueFalse: trueFalseResults.every(Boolean),
       direction: directionCorrect,
       refractiveIndex: refractiveIndexCorrect,
       sorting: sortingResults.every(Boolean),
       sineRatio: sineRatioCorrect,
-      apparentDepth: apparentDepthCorrect,
     },
   };
 }

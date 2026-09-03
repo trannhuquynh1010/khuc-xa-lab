@@ -7,7 +7,6 @@ export type RefractionQuizAnswers = {
   refractiveIndex: string;
   sorting: Record<string, RefractionSortBucket>;
   sineRatio: string;
-  apparentDepth: string;
 };
 
 export const trueFalseQuestions = [
@@ -36,12 +35,6 @@ export const sortingItems = [
   { id: "glass-air", text: "Thủy tinh → không khí" },
 ] as const;
 
-export const apparentDepthChoices = [
-  { id: "shallower", text: "Nông hơn vị trí thật" },
-  { id: "same", text: "Đúng vị trí thật" },
-  { id: "deeper", text: "Sâu hơn vị trí thật" },
-] as const;
-
 export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
   return {
     trueFalse: Object.fromEntries(trueFalseQuestions.map((question) => [question.id, ""])),
@@ -49,7 +42,6 @@ export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
     refractiveIndex: "",
     sorting: Object.fromEntries(sortingItems.map((item) => [item.id, ""])),
     sineRatio: "",
-    apparentDepth: "",
   };
 }
 
@@ -60,8 +52,7 @@ export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
     answers.refractiveIndex,
     ...sortingItems.map((item) => answers.sorting[item.id]),
     answers.sineRatio.trim(),
-    answers.apparentDepth,
   ].filter(Boolean).length;
 }
 
-export const refractionQuizItemCount = 12;
+export const refractionQuizItemCount = 10;

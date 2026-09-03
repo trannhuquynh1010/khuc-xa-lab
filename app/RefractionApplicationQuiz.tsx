@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  apparentDepthChoices,
   countCompletedQuizItems,
   createEmptyRefractionQuizAnswers,
   directionChoices,
@@ -25,7 +24,6 @@ const sectionLabels: Array<{ key: keyof RefractionQuizEvaluation["sections"]; la
   { key: "refractiveIndex", label: "Ý nghĩa chiết suất" },
   { key: "sorting", label: "Phân loại môi trường" },
   { key: "sineRatio", label: "Tính tỉ số sin" },
-  { key: "apparentDepth", label: "Vận dụng thực tế" },
 ];
 
 function restoreAnswers(value: unknown) {
@@ -48,7 +46,6 @@ function restoreAnswers(value: unknown) {
     refractiveIndex: typeof value.refractiveIndex === "string" ? value.refractiveIndex : "",
     sorting: restoredSorting,
     sineRatio: typeof value.sineRatio === "string" ? value.sineRatio : "",
-    apparentDepth: typeof value.apparentDepth === "string" ? value.apparentDepth : "",
   } satisfies RefractionQuizAnswers;
 }
 
@@ -122,7 +119,7 @@ export default function RefractionApplicationQuiz({ className }: { className: st
   return (
     <div className="refraction-quiz">
       <div className="quiz-intro">
-        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 6 nhiệm vụ. Hệ thống chấm điểm ngay và chỉ lưu lần nộp mới nhất.</p></div>
+        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 5 nhiệm vụ. Hệ thống chấm điểm ngay và chỉ lưu lần nộp mới nhất.</p></div>
         <div className="quiz-progress" aria-label={`Đã trả lời ${completedItems} trên ${refractionQuizItemCount} ý`}><strong>{completedItems}/{refractionQuizItemCount}</strong><span><i style={{ width: `${completedItems / refractionQuizItemCount * 100}%` }} /></span></div>
       </div>
 
@@ -142,13 +139,13 @@ export default function RefractionApplicationQuiz({ className }: { className: st
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>02</span><div><h4>Tia sáng đổi hướng</h4><p>1,5 điểm</p></div></div>
+          <div className="quiz-card-title"><span>02</span><div><h4>Tia sáng đổi hướng</h4><p>2 điểm</p></div></div>
           <p className="quiz-prompt">Tia sáng truyền xiên từ không khí vào nước. Nhận xét nào đúng?</p>
           <div className="quiz-options">{directionChoices.map((choice) => <button key={choice.id} type="button" className={answers.direction === choice.id ? "selected" : ""} onClick={() => updateAnswer("direction", choice.id)}>{choice.text}</button>)}</div>
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>03</span><div><h4>Hiểu chiết suất</h4><p>1,5 điểm</p></div></div>
+          <div className="quiz-card-title"><span>03</span><div><h4>Hiểu chiết suất</h4><p>2 điểm</p></div></div>
           <p className="quiz-prompt">Một môi trường có chiết suất n = 1,5. Điều đó có nghĩa là gì?</p>
           <div className="quiz-options">{refractiveIndexChoices.map((choice) => <button key={choice.id} type="button" className={answers.refractiveIndex === choice.id ? "selected" : ""} onClick={() => updateAnswer("refractiveIndex", choice.id)}>{choice.text}</button>)}</div>
         </article>
@@ -169,16 +166,10 @@ export default function RefractionApplicationQuiz({ className }: { className: st
           </div>
         </article>
 
-        <article className="quiz-card">
-          <div className="quiz-card-title"><span>05</span><div><h4>Tính nhanh</h4><p>1,5 điểm</p></div></div>
+        <article className="quiz-card quiz-card-wide quiz-calculation-card">
+          <div className="quiz-card-title"><span>05</span><div><h4>Tính nhanh</h4><p>2 điểm</p></div></div>
           <p className="quiz-prompt">Với sin i = 0,75 và sin r = 0,50, hãy tính sin i / sin r.</p>
           <label className="quiz-number-answer">Đáp án<input inputMode="decimal" value={answers.sineRatio} onChange={(event) => updateAnswer("sineRatio", event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Ví dụ: 1,2" /></label>
-        </article>
-
-        <article className="quiz-card">
-          <div className="quiz-card-title"><span>06</span><div><h4>Nhìn đáy bể</h4><p>1,5 điểm</p></div></div>
-          <p className="quiz-prompt">Đứng trên bờ nhìn xuống đáy bể nước, ta thấy đáy bể ở vị trí nào so với thực tế?</p>
-          <div className="quiz-options">{apparentDepthChoices.map((choice) => <button key={choice.id} type="button" className={answers.apparentDepth === choice.id ? "selected" : ""} onClick={() => updateAnswer("apparentDepth", choice.id)}>{choice.text}</button>)}</div>
         </article>
       </div>
 
