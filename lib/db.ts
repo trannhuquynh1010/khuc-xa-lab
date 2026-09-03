@@ -563,24 +563,31 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
   return getCachedRefractionQuizSubmissions(schoolYear, className, limit);
 }
 
-const getCachedRefractionQuizClassSummary = unstable_cache(async (schoolYear: string, className: string): Promise<RefractionQuizClassSummary> => {
+const getCachedRefractionQuizSummaries = unstable_cache(async (schoolYear: string) => {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
     SELECT
+      class_name,
       COUNT(*) FILTER (WHERE student_number IS NOT NULL)::INTEGER AS submitted_count,
       COUNT(*) FILTER (WHERE student_number IS NOT NULL AND released_at IS NOT NULL)::INTEGER AS released_count
     FROM refraction_quiz_submissions
-    WHERE school_year = ${schoolYear} AND class_name = ${className}
+    WHERE school_year = ${schoolYear}
+    GROUP BY class_name
   `;
-  return {
-    submittedCount: Number(rows[0]?.submitted_count ?? 0),
-    releasedCount: Number(rows[0]?.released_count ?? 0),
-  };
-}, ["refraction-quiz-class-summary-v1"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+  return rows.map((row) => ({
+    className: String(row.class_name),
+    submittedCount: Number(row.submitted_count ?? 0),
+    releasedCount: Number(row.released_count ?? 0),
+  }));
+}, ["refraction-quiz-class-summaries-v1"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
 
-export async function getRefractionQuizClassSummary(schoolYear: string, className: string) {
-  return getCachedRefractionQuizClassSummary(schoolYear, className);
+export async function getRefractionQuizClassSummary(schoolYear: string, className: string): Promise<RefractionQuizClassSummary> {
+  const summary = (await getCachedRefractionQuizSummaries(schoolYear)).find((item) => item.className === className);
+  return {
+    submittedCount: summary?.submittedCount ?? 0,
+    releasedCount: summary?.releasedCount ?? 0,
+  };
 }
 
 export async function getRefractionQuizSubmissionStatus(
@@ -692,27 +699,29 @@ const getCachedExperimentSubmissions = unstable_cache(async (key: "ohm" | "resis
   }));
 }, ["teacher-experiment-submissions-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
 
-const getCachedSubmittedGroups = unstable_cache(async (key: ActivityKey, schoolYear: string, className: string) => {
+const getCachedSubmittedGroupsByClass = unstable_cache(async (key: ActivityKey, schoolYear: string) => {
   await ensureSchema();
   const sql = getSql();
   const rows = key === "refraction"
     ? await sql`
-        SELECT group_name
+        SELECT class_name, group_name
         FROM submissions
-        WHERE school_year = ${schoolYear} AND class_name = ${className}
+        WHERE school_year = ${schoolYear}
         ORDER BY created_at DESC
       `
     : await sql`
-        SELECT group_name
+        SELECT class_name, group_name
         FROM experiment_submissions
-        WHERE activity_key = ${key} AND school_year = ${schoolYear} AND class_name = ${className}
+        WHERE activity_key = ${key} AND school_year = ${schoolYear}
         ORDER BY created_at DESC
       `;
-  return rows.map((row) => String(row.group_name));
-}, ["teacher-submitted-groups-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+  return rows.map((row) => ({ className: String(row.class_name), groupName: String(row.group_name) }));
+}, ["teacher-submitted-groups-by-class-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
 
 export async function listSubmittedGroups(key: ActivityKey, schoolYear: string, className: string) {
-  return getCachedSubmittedGroups(key, schoolYear, className);
+  return (await getCachedSubmittedGroupsByClass(key, schoolYear))
+    .filter((submission) => submission.className === className)
+    .map((submission) => submission.groupName);
 }
 
 export async function createSubmission(input: {
