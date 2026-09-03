@@ -6,7 +6,7 @@ export type RefractionQuizAnswers = {
   direction: string;
   refractiveIndex: string;
   sorting: Record<string, RefractionSortBucket>;
-  sineRatio: string;
+  statements: string[];
 };
 
 export const trueFalseQuestions = [
@@ -35,13 +35,22 @@ export const sortingItems = [
   { id: "glass-air", text: "Thủy tinh → không khí" },
 ] as const;
 
+export const refractionStatementChoices = [
+  { id: "a", label: "A", text: "Có thể nói mặt phẳng tạo bởi tia tới và tia khúc xạ cũng là mặt phẳng tới." },
+  { id: "b", label: "B", text: "Góc tới là góc tạo bởi tia tới và mặt phân cách." },
+  { id: "c", label: "C", text: "Góc khúc xạ bao giờ cũng nhỏ hơn góc tới." },
+  { id: "d", label: "D", text: "Khi tia sáng chiếu xiên từ không khí vào nước, góc tới luôn lớn hơn góc khúc xạ." },
+  { id: "e", label: "E", text: "Góc khúc xạ tăng tỉ lệ thuận với góc tới." },
+  { id: "f", label: "F", text: "Khi tia sáng chiếu vuông góc vào mặt phân cách giữa hai môi trường trong suốt, tia sáng truyền thẳng." },
+] as const;
+
 export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
   return {
     trueFalse: Object.fromEntries(trueFalseQuestions.map((question) => [question.id, ""])),
     direction: "",
     refractiveIndex: "",
     sorting: Object.fromEntries(sortingItems.map((item) => [item.id, ""])),
-    sineRatio: "",
+    statements: [],
   };
 }
 
@@ -51,7 +60,7 @@ export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
     answers.direction,
     answers.refractiveIndex,
     ...sortingItems.map((item) => answers.sorting[item.id]),
-    answers.sineRatio.trim(),
+    answers.statements.length ? "answered" : "",
   ].filter(Boolean).length;
 }
 

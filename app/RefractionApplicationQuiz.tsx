@@ -5,6 +5,7 @@ import {
   countCompletedQuizItems,
   createEmptyRefractionQuizAnswers,
   directionChoices,
+  refractionStatementChoices,
   refractiveIndexChoices,
   refractionQuizItemCount,
   sortingItems,
@@ -23,7 +24,7 @@ const sectionLabels: Array<{ key: keyof RefractionQuizEvaluation["sections"]; la
   { key: "direction", label: "Hướng lệch của tia" },
   { key: "refractiveIndex", label: "Ý nghĩa chiết suất" },
   { key: "sorting", label: "Phân loại môi trường" },
-  { key: "sineRatio", label: "Tính tỉ số sin" },
+  { key: "statements", label: "Khẳng định đúng" },
 ];
 
 function restoreAnswers(value: unknown) {
@@ -45,7 +46,9 @@ function restoreAnswers(value: unknown) {
     direction: typeof value.direction === "string" ? value.direction : "",
     refractiveIndex: typeof value.refractiveIndex === "string" ? value.refractiveIndex : "",
     sorting: restoredSorting,
-    sineRatio: typeof value.sineRatio === "string" ? value.sineRatio : "",
+    statements: Array.isArray(value.statements)
+      ? value.statements.filter((id): id is string => typeof id === "string" && refractionStatementChoices.some((choice) => choice.id === id))
+      : [],
   } satisfies RefractionQuizAnswers;
 }
 
@@ -76,6 +79,12 @@ export default function RefractionApplicationQuiz({ className }: { className: st
   function assignSortItem(id: string, bucket: Exclude<RefractionSortBucket, "">) {
     updateAnswer("sorting", { ...answers.sorting, [id]: bucket });
     setSelectedSortItem(null);
+  }
+
+  function toggleStatement(id: string) {
+    updateAnswer("statements", answers.statements.includes(id)
+      ? answers.statements.filter((selectedId) => selectedId !== id)
+      : [...answers.statements, id]);
   }
 
   function resetQuiz() {
@@ -166,10 +175,16 @@ export default function RefractionApplicationQuiz({ className }: { className: st
           </div>
         </article>
 
-        <article className="quiz-card quiz-card-wide quiz-calculation-card">
-          <div className="quiz-card-title"><span>05</span><div><h4>Tính nhanh</h4><p>2 điểm</p></div></div>
-          <p className="quiz-prompt">Với sin i = 0,75 và sin r = 0,50, hãy tính sin i / sin r.</p>
-          <label className="quiz-number-answer">Đáp án<input inputMode="decimal" value={answers.sineRatio} onChange={(event) => updateAnswer("sineRatio", event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Ví dụ: 1,2" /></label>
+        <article className="quiz-card quiz-card-wide quiz-statements-card">
+          <div className="quiz-card-title"><span>05</span><div><h4>Chọn khẳng định đúng</h4><p>2 điểm · Có thể chọn nhiều đáp án</p></div></div>
+          <p className="quiz-prompt">Hãy chọn tất cả các khẳng định đúng.</p>
+          <div className="quiz-options multi-select-options" role="group" aria-label="Chọn tất cả các khẳng định đúng">
+            {refractionStatementChoices.map((choice) => (
+              <button key={choice.id} type="button" aria-pressed={answers.statements.includes(choice.id)} className={answers.statements.includes(choice.id) ? "selected" : ""} onClick={() => toggleStatement(choice.id)}>
+                <b>{choice.label}</b><span>{choice.text}</span>
+              </button>
+            ))}
+          </div>
         </article>
       </div>
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   directionChoices,
+  refractionStatementChoices,
   refractiveIndexChoices,
   sortingItems,
   trueFalseQuestions,
@@ -33,14 +34,9 @@ export type RefractionQuizEvaluation = {
     direction: boolean;
     refractiveIndex: boolean;
     sorting: boolean;
-    sineRatio: boolean;
+    statements: boolean;
   };
 };
-
-function parseDecimal(value: string) {
-  const parsed = Number(value.trim().replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 export function isRefractionQuizAnswers(value: unknown): value is RefractionQuizAnswers {
   if (!value || typeof value !== "object") return false;
@@ -53,7 +49,12 @@ export function isRefractionQuizAnswers(value: unknown): value is RefractionQuiz
   const validSorting = sortingItems.every((item) => sorting[item.id] === "toward" || sorting[item.id] === "away");
   const validDirection = directionChoices.some((choice) => choice.id === answers.direction);
   const validIndex = refractiveIndexChoices.some((choice) => choice.id === answers.refractiveIndex);
-  return validTrueFalse && validSorting && validDirection && validIndex && typeof answers.sineRatio === "string" && answers.sineRatio.trim().length <= 30;
+  const validStatementIds = new Set(refractionStatementChoices.map((choice) => choice.id));
+  const validStatements = Array.isArray(answers.statements)
+    && answers.statements.length > 0
+    && answers.statements.length === new Set(answers.statements).size
+    && answers.statements.every((id) => typeof id === "string" && validStatementIds.has(id as (typeof refractionStatementChoices)[number]["id"]));
+  return validTrueFalse && validSorting && validDirection && validIndex && validStatements;
 }
 
 export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQuizEvaluation {
@@ -61,20 +62,21 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
   const sortingResults = sortingItems.map((item) => answers.sorting[item.id] === sortingKey[item.id]);
   const directionCorrect = answers.direction === "r-less-than-i";
   const refractiveIndexCorrect = answers.refractiveIndex === "speed-c-over-1-5";
-  const ratio = parseDecimal(answers.sineRatio);
-  const sineRatioCorrect = ratio !== null && Math.abs(ratio - 1.5) <= 0.02;
+  const selectedStatements = new Set(answers.statements);
+  const statementsCorrect = selectedStatements.size === 3
+    && ["a", "d", "f"].every((id) => selectedStatements.has(id));
   const correctCount = [
     ...trueFalseResults,
     directionCorrect,
     refractiveIndexCorrect,
     ...sortingResults,
-    sineRatioCorrect,
+    statementsCorrect,
   ].filter(Boolean).length;
   const score = trueFalseResults.filter(Boolean).length * 0.5
     + (directionCorrect ? 2 : 0)
     + (refractiveIndexCorrect ? 2 : 0)
     + sortingResults.filter(Boolean).length * 0.5
-    + (sineRatioCorrect ? 2 : 0);
+    + (statementsCorrect ? 2 : 0);
 
   return {
     score,
@@ -85,7 +87,7 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
       direction: directionCorrect,
       refractiveIndex: refractiveIndexCorrect,
       sorting: sortingResults.every(Boolean),
-      sineRatio: sineRatioCorrect,
+      statements: statementsCorrect,
     },
   };
 }
