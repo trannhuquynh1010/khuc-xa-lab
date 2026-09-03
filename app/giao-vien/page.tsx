@@ -1,7 +1,7 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { listActivitySettings, listRefractionQuizSubmissions, listSchoolYears } from "@/lib/db";
+import { getRefractionQuizClassSummary, listActivitySettings, listSchoolYears } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -9,9 +9,9 @@ import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhms
 import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
+import TeacherToggleSubmitButton from "./TeacherToggleSubmitButton";
+import TeacherActivityTabs from "./TeacherActivityTabs";
 import PhysicsBrand from "../PhysicsBrand";
-
-export const dynamic = "force-dynamic";
 
 export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string; year?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
@@ -38,8 +38,8 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
   const activityDataPromise = loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
-  const quizSubmissionsPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
-    ? listRefractionQuizSubmissions(selectedYear, selectedClass, 100)
+  const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
+    ? getRefractionQuizClassSummary(selectedYear, selectedClass)
     : null;
   const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
@@ -52,12 +52,12 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}&year=${selectedYear}`}>↻ Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Thoát</button></form></div>
       </header>
 
-      <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm">
-        {activityDefinitions.map((activity) => {
-          const setting = settings.find((item) => item.key === activity.key);
-          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}&class=${selectedClass}&year=${selectedYear}`}><span className="teacher-tab-label"><b aria-hidden="true">{activity.symbol}</b>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Mở" : "Đóng"}</small></Link>;
-        })}
-      </nav>
+      <TeacherActivityTabs
+        items={activityDefinitions.map((activity) => ({ key: activity.key, shortLabel: activity.shortLabel, symbol: activity.symbol, isOpen: settings.find((item) => item.key === activity.key)?.isOpen ?? false }))}
+        selectedKey={selectedKey}
+        selectedClass={selectedClass}
+        selectedYear={selectedYear}
+      />
 
       <section className="academic-year-panel">
         <div><p className="eyebrow">NĂM HỌC</p><h2>{selectedYear}</h2></div>
@@ -75,7 +75,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
           <form action={toggleActivity}>
             <input type="hidden" name="activityKey" value={selectedKey} />
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
-            <button className={currentSetting.isOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.isOpen ? "Đóng bài" : "Mở bài"}</button>
+            <TeacherToggleSubmitButton isOpen={currentSetting.isOpen} openLabel="Mở bài" closeLabel="Đóng bài" />
           </form>
           <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
         </div>
@@ -89,7 +89,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               <span className={`status-badge ${currentSetting.applicationOpen ? "open" : "closed"}`}>{currentSetting.applicationOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleRefractionApplication}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.applicationOpen)} />
-                <button className={currentSetting.applicationOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.applicationOpen ? "Đóng vận dụng" : "Mở vận dụng"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.applicationOpen} openLabel="Mở vận dụng" closeLabel="Đóng vận dụng" />
               </form>
             </div>
           </section>
@@ -100,16 +100,16 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               <span className={`status-badge ${currentSetting.constructionOpen ? "open" : "closed"}`}>{currentSetting.constructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleRefractionConstruction}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
-                <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.constructionOpen} openLabel="Mở dựng hình" closeLabel="Đóng dựng hình" />
               </form>
             </div>
           </section>
         </>
       )}
 
-      {quizSubmissionsPromise && (
+      {quizSummaryPromise && (
         <Suspense fallback={<TeacherDataSkeleton />}>
-          <RefractionQuizPanel submissionsPromise={quizSubmissionsPromise} selectedClass={selectedClass} selectedYear={selectedYear} />
+          <RefractionQuizPanel summaryPromise={quizSummaryPromise} selectedClass={selectedClass} selectedYear={selectedYear} />
         </Suspense>
       )}
 
@@ -121,7 +121,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               <span className={`status-badge ${currentSetting.iuPracticeOpen ? "open" : "closed"}`}>{currentSetting.iuPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleCurrentVoltagePractice}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.iuPracticeOpen)} />
-                <button className={currentSetting.iuPracticeOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.iuPracticeOpen ? "Đóng bộ 1" : "Mở bộ 1"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.iuPracticeOpen} openLabel="Mở bộ 1" closeLabel="Đóng bộ 1" />
               </form>
             </div>
           </section>
@@ -132,7 +132,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               <span className={`status-badge ${currentSetting.ohmLawPracticeOpen ? "open" : "closed"}`}>{currentSetting.ohmLawPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleOhmsLawPractice}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmLawPracticeOpen)} />
-                <button className={currentSetting.ohmLawPracticeOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.ohmLawPracticeOpen ? "Đóng bộ 2" : "Mở bộ 2"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.ohmLawPracticeOpen} openLabel="Mở bộ 2" closeLabel="Đóng bộ 2" />
               </form>
             </div>
           </section>
@@ -146,7 +146,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <span className={`status-badge ${currentSetting.resistivityOpen ? "open" : "closed"}`}>{currentSetting.resistivityOpen ? "● Đang mở" : "○ Đang đóng"}</span>
             <form action={toggleResistivity}>
               <input type="hidden" name="nextOpen" value={String(!currentSetting.resistivityOpen)} />
-              <button className={currentSetting.resistivityOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.resistivityOpen ? "Đóng điện trở suất" : "Mở điện trở suất"}</button>
+              <TeacherToggleSubmitButton isOpen={currentSetting.resistivityOpen} openLabel="Mở điện trở suất" closeLabel="Đóng điện trở suất" />
             </form>
           </div>
         </section>
@@ -159,14 +159,14 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <span className={`status-badge ${currentSetting.colorOpen ? "open" : "closed"}`}>{currentSetting.colorOpen ? "● Đang mở" : "○ Đang đóng"}</span>
             <form action={togglePrismColor}>
               <input type="hidden" name="nextOpen" value={String(!currentSetting.colorOpen)} />
-              <button className={currentSetting.colorOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.colorOpen ? "Đóng màu sắc" : "Mở màu sắc"}</button>
+              <TeacherToggleSubmitButton isOpen={currentSetting.colorOpen} openLabel="Mở màu sắc" closeLabel="Đóng màu sắc" />
             </form>
           </div>
         </section>
       )}
 
       <Suspense fallback={<TeacherDataSkeleton />}>
-        <TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} />
+        <TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
       </Suspense>
     </main>
   );

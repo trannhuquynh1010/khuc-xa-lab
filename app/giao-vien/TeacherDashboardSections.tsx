@@ -1,21 +1,17 @@
 import type { ActivityKey } from "@/lib/activities";
 import { groupNames } from "@/lib/classes";
 import {
-  listExperimentSubmissions,
-  listSubmissions,
-  type RefractionQuizSubmission,
+  listSubmittedGroups,
+  type RefractionQuizClassSummary,
 } from "@/lib/db";
 import { toggleRefractionQuizScores } from "./actions";
-import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 import TeacherClassFilter from "./TeacherClassFilter";
 import RefractionQuizDisclosure from "./RefractionQuizDisclosure";
 import ScoreReleaseSubmitButton from "./ScoreReleaseSubmitButton";
+import TeacherSubmissionDisclosure from "./TeacherSubmissionDisclosure";
 
 export async function loadTeacherActivityData(activity: ActivityKey, schoolYear: string, className: string) {
-  if (activity === "refraction") return { activity, submissions: await listSubmissions(schoolYear, className, 8) } as const;
-  if (activity === "ohm") return { activity, submissions: await listExperimentSubmissions("ohm", schoolYear, className, 8) } as const;
-  if (activity === "prism-colors") return { activity, submissions: await listExperimentSubmissions("prism-colors", schoolYear, className, 8) } as const;
-  return { activity, submissions: await listExperimentSubmissions("resistance-factors", schoolYear, className, 8) } as const;
+  return { activity, submittedGroups: await listSubmittedGroups(activity, schoolYear, className) } as const;
 }
 
 type TeacherActivityDataProps = {
@@ -32,7 +28,7 @@ export async function TeacherClassProgress({
   selectedKey,
 }: TeacherActivityDataProps) {
   const data = await dataPromise;
-  const submittedGroupSet = new Set(data.submissions.map((submission) => submission.groupName));
+  const submittedGroupSet = new Set(data.submittedGroups);
   const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
 
   return (
@@ -51,33 +47,20 @@ export async function TeacherClassProgress({
 export async function TeacherSubmissionData({
   dataPromise,
   selectedClass,
-}: Pick<TeacherActivityDataProps, "dataPromise" | "selectedClass">) {
+  selectedYear,
+  selectedKey,
+}: TeacherActivityDataProps) {
   const data = await dataPromise;
-  const resultContent = data.activity === "refraction"
-    ? <RefractionResults submissions={data.submissions} />
-    : data.activity === "ohm"
-      ? <OhmResults submissions={data.submissions} />
-      : data.activity === "prism-colors"
-        ? <PrismColorResults submissions={data.submissions} />
-        : <ResistanceFactorsResults submissions={data.submissions} />;
-
-  return (
-    <details className="teacher-data-disclosure">
-      <summary><span><small>BÀI NỘP</small><strong>{selectedClass} · {data.submissions.length} nhóm</strong></span><b>Mở / thu gọn</b></summary>
-      <div className="teacher-data-content">{resultContent}</div>
-    </details>
-  );
+  const submittedCount = groupNames.filter((group) => data.submittedGroups.includes(group)).length;
+  return <TeacherSubmissionDisclosure key={`${selectedKey}:${selectedYear}:${selectedClass}`} activity={selectedKey} className={selectedClass} schoolYear={selectedYear} submittedCount={submittedCount} />;
 }
 
-export async function RefractionQuizPanel({ submissionsPromise, selectedClass, selectedYear }: {
-  submissionsPromise: Promise<RefractionQuizSubmission[]>;
+export async function RefractionQuizPanel({ summaryPromise, selectedClass, selectedYear }: {
+  summaryPromise: Promise<RefractionQuizClassSummary>;
   selectedClass: string;
   selectedYear: string;
 }) {
-  const submissions = await submissionsPromise;
-  const rosterSubmissions = submissions.filter((submission) => submission.studentNumber !== null);
-  const submittedCount = rosterSubmissions.length;
-  const releasedCount = rosterSubmissions.filter((submission) => submission.releasedAt !== null).length;
+  const { submittedCount, releasedCount } = await summaryPromise;
   const allReleased = submittedCount > 0 && releasedCount === submittedCount;
 
   return (
@@ -94,7 +77,7 @@ export async function RefractionQuizPanel({ submissionsPromise, selectedClass, s
           </form>
         </div>
       </div>
-      <RefractionQuizDisclosure submissions={rosterSubmissions} className={selectedClass} />
+      <RefractionQuizDisclosure key={`${selectedYear}:${selectedClass}`} submittedCount={submittedCount} className={selectedClass} schoolYear={selectedYear} />
     </section>
   );
 }

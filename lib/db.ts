@@ -2,6 +2,7 @@ import "server-only";
 
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactorsPayload } from "@/lib/experiments";
 import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
@@ -57,6 +58,11 @@ export type RefractionQuizSubmission = {
   createdAt: string;
 };
 
+export type RefractionQuizClassSummary = {
+  submittedCount: number;
+  releasedCount: number;
+};
+
 export type RefractionQuizSubmissionStatus =
   | { submitted: false; released: false }
   | { submitted: true; released: false }
@@ -67,6 +73,15 @@ export class DuplicateRefractionQuizSubmissionError extends Error {
     super("This class roster number has already submitted the quiz.");
     this.name = "DuplicateRefractionQuizSubmissionError";
   }
+}
+
+const ACTIVITY_SETTINGS_CACHE_TAG = "activity-settings";
+const SCHOOL_YEARS_CACHE_TAG = "school-years";
+const TEACHER_PROGRESS_CACHE_TAG = "teacher-progress";
+const REFRACTION_QUIZ_CACHE_TAG = "refraction-quiz-submissions";
+
+function expireCacheTag(tag: string) {
+  revalidateTag(tag, { expire: 0 });
 }
 
 function getSql() {
@@ -131,13 +146,6 @@ async function initializeSchema() {
   `;
 
   if (Boolean(schemaStatus[0]?.ready)) {
-    for (const activity of activityDefinitions) {
-      await sql`
-        INSERT INTO activity_settings (activity_key, is_open)
-        VALUES (${activity.key}, ${activity.key === "refraction"})
-        ON CONFLICT (activity_key) DO NOTHING
-      `;
-    }
     return;
   }
 
@@ -329,9 +337,14 @@ async function initializeSchema() {
   `;
 }
 
+const ensureSchemaAcrossInstances = unstable_cache(async () => {
+  await initializeSchema();
+  return true;
+}, ["physics-lab-schema-resistivity-v1"], { revalidate: false });
+
 export async function ensureSchema() {
   if (!schemaPromise) {
-    schemaPromise = initializeSchema().catch((error) => {
+    schemaPromise = ensureSchemaAcrossInstances().then(() => undefined).catch((error) => {
       schemaPromise = null;
       throw error;
     });
@@ -339,7 +352,7 @@ export async function ensureSchema() {
   await schemaPromise;
 }
 
-export async function listActivitySettings(): Promise<ActivitySetting[]> {
+const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetting[]> => {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
@@ -362,6 +375,10 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
+}, ["activity-settings-v1"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+
+export async function listActivitySettings(): Promise<ActivitySetting[]> {
+  return getCachedActivitySettings();
 }
 
 export async function isActivityOpen(key: ActivityKey) {
@@ -378,6 +395,7 @@ export async function setActivityOpen(key: ActivityKey, isOpen: boolean) {
     ON CONFLICT (activity_key)
     DO UPDATE SET is_open = EXCLUDED.is_open, updated_at = NOW()
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setRefractionConstructionOpen(isOpen: boolean) {
@@ -388,6 +406,7 @@ export async function setRefractionConstructionOpen(isOpen: boolean) {
     SET construction_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'refraction'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setRefractionApplicationOpen(isOpen: boolean) {
@@ -398,6 +417,7 @@ export async function setRefractionApplicationOpen(isOpen: boolean) {
     SET application_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'refraction'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setPrismColorOpen(isOpen: boolean) {
@@ -408,6 +428,7 @@ export async function setPrismColorOpen(isOpen: boolean) {
     SET color_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'prism-colors'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setCurrentVoltagePracticeOpen(isOpen: boolean) {
@@ -418,6 +439,7 @@ export async function setCurrentVoltagePracticeOpen(isOpen: boolean) {
     SET iu_practice_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'ohm'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setOhmsLawPracticeOpen(isOpen: boolean) {
@@ -428,6 +450,7 @@ export async function setOhmsLawPracticeOpen(isOpen: boolean) {
     SET ohm_law_practice_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'ohm'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setResistivityOpen(isOpen: boolean) {
@@ -438,9 +461,10 @@ export async function setResistivityOpen(isOpen: boolean) {
     SET resistivity_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'resistance-factors'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
-export async function listSchoolYears() {
+const getCachedSchoolYears = unstable_cache(async () => {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
@@ -453,6 +477,10 @@ export async function listSchoolYears() {
   const years = new Set(rows.map((row) => String(row.school_year)));
   years.add(getCurrentSchoolYear());
   return [...years].sort((left, right) => right.localeCompare(left));
+}, ["school-years-v1"], { tags: [SCHOOL_YEARS_CACHE_TAG], revalidate: 3600 });
+
+export async function listSchoolYears() {
+  return getCachedSchoolYears();
 }
 
 export async function resetSchoolYearData(schoolYear: string) {
@@ -461,6 +489,9 @@ export async function resetSchoolYearData(schoolYear: string) {
   await sql`DELETE FROM submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM experiment_submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM refraction_quiz_submissions WHERE school_year = ${schoolYear}`;
+  expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
+  expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
+  expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
 }
 
 export async function createRefractionQuizSubmission(input: {
@@ -489,10 +520,11 @@ export async function createRefractionQuizSubmission(input: {
     RETURNING id, created_at
   `;
   if (!rows[0]) throw new DuplicateRefractionQuizSubmissionError();
+  expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
   return { id: String(rows[0].id), createdAt: new Date(String(rows[0].created_at)).toISOString() };
 }
 
-export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 500): Promise<RefractionQuizSubmission[]> {
+const getCachedRefractionQuizSubmissions = unstable_cache(async (schoolYear: string, className: string | undefined, limit: number): Promise<RefractionQuizSubmission[]> => {
   await ensureSchema();
   const sql = getSql();
   const rows = className
@@ -525,6 +557,30 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
       createdAt: new Date(String(row.created_at)).toISOString(),
     };
   });
+}, ["refraction-quiz-submissions-v1"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+
+export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 500): Promise<RefractionQuizSubmission[]> {
+  return getCachedRefractionQuizSubmissions(schoolYear, className, limit);
+}
+
+const getCachedRefractionQuizClassSummary = unstable_cache(async (schoolYear: string, className: string): Promise<RefractionQuizClassSummary> => {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE student_number IS NOT NULL)::INTEGER AS submitted_count,
+      COUNT(*) FILTER (WHERE student_number IS NOT NULL AND released_at IS NOT NULL)::INTEGER AS released_count
+    FROM refraction_quiz_submissions
+    WHERE school_year = ${schoolYear} AND class_name = ${className}
+  `;
+  return {
+    submittedCount: Number(rows[0]?.submitted_count ?? 0),
+    releasedCount: Number(rows[0]?.released_count ?? 0),
+  };
+}, ["refraction-quiz-class-summary-v1"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+
+export async function getRefractionQuizClassSummary(schoolYear: string, className: string) {
+  return getCachedRefractionQuizClassSummary(schoolYear, className);
 }
 
 export async function getRefractionQuizSubmissionStatus(
@@ -569,6 +625,7 @@ export async function setRefractionQuizScoresReleased(schoolYear: string, classN
       AND student_number IS NOT NULL
     RETURNING id
   `;
+  expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
   return rows.length;
 }
 
@@ -591,6 +648,8 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
     RETURNING id, created_at
   `;
 
+  expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
+
   return {
     id: String(rows[0].id),
     createdAt: new Date(String(rows[0].created_at)).toISOString(),
@@ -601,6 +660,10 @@ export async function listExperimentSubmissions(key: "ohm", schoolYear?: string,
 export async function listExperimentSubmissions(key: "resistance-factors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
 export async function listExperimentSubmissions(key: "prism-colors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<PrismColorPayload>[]>;
 export async function listExperimentSubmissions(key: "ohm" | "resistance-factors" | "prism-colors", schoolYear = getCurrentSchoolYear(), className?: string, limit = 200) {
+  return getCachedExperimentSubmissions(key, schoolYear, className, limit);
+}
+
+const getCachedExperimentSubmissions = unstable_cache(async (key: "ohm" | "resistance-factors" | "prism-colors", schoolYear: string, className: string | undefined, limit: number) => {
   await ensureSchema();
   const sql = getSql();
   const rows = className
@@ -627,6 +690,29 @@ export async function listExperimentSubmissions(key: "ohm" | "resistance-factors
     payload: row.payload,
     createdAt: new Date(String(row.created_at)).toISOString(),
   }));
+}, ["teacher-experiment-submissions-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+
+const getCachedSubmittedGroups = unstable_cache(async (key: ActivityKey, schoolYear: string, className: string) => {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = key === "refraction"
+    ? await sql`
+        SELECT group_name
+        FROM submissions
+        WHERE school_year = ${schoolYear} AND class_name = ${className}
+        ORDER BY created_at DESC
+      `
+    : await sql`
+        SELECT group_name
+        FROM experiment_submissions
+        WHERE activity_key = ${key} AND school_year = ${schoolYear} AND class_name = ${className}
+        ORDER BY created_at DESC
+      `;
+  return rows.map((row) => String(row.group_name));
+}, ["teacher-submitted-groups-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+
+export async function listSubmittedGroups(key: ActivityKey, schoolYear: string, className: string) {
+  return getCachedSubmittedGroups(key, schoolYear, className);
 }
 
 export async function createSubmission(input: {
@@ -730,13 +816,15 @@ export async function createSubmission(input: {
       )
   `;
 
+  expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
+
   return {
     id: String(rows[0].id),
     createdAt: new Date(String(rows[0].created_at)).toISOString(),
   };
 }
 
-export async function listSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 200): Promise<Submission[]> {
+const getCachedSubmissions = unstable_cache(async (schoolYear: string, className: string | undefined, limit: number): Promise<Submission[]> => {
   await ensureSchema();
   const sql = getSql();
 
@@ -801,4 +889,8 @@ export async function listSubmissions(schoolYear = getCurrentSchoolYear(), class
     createdAt: new Date(String(row.created_at)).toISOString(),
     measurements: row.measurements as Measurement[],
   }));
+}, ["teacher-refraction-submissions-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+
+export async function listSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 200): Promise<Submission[]> {
+  return getCachedSubmissions(schoolYear, className, limit);
 }

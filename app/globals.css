@@ -620,6 +620,10 @@ footer a { text-decoration: none; }
 .teacher-data-disclosure > summary > b { color: #5b3fd2; font-size: .76rem; }
 .teacher-data-disclosure[open] > summary { border-bottom: 1px solid var(--soft-line); background: var(--lime); }
 .teacher-data-content { padding: 14px; }
+.teacher-results-loading, .teacher-results-error { min-height: 96px; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-weight: 800; text-align: center; }
+.teacher-results-loading .loading-dot { width: 18px; height: 18px; }
+.teacher-results-error { flex-direction: column; }
+.teacher-results-error p { margin: 0; }
 .teacher-data-skeleton { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: center; min-height: 118px; margin-top: 12px; padding: 20px; border: 1.5px solid var(--ink); border-radius: 20px; background: #f4f1ea; }
 .teacher-data-skeleton span { height: 54px; border-radius: 12px; background: linear-gradient(90deg, #e5ded2, #f7f4ed, #e5ded2); background-size: 200% 100%; animation: teacher-loading 1.2s ease-in-out infinite; }
 .teacher-data-skeleton p { grid-column: 1 / -1; margin: 0; color: var(--muted); text-align: center; font-size: .76rem; font-weight: 900; }

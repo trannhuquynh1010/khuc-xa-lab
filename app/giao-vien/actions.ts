@@ -26,56 +26,42 @@ export async function toggleActivity(formData: FormData) {
   const key = formData.get("activityKey");
   if (!isActivityKey(key)) return;
   await setActivityOpen(key, formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleRefractionConstruction(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setRefractionConstructionOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleRefractionApplication(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setRefractionApplicationOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function togglePrismColor(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setPrismColorOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleCurrentVoltagePractice(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setCurrentVoltagePracticeOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleOhmsLawPractice(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setOhmsLawPracticeOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleResistivity(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setResistivityOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleRefractionQuizScores(formData: FormData) {
@@ -86,7 +72,6 @@ export async function toggleRefractionQuizScores(formData: FormData) {
   if (!isSchoolYear(schoolYear) || !isRefractionQuizClassName(className)) return;
 
   await setRefractionQuizScoresReleased(schoolYear, className, formData.get("nextReleased") === "true");
-  revalidatePath("/giao-vien");
 }
 
 export async function resetYearData(formData: FormData) {
