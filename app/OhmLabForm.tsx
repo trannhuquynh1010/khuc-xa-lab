@@ -165,7 +165,7 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
 
       {showCurrentVoltagePractice && (
         <section aria-labelledby="current-voltage-practice-heading">
-          <div className="section-heading data-heading"><span>3</span><div><h2 id="current-voltage-practice-heading">Luyện tập I phụ thuộc vào U</h2><p>Lắp mạch, dự đoán và đọc đồ thị.</p></div></div>
+          <div className="section-heading data-heading"><span>3</span><div><h2 id="current-voltage-practice-heading">Luyện tập I phụ thuộc vào U</h2><p>Lắp mạch, giải mã số liệu và phát hiện phép đo bất thường.</p></div></div>
           <CurrentVoltagePractice />
         </section>
       )}

@@ -116,7 +116,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       {selectedKey === "ohm" && (
         <>
           <section className="activity-control-panel construction-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">I↗</span><div><p className="eyebrow">BỘ BÀI TẬP 1</p><h2>Sự phụ thuộc của I vào U</h2><p>Lắp mạch, dự đoán và đọc đồ thị; chưa dùng khái niệm điện trở.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">I↗</span><div><p className="eyebrow">BỘ BÀI TẬP 1</p><h2>Luyện tập I phụ thuộc vào U</h2><p>Vận dụng sau bài học: lắp mạch, xử lí số liệu và phát hiện sai số.</p></div></div>
             <div className="activity-control-actions">
               <span className={`status-badge ${currentSetting.iuPracticeOpen ? "open" : "closed"}`}>{currentSetting.iuPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleCurrentVoltagePractice}>
