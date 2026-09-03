@@ -206,7 +206,7 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
       </section>
 
       <section aria-labelledby="application-heading">
-        <div className="section-heading data-heading"><span>4</span><div><h2 id="application-heading">Vận dụng cá nhân</h2><p>Trả lời nhanh, chấm điểm ngay.</p></div></div>
+        <div className="section-heading data-heading"><span>4</span><div><h2 id="application-heading">Vận dụng cá nhân</h2><p>Trả lời cá nhân, xem điểm sau khi giáo viên công bố.</p></div></div>
         <RefractionApplicationQuiz />
       </section>
 

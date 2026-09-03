@@ -1,10 +1,10 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
-import { groupNames, isClassName } from "@/lib/classes";
+import { groupNames, isClassName, isRefractionQuizClassName } from "@/lib/classes";
 import { listActivitySettings, listExperimentSubmissions, listRefractionQuizSubmissions, listSchoolYears, listSubmissions } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
-import { login, logout, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
+import { login, logout, publishRefractionQuizScores, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
 import { OhmResults, PrismColorResults, RefractionQuizResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
 import TeacherClassFilter from "./TeacherClassFilter";
 import TeacherYearFilter from "./TeacherYearFilter";
@@ -43,23 +43,30 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         listSubmissions(selectedYear, selectedClass),
         listRefractionQuizSubmissions(selectedYear, selectedClass),
       ]);
-      return { resultContent: <><RefractionResults submissions={submissions} /><RefractionQuizResults submissions={quizSubmissions} className={selectedClass} /></>, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+      const rosterSubmissions = quizSubmissions.filter((submission) => submission.studentNumber !== null);
+      return {
+        resultContent: <><RefractionResults submissions={submissions} /><RefractionQuizResults submissions={quizSubmissions} className={selectedClass} /></>,
+        resultCount: submissions.length,
+        submittedGroups: submissions.map((submission) => submission.groupName),
+        quizSubmittedCount: rosterSubmissions.length,
+        quizReleasedCount: rosterSubmissions.filter((submission) => submission.releasedAt !== null).length,
+      };
     }
     if (selectedKey === "ohm") {
       const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass);
-      return { resultContent: <OhmResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+      return { resultContent: <OhmResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName), quizSubmittedCount: 0, quizReleasedCount: 0 };
     }
     if (selectedKey === "prism-colors") {
       const submissions = await listExperimentSubmissions("prism-colors", selectedYear, selectedClass);
-      return { resultContent: <PrismColorResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+      return { resultContent: <PrismColorResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName), quizSubmittedCount: 0, quizReleasedCount: 0 };
     }
     const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass);
-    return { resultContent: <ResistanceFactorsResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName) };
+    return { resultContent: <ResistanceFactorsResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName), quizSubmittedCount: 0, quizReleasedCount: 0 };
   })();
   const [settings, knownSchoolYears, resultData] = await Promise.all([listActivitySettings(), listSchoolYears(), resultsPromise]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
   const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
-  const { resultContent, resultCount, submittedGroups } = resultData;
+  const { resultContent, resultCount, submittedGroups, quizSubmittedCount, quizReleasedCount } = resultData;
   const submittedGroupSet = new Set(submittedGroups);
   const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
 
@@ -103,6 +110,20 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <form action={toggleRefractionConstruction}>
               <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
               <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {selectedKey === "refraction" && isRefractionQuizClassName(selectedClass) && (
+        <section className="activity-control-panel construction-control-panel quiz-release-control-panel">
+          <div className="activity-control-title"><span aria-hidden="true">✓</span><div><p className="eyebrow">ĐIỂM CÁ NHÂN</p><h2>Công bố điểm</h2><p>Giáo viên xem lại kết quả trước khi cho học sinh xem điểm.</p></div></div>
+          <div className="activity-control-actions">
+            <span className={`status-badge ${quizSubmittedCount > 0 && quizReleasedCount === quizSubmittedCount ? "open" : "closed"}`}>{quizReleasedCount}/{quizSubmittedCount} bài đã công bố</span>
+            <form action={publishRefractionQuizScores}>
+              <input type="hidden" name="schoolYear" value={selectedYear} />
+              <input type="hidden" name="className" value={selectedClass} />
+              <button className={quizSubmittedCount > 0 && quizReleasedCount < quizSubmittedCount ? "primary-button" : "secondary-button"} type="submit" disabled={quizSubmittedCount === 0 || quizReleasedCount === quizSubmittedCount}>{quizSubmittedCount === 0 ? "Chưa có bài" : quizReleasedCount === quizSubmittedCount ? "Đã công bố" : `Công bố ${quizSubmittedCount - quizReleasedCount} bài`}</button>
             </form>
           </div>
         </section>

@@ -1,9 +1,33 @@
 import { NextResponse } from "next/server";
 import { isRefractionQuizClassName, isStudentNumber } from "@/lib/classes";
-import { createRefractionQuizSubmission, DuplicateRefractionQuizSubmissionError, isActivityOpen } from "@/lib/db";
+import {
+  createRefractionQuizSubmission,
+  DuplicateRefractionQuizSubmissionError,
+  getRefractionQuizSubmissionStatus,
+  isActivityOpen,
+} from "@/lib/db";
 import { isRefractionQuizAnswers, scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 
 export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const className = searchParams.get("className");
+    const studentNumber = Number(searchParams.get("studentNumber"));
+    if (!isRefractionQuizClassName(className)) {
+      return NextResponse.json({ error: "Lớp không hợp lệ." }, { status: 400 });
+    }
+    if (!isStudentNumber(studentNumber)) {
+      return NextResponse.json({ error: "STT không hợp lệ." }, { status: 400 });
+    }
+    const status = await getRefractionQuizSubmissionStatus(className, studentNumber);
+    return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("Refraction quiz status error", error);
+    return NextResponse.json({ error: "Chưa thể kiểm tra bài nộp." }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -19,7 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Hãy chọn STT từ 01 đến 33." }, { status: 400 });
     }
     if (!isRefractionQuizAnswers(body.answers)) {
-      return NextResponse.json({ error: "Hãy hoàn thành tất cả câu hỏi trước khi chấm điểm." }, { status: 400 });
+      return NextResponse.json({ error: "Hãy hoàn thành tất cả câu hỏi trước khi nộp bài." }, { status: 400 });
     }
 
     const evaluation = scoreRefractionQuiz(body.answers);
@@ -29,12 +53,12 @@ export async function POST(request: Request) {
       answers: body.answers,
       evaluation,
     });
-    return NextResponse.json({ ok: true, evaluation, ...result }, { status: 201 });
+    return NextResponse.json({ ok: true, ...result }, { status: 201 });
   } catch (error) {
     if (error instanceof DuplicateRefractionQuizSubmissionError) {
       return NextResponse.json({ error: "Lớp và STT này đã nộp bài. Mỗi học sinh chỉ được nộp một lần." }, { status: 409 });
     }
     console.error("Refraction quiz submission error", error);
-    return NextResponse.json({ error: "Chưa thể lưu điểm. Hãy thử lại." }, { status: 500 });
+    return NextResponse.json({ error: "Chưa thể lưu bài. Hãy thử lại." }, { status: 500 });
   }
 }

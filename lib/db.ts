@@ -49,8 +49,14 @@ export type RefractionQuizSubmission = {
   score: number;
   correctCount: number;
   totalItems: number;
+  releasedAt: string | null;
   createdAt: string;
 };
+
+export type RefractionQuizSubmissionStatus =
+  | { submitted: false; released: false }
+  | { submitted: true; released: false }
+  | { submitted: true; released: true; score: number; correctCount: number; totalItems: number };
 
 export class DuplicateRefractionQuizSubmissionError extends Error {
   constructor() {
@@ -96,6 +102,10 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'student_number'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'released_at'
       )
     ) AS ready
   `;
@@ -267,13 +277,15 @@ async function initializeSchema() {
       score NUMERIC(4, 2) NOT NULL,
       correct_count INTEGER NOT NULL,
       total_items INTEGER NOT NULL,
+      released_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
 
   await sql`
     ALTER TABLE refraction_quiz_submissions
-    ADD COLUMN IF NOT EXISTS student_number SMALLINT
+    ADD COLUMN IF NOT EXISTS student_number SMALLINT,
+    ADD COLUMN IF NOT EXISTS released_at TIMESTAMPTZ
   `;
 
   await sql`DROP INDEX IF EXISTS refraction_quiz_year_class_student_unique_idx`;
@@ -413,14 +425,14 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
   const sql = getSql();
   const rows = className
     ? await sql`
-        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, created_at
+        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, released_at, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear} AND class_name = ${className}
         ORDER BY created_at DESC
         LIMIT ${limit}
       `
     : await sql`
-        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, created_at
+        SELECT id, school_year, class_name, student_name, student_number, score, correct_count, total_items, released_at, created_at
         FROM refraction_quiz_submissions
         WHERE school_year = ${schoolYear}
         ORDER BY created_at DESC
@@ -435,8 +447,50 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
     score: Number(row.score),
     correctCount: Number(row.correct_count),
     totalItems: Number(row.total_items),
+    releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
     createdAt: new Date(String(row.created_at)).toISOString(),
   }));
+}
+
+export async function getRefractionQuizSubmissionStatus(
+  className: string,
+  studentNumber: number,
+  schoolYear = getCurrentSchoolYear(),
+): Promise<RefractionQuizSubmissionStatus> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT score, correct_count, total_items, released_at
+    FROM refraction_quiz_submissions
+    WHERE school_year = ${schoolYear}
+      AND class_name = ${className}
+      AND student_number = ${studentNumber}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row) return { submitted: false, released: false };
+  if (row.released_at === null) return { submitted: true, released: false };
+  return {
+    submitted: true,
+    released: true,
+    score: Number(row.score),
+    correctCount: Number(row.correct_count),
+    totalItems: Number(row.total_items),
+  };
+}
+
+export async function releaseRefractionQuizScores(schoolYear: string, className: string) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE refraction_quiz_submissions
+    SET released_at = COALESCE(released_at, NOW())
+    WHERE school_year = ${schoolYear}
+      AND class_name = ${className}
+      AND student_number IS NOT NULL
+    RETURNING id
+  `;
+  return rows.length;
 }
 
 type NewExperimentInput =

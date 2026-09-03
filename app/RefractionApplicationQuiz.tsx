@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   countCompletedQuizItems,
   createEmptyRefractionQuizAnswers,
@@ -19,14 +19,12 @@ import { formatStudentNumber, isRefractionQuizClassName, isStudentNumber, refrac
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 type SubmitState = { type: "idle" | "sending" | "success" | "error"; message: string };
-
-const sectionLabels: Array<{ key: keyof RefractionQuizEvaluation["sections"]; label: string }> = [
-  { key: "trueFalse", label: "Nhận biết quy tắc" },
-  { key: "phenomenon", label: "Nhận diện hiện tượng" },
-  { key: "refractiveIndex", label: "Ý nghĩa chiết suất" },
-  { key: "sorting", label: "Phân loại môi trường" },
-  { key: "statements", label: "Khẳng định đúng" },
-];
+type PublishedQuizResult = Pick<RefractionQuizEvaluation, "score" | "correctCount" | "totalItems">;
+type SubmissionStatus = "idle" | "available" | "submitted";
+type QuizStatusResponse =
+  | { submitted: false; released: false }
+  | { submitted: true; released: false }
+  | ({ submitted: true; released: true } & PublishedQuizResult);
 
 function restoreAnswers(value: unknown) {
   if (!isDraftRecord(value)) return null;
@@ -58,7 +56,9 @@ export default function RefractionApplicationQuiz() {
   const [studentNumber, setStudentNumber] = useState("");
   const [answers, setAnswers] = useState<RefractionQuizAnswers>(createEmptyRefractionQuizAnswers);
   const [selectedSortItem, setSelectedSortItem] = useState<string | null>(null);
-  const [result, setResult] = useState<RefractionQuizEvaluation | null>(null);
+  const [result, setResult] = useState<PublishedQuizResult | null>(null);
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("idle");
+  const [statusCheckVersion, setStatusCheckVersion] = useState(0);
   const [state, setState] = useState<SubmitState>({ type: "idle", message: "" });
   const { draftStatus } = useDeviceDraft(deviceDraftKey("refraction-application"), { className, studentNumber, answers }, (value) => {
     if (!isDraftRecord(value)) return;
@@ -69,8 +69,51 @@ export default function RefractionApplicationQuiz() {
     if (restored) setAnswers(restored);
   });
   const completedItems = countCompletedQuizItems(answers);
+  const identityReady = isRefractionQuizClassName(className) && isStudentNumber(Number(studentNumber));
+  const checkingSubmission = identityReady && submissionStatus === "idle";
+  const hasSubmitted = submissionStatus === "submitted";
+
+  useEffect(() => {
+    const parsedStudentNumber = Number(studentNumber);
+    if (!isRefractionQuizClassName(className) || !isStudentNumber(parsedStudentNumber)) {
+      return;
+    }
+
+    const controller = new AbortController();
+    void fetch(`/api/refraction-quiz?className=${encodeURIComponent(className)}&studentNumber=${parsedStudentNumber}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Chưa thể kiểm tra bài nộp.");
+        return data as QuizStatusResponse;
+      })
+      .then((status) => {
+        if (!status.submitted) {
+          setSubmissionStatus("available");
+          setState({ type: "idle", message: "" });
+          return;
+        }
+        setSubmissionStatus("submitted");
+        if (status.released) {
+          setResult({ score: status.score, correctCount: status.correctCount, totalItems: status.totalItems });
+          setState({ type: "success", message: "Giáo viên đã công bố điểm." });
+        } else {
+          setState({ type: "success", message: "Bài đã được ghi nhận. Chờ giáo viên công bố điểm." });
+        }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setSubmissionStatus("available");
+        setState({ type: "error", message: error instanceof Error ? error.message : "Chưa thể kiểm tra bài nộp." });
+      });
+
+    return () => controller.abort();
+  }, [className, studentNumber, statusCheckVersion]);
 
   function updateAnswer<K extends keyof RefractionQuizAnswers>(key: K, value: RefractionQuizAnswers[K]) {
+    if (hasSubmitted || checkingSubmission) return;
     setAnswers((current) => ({ ...current, [key]: value }));
     setResult(null);
     setState({ type: "idle", message: "" });
@@ -95,6 +138,7 @@ export default function RefractionApplicationQuiz() {
     if (field === "className") setClassName(value);
     else setStudentNumber(value);
     setResult(null);
+    setSubmissionStatus("idle");
     setState({ type: "idle", message: "" });
   }
 
@@ -104,10 +148,19 @@ export default function RefractionApplicationQuiz() {
     setAnswers(createEmptyRefractionQuizAnswers());
     setSelectedSortItem(null);
     setResult(null);
+    setSubmissionStatus("idle");
     setState({ type: "idle", message: "" });
   }
 
   async function submitQuiz() {
+    if (checkingSubmission) {
+      setState({ type: "error", message: "Đang kiểm tra trạng thái bài nộp. Em chờ một chút nhé." });
+      return;
+    }
+    if (hasSubmitted) {
+      setState({ type: "success", message: result ? "Giáo viên đã công bố điểm." : "Bài đã được ghi nhận. Chờ giáo viên công bố điểm." });
+      return;
+    }
     if (!className) {
       setState({ type: "error", message: "Hãy chọn lớp của em." });
       return;
@@ -121,7 +174,7 @@ export default function RefractionApplicationQuiz() {
       return;
     }
 
-    setState({ type: "sending", message: "Đang chấm và lưu điểm…" });
+    setState({ type: "sending", message: "Đang gửi bài…" });
     try {
       const response = await fetch("/api/refraction-quiz", {
         method: "POST",
@@ -129,18 +182,19 @@ export default function RefractionApplicationQuiz() {
         body: JSON.stringify({ className, studentNumber: Number(studentNumber), answers, website: "" }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Chưa thể chấm điểm.");
-      setResult(data.evaluation);
-      setState({ type: "success", message: "Điểm đã được lưu cho giáo viên." });
+      if (!response.ok) throw new Error(data.error || "Chưa thể nộp bài.");
+      setSubmissionStatus("submitted");
+      setResult(null);
+      setState({ type: "success", message: "Đã nộp bài. Chờ giáo viên công bố điểm." });
     } catch (error) {
-      setState({ type: "error", message: error instanceof Error ? error.message : "Chưa thể chấm điểm." });
+      setState({ type: "error", message: error instanceof Error ? error.message : "Chưa thể nộp bài." });
     }
   }
 
   return (
     <div className="refraction-quiz">
       <div className="quiz-intro">
-        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 5 nhiệm vụ. Mỗi lớp và STT chỉ được nộp một lần.</p></div>
+        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 5 nhiệm vụ. Điểm hiển thị sau khi giáo viên công bố.</p></div>
         <div className="quiz-progress" aria-label={`Đã trả lời ${completedItems} trên ${refractionQuizItemCount} ý`}><strong>{completedItems}/{refractionQuizItemCount}</strong><span><i style={{ width: `${completedItems / refractionQuizItemCount * 100}%` }} /></span></div>
       </div>
 
@@ -149,7 +203,13 @@ export default function RefractionApplicationQuiz() {
         <label>STT (01–33)<select required value={studentNumber} onChange={(event) => updateIdentity("studentNumber", event.target.value)}><option value="">Chọn STT</option>{studentNumbers.map((number) => <option key={number} value={number}>{formatStudentNumber(number)}</option>)}</select></label>
       </div>
 
-      <div className="quiz-grid">
+      {hasSubmitted && !result && (
+        <div className="quiz-submission-notice" aria-live="polite">
+          <span>✓</span><div><strong>Đã nộp bài</strong><p>Giáo viên đang sửa bài. Em quay lại và chọn đúng lớp, STT để xem điểm sau khi được công bố.</p></div>
+        </div>
+      )}
+
+      <fieldset className="quiz-grid quiz-question-fieldset" disabled={hasSubmitted || checkingSubmission || state.type === "sending"}>
         <article className="quiz-card quiz-card-wide">
           <div className="quiz-card-title"><span>01</span><div><h4>Đúng hay sai?</h4><p>Mỗi ý 0,5 điểm</p></div></div>
           <div className="true-false-list">
@@ -198,20 +258,21 @@ export default function RefractionApplicationQuiz() {
             ))}
           </div>
         </article>
-      </div>
+      </fieldset>
 
       {result && (
         <div className="quiz-result" aria-live="polite">
           <div className="quiz-score"><span>Điểm của em</span><strong>{result.score.toLocaleString("vi-VN")}</strong><b>/10</b></div>
-          <div><h4>{result.score >= 8 ? "Nắm kiến thức tốt!" : result.score >= 5 ? "Đã hiểu phần chính." : "Hãy xem lại quy tắc khúc xạ."}</h4><div className="quiz-review-grid">{sectionLabels.map((section) => <span key={section.key} className={result.sections[section.key] ? "correct" : "review"}>{result.sections[section.key] ? "✓" : "↻"} {section.label}</span>)}</div></div>
+          <div><h4>Giáo viên đã công bố điểm.</h4><p>Em trả lời đúng {result.correctCount}/{result.totalItems} ý.</p></div>
         </div>
       )}
 
       <div className="quiz-actions">
         <span className="draft-status">{draftStatus}</span>
         <span className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</span>
+        {hasSubmitted && !result && <button type="button" className="secondary-button" onClick={() => { setSubmissionStatus("idle"); setStatusCheckVersion((current) => current + 1); }}>Kiểm tra điểm</button>}
         <button type="button" className="secondary-button" onClick={resetQuiz}>Làm lại</button>
-        <button type="button" className="primary-button" disabled={state.type === "sending" || state.type === "success"} onClick={submitQuiz}>{state.type === "sending" ? "Đang chấm…" : state.type === "success" ? "Đã nộp ✓" : "Chấm điểm & nộp →"}</button>
+        <button type="button" className="primary-button" disabled={state.type === "sending" || checkingSubmission || hasSubmitted} onClick={submitQuiz}>{state.type === "sending" ? "Đang gửi…" : checkingSubmission ? "Đang kiểm tra…" : hasSubmitted ? "Đã nộp ✓" : "Nộp bài →"}</button>
       </div>
     </div>
   );
