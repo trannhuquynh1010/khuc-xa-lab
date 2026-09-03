@@ -51,7 +51,7 @@ function rowsToPoints(rows: InputRow[]) {
   });
 }
 
-export default function LabForm({ showConstruction }: { showConstruction: boolean }) {
+export default function LabForm({ showApplication, showConstruction }: { showApplication: boolean; showConstruction: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
@@ -205,14 +205,16 @@ export default function LabForm({ showConstruction }: { showConstruction: boolea
         </div>
       </section>
 
-      <section aria-labelledby="application-heading">
-        <div className="section-heading data-heading"><span>4</span><div><h2 id="application-heading">Vận dụng cá nhân</h2><p>Trả lời cá nhân, xem điểm sau khi giáo viên công bố.</p></div></div>
-        <RefractionApplicationQuiz />
-      </section>
+      {showApplication && (
+        <section aria-labelledby="application-heading">
+          <div className="section-heading data-heading"><span>4</span><div><h2 id="application-heading">Vận dụng cá nhân</h2><p>Trả lời cá nhân, xem điểm sau khi giáo viên công bố.</p></div></div>
+          <RefractionApplicationQuiz />
+        </section>
+      )}
 
       {showConstruction && (
         <section aria-labelledby="construction-heading">
-          <div className="section-heading data-heading"><span>5</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Chọn cách dựng đúng ở mỗi bước để hoàn thành hình.</p></div></div>
+          <div className="section-heading data-heading"><span>{showApplication ? 5 : 4}</span><div><h2 id="construction-heading">Dựng hình khúc xạ</h2><p>Chọn cách dựng đúng ở mỗi bước để hoàn thành hình.</p></div></div>
           <RefractionConstructionGuide />
         </section>
       )}

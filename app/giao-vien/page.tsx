@@ -5,7 +5,7 @@ import { listActivitySettings, listRefractionQuizSubmissions, listSchoolYears } 
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
+import { login, logout, toggleActivity, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction } from "./actions";
 import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -82,16 +82,29 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       </section>
 
       {selectedKey === "refraction" && (
-        <section className="activity-control-panel construction-control-panel">
-          <div className="activity-control-title"><span aria-hidden="true">↘</span><div><p className="eyebrow">BỔ TRỢ</p><h2>Dựng hình khúc xạ</h2><p>Hiện hoặc ẩn riêng phần hướng dẫn dựng tia.</p></div></div>
-          <div className="activity-control-actions">
-            <span className={`status-badge ${currentSetting.constructionOpen ? "open" : "closed"}`}>{currentSetting.constructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-            <form action={toggleRefractionConstruction}>
-              <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
-              <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
-            </form>
-          </div>
-        </section>
+        <>
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">✓</span><div><p className="eyebrow">CÁ NHÂN</p><h2>Bài vận dụng</h2><p>Mở sau khi học sinh hoàn thành phần thí nghiệm.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.applicationOpen ? "open" : "closed"}`}>{currentSetting.applicationOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleRefractionApplication}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.applicationOpen)} />
+                <button className={currentSetting.applicationOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.applicationOpen ? "Đóng vận dụng" : "Mở vận dụng"}</button>
+              </form>
+            </div>
+          </section>
+
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">↘</span><div><p className="eyebrow">BỔ TRỢ</p><h2>Dựng hình khúc xạ</h2><p>Hiện hoặc ẩn riêng phần hướng dẫn dựng tia.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.constructionOpen ? "open" : "closed"}`}>{currentSetting.constructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleRefractionConstruction}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
+                <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
+              </form>
+            </div>
+          </section>
+        </>
       )}
 
       {quizSubmissionsPromise && (

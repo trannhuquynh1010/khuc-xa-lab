@@ -4,7 +4,7 @@ import {
   createRefractionQuizSubmission,
   DuplicateRefractionQuizSubmissionError,
   getRefractionQuizSubmissionStatus,
-  isActivityOpen,
+  listActivitySettings,
 } from "@/lib/db";
 import { isRefractionQuizAnswers, scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 
@@ -33,8 +33,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (body.website) return NextResponse.json({ ok: true });
-    if (!(await isActivityOpen("refraction"))) {
+    const refractionSetting = (await listActivitySettings()).find((setting) => setting.key === "refraction");
+    if (!refractionSetting?.isOpen) {
       return NextResponse.json({ error: "Giáo viên đã đóng bài Khúc xạ ánh sáng." }, { status: 403 });
+    }
+    if (!refractionSetting.applicationOpen) {
+      return NextResponse.json({ error: "Giáo viên chưa mở bài vận dụng." }, { status: 403 });
     }
     if (!isRefractionQuizClassName(body.className)) {
       return NextResponse.json({ error: "Hãy chọn một trong các lớp 9H04, 9H05, 9H08 hoặc 9H09." }, { status: 400 });
