@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   countCompletedQuizItems,
   createEmptyRefractionQuizAnswers,
-  directionChoices,
+  phenomenonChoices,
   refractionStatementChoices,
   refractiveIndexChoices,
   refractionQuizItemCount,
@@ -22,7 +22,7 @@ type SubmitState = { type: "idle" | "sending" | "success" | "error"; message: st
 
 const sectionLabels: Array<{ key: keyof RefractionQuizEvaluation["sections"]; label: string }> = [
   { key: "trueFalse", label: "Nhận biết quy tắc" },
-  { key: "direction", label: "Hướng lệch của tia" },
+  { key: "phenomenon", label: "Nhận diện hiện tượng" },
   { key: "refractiveIndex", label: "Ý nghĩa chiết suất" },
   { key: "sorting", label: "Phân loại môi trường" },
   { key: "statements", label: "Khẳng định đúng" },
@@ -44,7 +44,7 @@ function restoreAnswers(value: unknown) {
   });
   return {
     trueFalse: restoredTrueFalse,
-    direction: typeof value.direction === "string" ? value.direction : "",
+    phenomenon: typeof value.phenomenon === "string" && phenomenonChoices.some((choice) => choice.id === value.phenomenon) ? value.phenomenon : "",
     refractiveIndex: typeof value.refractiveIndex === "string" ? value.refractiveIndex : "",
     sorting: restoredSorting,
     statements: Array.isArray(value.statements)
@@ -160,9 +160,9 @@ export default function RefractionApplicationQuiz() {
         </article>
 
         <article className="quiz-card">
-          <div className="quiz-card-title"><span>02</span><div><h4>Tia sáng đổi hướng</h4><p>2 điểm</p></div></div>
-          <p className="quiz-prompt">Tia sáng truyền xiên từ không khí vào nước. Nhận xét nào đúng?</p>
-          <div className="quiz-options">{directionChoices.map((choice) => <button key={choice.id} type="button" className={answers.direction === choice.id ? "selected" : ""} onClick={() => updateAnswer("direction", choice.id)}>{choice.text}</button>)}</div>
+          <div className="quiz-card-title"><span>02</span><div><h4>Nhận diện hiện tượng</h4><p>2 điểm</p></div></div>
+          <p className="quiz-prompt">Hiện tượng nào chủ yếu do khúc xạ ánh sáng?</p>
+          <div className="quiz-options">{phenomenonChoices.map((choice) => <button key={choice.id} type="button" className={answers.phenomenon === choice.id ? "selected" : ""} onClick={() => updateAnswer("phenomenon", choice.id)}>{choice.text}</button>)}</div>
         </article>
 
         <article className="quiz-card">

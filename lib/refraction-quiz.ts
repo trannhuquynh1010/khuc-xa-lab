@@ -3,7 +3,7 @@ export type RefractionSortBucket = "toward" | "away" | "";
 
 export type RefractionQuizAnswers = {
   trueFalse: Record<string, TrueFalseAnswer>;
-  direction: string;
+  phenomenon: string;
   refractiveIndex: string;
   sorting: Record<string, RefractionSortBucket>;
   statements: string[];
@@ -16,10 +16,10 @@ export const trueFalseQuestions = [
   { id: "higher-index-faster", text: "Môi trường có chiết suất lớn hơn thì ánh sáng truyền nhanh hơn." },
 ] as const;
 
-export const directionChoices = [
-  { id: "r-less-than-i", text: "Tia lệch gần pháp tuyến, nên r < i." },
-  { id: "r-equals-i", text: "Tia truyền thẳng, nên r = i." },
-  { id: "r-greater-than-i", text: "Tia lệch xa pháp tuyến, nên r > i." },
+export const phenomenonChoices = [
+  { id: "chopstick-water", text: "Chiếc đũa cắm nghiêng trong cốc nước trông như bị gãy tại mặt nước." },
+  { id: "plane-mirror", text: "Ta nhìn thấy ảnh của mình trong gương phẳng." },
+  { id: "object-shadow", text: "Một vật tạo bóng khi chắn ánh sáng từ nguồn." },
 ] as const;
 
 export const refractiveIndexChoices = [
@@ -47,7 +47,7 @@ export const refractionStatementChoices = [
 export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
   return {
     trueFalse: Object.fromEntries(trueFalseQuestions.map((question) => [question.id, ""])),
-    direction: "",
+    phenomenon: "",
     refractiveIndex: "",
     sorting: Object.fromEntries(sortingItems.map((item) => [item.id, ""])),
     statements: [],
@@ -57,7 +57,7 @@ export function createEmptyRefractionQuizAnswers(): RefractionQuizAnswers {
 export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
   return [
     ...trueFalseQuestions.map((question) => answers.trueFalse[question.id]),
-    answers.direction,
+    answers.phenomenon,
     answers.refractiveIndex,
     ...sortingItems.map((item) => answers.sorting[item.id]),
     answers.statements.length ? "answered" : "",

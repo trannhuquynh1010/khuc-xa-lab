@@ -1,7 +1,7 @@
 import "server-only";
 
 import {
-  directionChoices,
+  phenomenonChoices,
   refractionStatementChoices,
   refractiveIndexChoices,
   sortingItems,
@@ -31,7 +31,7 @@ export type RefractionQuizEvaluation = {
   totalItems: number;
   sections: {
     trueFalse: boolean;
-    direction: boolean;
+    phenomenon: boolean;
     refractiveIndex: boolean;
     sorting: boolean;
     statements: boolean;
@@ -47,33 +47,33 @@ export function isRefractionQuizAnswers(value: unknown): value is RefractionQuiz
   const sorting = answers.sorting as Record<string, unknown>;
   const validTrueFalse = trueFalseQuestions.every((question) => trueFalse[question.id] === "true" || trueFalse[question.id] === "false");
   const validSorting = sortingItems.every((item) => sorting[item.id] === "toward" || sorting[item.id] === "away");
-  const validDirection = directionChoices.some((choice) => choice.id === answers.direction);
+  const validPhenomenon = phenomenonChoices.some((choice) => choice.id === answers.phenomenon);
   const validIndex = refractiveIndexChoices.some((choice) => choice.id === answers.refractiveIndex);
   const validStatementIds = new Set(refractionStatementChoices.map((choice) => choice.id));
   const validStatements = Array.isArray(answers.statements)
     && answers.statements.length > 0
     && answers.statements.length === new Set(answers.statements).size
     && answers.statements.every((id) => typeof id === "string" && validStatementIds.has(id as (typeof refractionStatementChoices)[number]["id"]));
-  return validTrueFalse && validSorting && validDirection && validIndex && validStatements;
+  return validTrueFalse && validSorting && validPhenomenon && validIndex && validStatements;
 }
 
 export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQuizEvaluation {
   const trueFalseResults = trueFalseQuestions.map((question) => answers.trueFalse[question.id] === trueFalseKey[question.id]);
   const sortingResults = sortingItems.map((item) => answers.sorting[item.id] === sortingKey[item.id]);
-  const directionCorrect = answers.direction === "r-less-than-i";
+  const phenomenonCorrect = answers.phenomenon === "chopstick-water";
   const refractiveIndexCorrect = answers.refractiveIndex === "speed-c-over-1-5";
   const selectedStatements = new Set(answers.statements);
   const statementsCorrect = selectedStatements.size === 3
     && ["a", "d", "f"].every((id) => selectedStatements.has(id));
   const correctCount = [
     ...trueFalseResults,
-    directionCorrect,
+    phenomenonCorrect,
     refractiveIndexCorrect,
     ...sortingResults,
     statementsCorrect,
   ].filter(Boolean).length;
   const score = trueFalseResults.filter(Boolean).length * 0.5
-    + (directionCorrect ? 2 : 0)
+    + (phenomenonCorrect ? 2 : 0)
     + (refractiveIndexCorrect ? 2 : 0)
     + sortingResults.filter(Boolean).length * 0.5
     + (statementsCorrect ? 2 : 0);
@@ -84,7 +84,7 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
     totalItems: 11,
     sections: {
       trueFalse: trueFalseResults.every(Boolean),
-      direction: directionCorrect,
+      phenomenon: phenomenonCorrect,
       refractiveIndex: refractiveIndexCorrect,
       sorting: sortingResults.every(Boolean),
       statements: statementsCorrect,
