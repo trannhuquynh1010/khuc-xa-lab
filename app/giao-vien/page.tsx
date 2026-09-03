@@ -5,7 +5,7 @@ import { listActivitySettings, listRefractionQuizSubmissions, listSchoolYears } 
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction } from "./actions";
+import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -137,6 +137,19 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             </div>
           </section>
         </>
+      )}
+
+      {selectedKey === "resistance-factors" && (
+        <section className="activity-control-panel construction-control-panel">
+          <div className="activity-control-title"><span aria-hidden="true">ρ</span><div><p className="eyebrow">MỤC 5</p><h2>Khám phá điện trở suất ρ</h2><p>Mở sau khi học sinh hoàn thành và tổng hợp ba kết luận.</p></div></div>
+          <div className="activity-control-actions">
+            <span className={`status-badge ${currentSetting.resistivityOpen ? "open" : "closed"}`}>{currentSetting.resistivityOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+            <form action={toggleResistivity}>
+              <input type="hidden" name="nextOpen" value={String(!currentSetting.resistivityOpen)} />
+              <button className={currentSetting.resistivityOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.resistivityOpen ? "Đóng điện trở suất" : "Mở điện trở suất"}</button>
+            </form>
+          </div>
+        </section>
       )}
 
       {selectedKey === "prism-colors" && (

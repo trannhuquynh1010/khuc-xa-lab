@@ -1,15 +1,17 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { classNames, groupNames } from "@/lib/classes";
 import type { ResistanceFactor, ResistanceFactorMeasurement } from "@/lib/experiments";
 import { calculateResistance, formatResistance } from "@/lib/physics";
 import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import MaterialBarChart from "./MaterialBarChart";
 import RelationshipChart from "./RelationshipChart";
-import ResistivitySimulator from "./ResistivitySimulator";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
+
+const ResistivitySimulator = dynamic(() => import("./ResistivitySimulator"));
 
 type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
 type SampleSelection = number | "";
@@ -98,7 +100,7 @@ function controlStatus(factor: ResistanceFactor, points: ResistanceFactorMeasure
   return hasControlledVariables(factor, points) ? "Điều kiện đối chứng đã được giữ nguyên." : "Kiểm tra lại các đại lượng cần giữ nguyên để so sánh công bằng.";
 }
 
-export default function ResistanceFactorsLabForm() {
+export default function ResistanceFactorsLabForm({ showResistivity }: { showResistivity: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
@@ -324,10 +326,12 @@ export default function ResistanceFactorsLabForm() {
         <label className="conclusion-prompt overall-conclusion">Kết luận tổng: Điện trở R của dây dẫn phụ thuộc như thế nào vào chất liệu, chiều dài l và tiết diện S?<textarea required maxLength={800} value={overallConclusion} onChange={(event) => setOverallConclusion(event.target.value)} placeholder="Tổng hợp cả ba quy luật bằng lời của nhóm…" /></label>
       </section>
 
-      <section aria-labelledby="resistivity-heading">
-        <div className="section-heading data-heading"><span>5</span><div><h2 id="resistivity-heading">Khám phá điện trở suất ρ</h2><p>Thay đổi dây dẫn để nhận ra đại lượng đặc trưng cho vật liệu.</p></div></div>
-        <ResistivitySimulator />
-      </section>
+      {showResistivity ? (
+        <section aria-labelledby="resistivity-heading">
+          <div className="section-heading data-heading"><span>5</span><div><h2 id="resistivity-heading">Khám phá điện trở suất ρ</h2><p>Thay đổi dây dẫn để nhận ra đại lượng đặc trưng cho vật liệu.</p></div></div>
+          <ResistivitySimulator />
+        </section>
+      ) : null}
 
       <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
     </form>

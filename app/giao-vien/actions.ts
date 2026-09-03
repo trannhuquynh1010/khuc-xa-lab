@@ -3,7 +3,7 @@
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
 import { isRefractionQuizClassName } from "@/lib/classes";
-import { resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmsLawPracticeOpen, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased } from "@/lib/db";
+import { resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmsLawPracticeOpen, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistivityOpen } from "@/lib/db";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -66,6 +66,14 @@ export async function toggleOhmsLawPractice(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setOhmsLawPracticeOpen(formData.get("nextOpen") === "true");
+  revalidatePath("/");
+  revalidatePath("/giao-vien");
+}
+
+export async function toggleResistivity(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setResistivityOpen(formData.get("nextOpen") === "true");
   revalidatePath("/");
   revalidatePath("/giao-vien");
 }
