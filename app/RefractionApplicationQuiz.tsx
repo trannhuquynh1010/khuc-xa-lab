@@ -140,7 +140,7 @@ export default function RefractionApplicationQuiz() {
   return (
     <div className="refraction-quiz">
       <div className="quiz-intro">
-        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 5 nhiệm vụ. Hệ thống chấm điểm ngay và chỉ lưu lần nộp mới nhất.</p></div>
+        <div><p className="eyebrow">CÁ NHÂN · 10 ĐIỂM</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Hoàn thành 5 nhiệm vụ. Mỗi lớp và STT chỉ được nộp một lần.</p></div>
         <div className="quiz-progress" aria-label={`Đã trả lời ${completedItems} trên ${refractionQuizItemCount} ý`}><strong>{completedItems}/{refractionQuizItemCount}</strong><span><i style={{ width: `${completedItems / refractionQuizItemCount * 100}%` }} /></span></div>
       </div>
 
@@ -211,7 +211,7 @@ export default function RefractionApplicationQuiz() {
         <span className="draft-status">{draftStatus}</span>
         <span className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</span>
         <button type="button" className="secondary-button" onClick={resetQuiz}>Làm lại</button>
-        <button type="button" className="primary-button" disabled={state.type === "sending"} onClick={submitQuiz}>{state.type === "sending" ? "Đang chấm…" : "Chấm điểm & nộp →"}</button>
+        <button type="button" className="primary-button" disabled={state.type === "sending" || state.type === "success"} onClick={submitQuiz}>{state.type === "sending" ? "Đang chấm…" : state.type === "success" ? "Đã nộp ✓" : "Chấm điểm & nộp →"}</button>
       </div>
     </div>
   );

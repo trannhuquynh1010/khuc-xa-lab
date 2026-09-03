@@ -52,6 +52,13 @@ export type RefractionQuizSubmission = {
   createdAt: string;
 };
 
+export class DuplicateRefractionQuizSubmissionError extends Error {
+  constructor() {
+    super("This class roster number has already submitted the quiz.");
+    this.name = "DuplicateRefractionQuizSubmissionError";
+  }
+}
+
 function getSql() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -394,16 +401,10 @@ export async function createRefractionQuizSubmission(input: {
       ${input.evaluation.score}, ${input.evaluation.correctCount}, ${input.evaluation.totalItems}
     )
     ON CONFLICT (school_year, class_name, student_number)
-    DO UPDATE SET
-      student_name = EXCLUDED.student_name,
-      student_key = EXCLUDED.student_key,
-      answers = EXCLUDED.answers,
-      score = EXCLUDED.score,
-      correct_count = EXCLUDED.correct_count,
-      total_items = EXCLUDED.total_items,
-      created_at = NOW()
+    DO NOTHING
     RETURNING id, created_at
   `;
+  if (!rows[0]) throw new DuplicateRefractionQuizSubmissionError();
   return { id: String(rows[0].id), createdAt: new Date(String(rows[0].created_at)).toISOString() };
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isRefractionQuizClassName, isStudentNumber } from "@/lib/classes";
-import { createRefractionQuizSubmission, isActivityOpen } from "@/lib/db";
+import { createRefractionQuizSubmission, DuplicateRefractionQuizSubmissionError, isActivityOpen } from "@/lib/db";
 import { isRefractionQuizAnswers, scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 
 export const runtime = "nodejs";
@@ -31,6 +31,9 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true, evaluation, ...result }, { status: 201 });
   } catch (error) {
+    if (error instanceof DuplicateRefractionQuizSubmissionError) {
+      return NextResponse.json({ error: "Lớp và STT này đã nộp bài. Mỗi học sinh chỉ được nộp một lần." }, { status: 409 });
+    }
     console.error("Refraction quiz submission error", error);
     return NextResponse.json({ error: "Chưa thể lưu điểm. Hãy thử lại." }, { status: 500 });
   }
