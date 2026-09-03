@@ -1,11 +1,9 @@
-import type { RefractionQuizSubmission, Submission } from "@/lib/db";
+import type { Submission } from "@/lib/db";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
 import { formatSineRatio } from "@/lib/physics";
 import { teamTasks, type TeamAssignments } from "@/lib/team";
-import { formatStudentNumber, refractionQuizClassNames, studentNumbers } from "@/lib/classes";
 import MaterialBarChart from "../MaterialBarChart";
 import RelationshipChart from "../RelationshipChart";
-import RefractionQuizResultTable from "./RefractionQuizResultTable";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("vi-VN", {
@@ -34,7 +32,7 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
   if (!submissions.length) return <EmptyResults />;
   return (
     <div className="submission-list">
-      {submissions.map((submission, index) => (
+      {submissions.map((submission) => (
         <article className="submission-card" key={submission.id}>
           <div className="submission-summary">
             <div><span>Lớp</span><strong>{submission.className}</strong></div>
@@ -44,7 +42,7 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
             <div><span>Số lần đo</span><strong>{submission.measurements.length}</strong></div>
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
-          <details className="refraction-result-details" open={index === 0}>
+          <details className="refraction-result-details">
             <summary>Xem kết quả</summary>
             <TeamAssignmentsReview assignments={submission.teamAssignments} />
             <div className="refraction-result-layout">
@@ -66,38 +64,11 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
   );
 }
 
-export function RefractionQuizResults({ submissions, className }: { submissions: RefractionQuizSubmission[]; className: string }) {
-  const submissionsByNumber = new Map(submissions
-    .filter((submission) => submission.studentNumber !== null)
-    .map((submission) => [submission.studentNumber!, submission]));
-  const rosterSubmissions = studentNumbers
-    .map((number) => submissionsByNumber.get(number))
-    .filter((submission): submission is RefractionQuizSubmission => Boolean(submission));
-  const isQuizClass = refractionQuizClassNames.some((name) => name === className);
-
-  return (
-    <section className="individual-results">
-      <div className="results-heading"><div><p className="eyebrow">VẬN DỤNG CÁ NHÂN</p><h2>{isQuizClass ? `${rosterSubmissions.length}/33 học sinh đã nộp` : "Không áp dụng cho lớp này"}</h2></div></div>
-      {!isQuizClass ? <div className="quiz-class-notice">Bài cá nhân được mở cho các lớp 9H04, 9H05, 9H08 và 9H09.</div> : <>
-        <div className="student-progress-grid" aria-label={`Tiến độ nộp bài cá nhân lớp ${className}`}>
-          {studentNumbers.map((number) => {
-            const submitted = submissionsByNumber.has(number);
-            return <div key={number} className={`student-progress-item ${submitted ? "submitted" : "pending"}`}><strong>{formatStudentNumber(number)}</strong><span>{submitted ? "✓ Đã nộp" : "Chưa nộp"}</span></div>;
-          })}
-        </div>
-      {rosterSubmissions.length > 0 && (
-        <RefractionQuizResultTable submissions={rosterSubmissions} />
-      )}
-      </>}
-    </section>
-  );
-}
-
 export function OhmResults({ submissions }: { submissions: ExperimentSubmission<OhmPayload>[] }) {
   if (!submissions.length) return <EmptyResults />;
   return (
     <div className="submission-list">
-      {submissions.map((submission, index) => {
+      {submissions.map((submission) => {
         return (
           <article className="submission-card" key={submission.id}>
             <div className="submission-summary compact-summary">
@@ -106,7 +77,7 @@ export function OhmResults({ submissions }: { submissions: ExperimentSubmission<
               <div><span>Số lần đo</span><strong>{submission.payload.measurements.length}</strong></div>
               <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
             </div>
-            <details className="ohm-result-details" open={index === 0}>
+            <details className="ohm-result-details">
               <summary>Xem kết quả</summary>
               <TeamAssignmentsReview assignments={submission.payload.teamAssignments} />
               <div className="ohm-result-layout">
@@ -131,7 +102,7 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
   if (!submissions.length) return <EmptyResults />;
   return (
     <div className="submission-list">
-      {submissions.map((submission, index) => (
+      {submissions.map((submission) => (
         <article className="submission-card" key={submission.id}>
           <div className="submission-summary factor-summary">
             <div><span>Lớp</span><strong>{submission.className}</strong></div>
@@ -139,7 +110,7 @@ export function ResistanceFactorsResults({ submissions }: { submissions: Experim
             {factorLabels.map((factor) => <div key={factor.key}><span>{factor.label.replace("Ảnh hưởng của ", "")}</span><strong>{submission.payload.investigations[factor.key].length} mẫu</strong></div>)}
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
-          <details className="factor-result-details" open={index === 0}>
+          <details className="factor-result-details">
             <summary>Xem kết quả</summary>
             <TeamAssignmentsReview assignments={submission.payload.teamAssignments} />
             <div className="teacher-investigations">
@@ -169,7 +140,7 @@ export function PrismColorResults({ submissions }: { submissions: ExperimentSubm
   if (!submissions.length) return <EmptyResults />;
   return (
     <div className="submission-list">
-      {submissions.map((submission, index) => (
+      {submissions.map((submission) => (
         <article className="submission-card" key={submission.id}>
           <div className="submission-summary compact-summary prism-result-summary">
             <div><span>Lớp</span><strong>{submission.className}</strong></div>
@@ -178,7 +149,7 @@ export function PrismColorResults({ submissions }: { submissions: ExperimentSubm
             <div><span>Màu sắc</span><strong>{submission.payload.colorChallengeCompleted ? "✓ 4/4" : "Chưa xong"}</strong></div>
             <time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time>
           </div>
-          <details open={index === 0}>
+          <details>
             <summary>Xem kết quả</summary>
             <div className="conclusion-answer prism-color-result"><span>Màu sắc của vật</span><p>{submission.payload.colorConclusion}</p></div>
           </details>

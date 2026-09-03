@@ -479,12 +479,15 @@ export async function getRefractionQuizSubmissionStatus(
   };
 }
 
-export async function releaseRefractionQuizScores(schoolYear: string, className: string) {
+export async function setRefractionQuizScoresReleased(schoolYear: string, className: string, released: boolean) {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
     UPDATE refraction_quiz_submissions
-    SET released_at = COALESCE(released_at, NOW())
+    SET released_at = CASE
+      WHEN ${released} THEN COALESCE(released_at, NOW())
+      ELSE NULL
+    END
     WHERE school_year = ${schoolYear}
       AND class_name = ${className}
       AND student_number IS NOT NULL

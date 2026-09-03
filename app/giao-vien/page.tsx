@@ -1,12 +1,12 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
-import { groupNames, isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { listActivitySettings, listExperimentSubmissions, listRefractionQuizSubmissions, listSchoolYears, listSubmissions } from "@/lib/db";
+import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
+import { listActivitySettings, listRefractionQuizSubmissions, listSchoolYears } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
-import { login, logout, publishRefractionQuizScores, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
-import { OhmResults, PrismColorResults, RefractionQuizResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
-import TeacherClassFilter from "./TeacherClassFilter";
+import { Suspense } from "react";
+import { login, logout, toggleActivity, togglePrismColor, toggleRefractionConstruction } from "./actions";
+import { loadTeacherActivityData, RefractionQuizPanel, TeacherActivityData, TeacherDataSkeleton } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
 import PhysicsBrand from "../PhysicsBrand";
@@ -37,38 +37,13 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const resultsPromise = (async () => {
-    if (selectedKey === "refraction") {
-      const [submissions, quizSubmissions] = await Promise.all([
-        listSubmissions(selectedYear, selectedClass),
-        listRefractionQuizSubmissions(selectedYear, selectedClass),
-      ]);
-      const rosterSubmissions = quizSubmissions.filter((submission) => submission.studentNumber !== null);
-      return {
-        resultContent: <><RefractionResults submissions={submissions} /><RefractionQuizResults submissions={quizSubmissions} className={selectedClass} /></>,
-        resultCount: submissions.length,
-        submittedGroups: submissions.map((submission) => submission.groupName),
-        quizSubmittedCount: rosterSubmissions.length,
-        quizReleasedCount: rosterSubmissions.filter((submission) => submission.releasedAt !== null).length,
-      };
-    }
-    if (selectedKey === "ohm") {
-      const submissions = await listExperimentSubmissions("ohm", selectedYear, selectedClass);
-      return { resultContent: <OhmResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName), quizSubmittedCount: 0, quizReleasedCount: 0 };
-    }
-    if (selectedKey === "prism-colors") {
-      const submissions = await listExperimentSubmissions("prism-colors", selectedYear, selectedClass);
-      return { resultContent: <PrismColorResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName), quizSubmittedCount: 0, quizReleasedCount: 0 };
-    }
-    const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass);
-    return { resultContent: <ResistanceFactorsResults submissions={submissions} />, resultCount: submissions.length, submittedGroups: submissions.map((submission) => submission.groupName), quizSubmittedCount: 0, quizReleasedCount: 0 };
-  })();
-  const [settings, knownSchoolYears, resultData] = await Promise.all([listActivitySettings(), listSchoolYears(), resultsPromise]);
+  const activityDataPromise = loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const quizSubmissionsPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
+    ? listRefractionQuizSubmissions(selectedYear, selectedClass, 100)
+    : null;
+  const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
   const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
-  const { resultContent, resultCount, submittedGroups, quizSubmittedCount, quizReleasedCount } = resultData;
-  const submittedGroupSet = new Set(submittedGroups);
-  const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
 
   return (
     <main className="teacher-shell">
@@ -115,18 +90,10 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      {selectedKey === "refraction" && isRefractionQuizClassName(selectedClass) && (
-        <section className="activity-control-panel construction-control-panel quiz-release-control-panel">
-          <div className="activity-control-title"><span aria-hidden="true">✓</span><div><p className="eyebrow">ĐIỂM CÁ NHÂN</p><h2>Công bố điểm</h2><p>Giáo viên xem lại kết quả trước khi cho học sinh xem điểm.</p></div></div>
-          <div className="activity-control-actions">
-            <span className={`status-badge ${quizSubmittedCount > 0 && quizReleasedCount === quizSubmittedCount ? "open" : "closed"}`}>{quizReleasedCount}/{quizSubmittedCount} bài đã công bố</span>
-            <form action={publishRefractionQuizScores}>
-              <input type="hidden" name="schoolYear" value={selectedYear} />
-              <input type="hidden" name="className" value={selectedClass} />
-              <button className={quizSubmittedCount > 0 && quizReleasedCount < quizSubmittedCount ? "primary-button" : "secondary-button"} type="submit" disabled={quizSubmittedCount === 0 || quizReleasedCount === quizSubmittedCount}>{quizSubmittedCount === 0 ? "Chưa có bài" : quizReleasedCount === quizSubmittedCount ? "Đã công bố" : `Công bố ${quizSubmittedCount - quizReleasedCount} bài`}</button>
-            </form>
-          </div>
-        </section>
+      {quizSubmissionsPromise && (
+        <Suspense fallback={<TeacherDataSkeleton />}>
+          <RefractionQuizPanel submissionsPromise={quizSubmissionsPromise} selectedClass={selectedClass} selectedYear={selectedYear} />
+        </Suspense>
       )}
 
       {selectedKey === "prism-colors" && (
@@ -142,18 +109,9 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      <section className="class-progress-panel">
-        <div className="class-progress-header"><div><p className="eyebrow">TIẾN ĐỘ</p><h2>{selectedClass} · {submittedCount}/8</h2></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
-        <div className="group-progress-grid">
-          {groupNames.map((group) => {
-            const submitted = submittedGroupSet.has(group);
-            return <div key={group} className={`group-progress-item ${submitted ? "submitted" : "pending"}`}><span>{submitted ? "✓" : "·"}</span><div><strong>{group}</strong><small>{submitted ? "Đã nộp" : "Chờ"}</small></div></div>;
-          })}
-        </div>
-      </section>
-
-      <div className="results-heading"><div><p className="eyebrow">BÀI NỘP</p><h2>{selectedClass} · {resultCount} nhóm</h2></div></div>
-      {resultContent}
+      <Suspense fallback={<TeacherDataSkeleton />}>
+        <TeacherActivityData dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
+      </Suspense>
     </main>
   );
 }
