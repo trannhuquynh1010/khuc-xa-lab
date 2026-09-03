@@ -195,7 +195,7 @@ export default function RefractionApplicationQuiz() {
   return (
     <div className="refraction-quiz">
       <div className="quiz-intro">
-        <div><p className="eyebrow">CÁ NHÂN · ĐIỂM CỘNG</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Đúng từ {refractionQuizBonusThreshold}/{refractionQuizItemCount} ý để nhận +1 điểm cộng sau khi giáo viên công bố.</p></div>
+        <div><p className="eyebrow">CÁ NHÂN · ĐIỂM CỘNG</p><h3>Kiểm tra nhanh kiến thức khúc xạ</h3><p>Đúng 16/16: +2 điểm · Đúng {refractionQuizBonusThreshold}/{refractionQuizItemCount}: +1 điểm. Kết quả hiển thị sau khi giáo viên công bố.</p></div>
         <div className="quiz-progress" aria-label={`Đã trả lời ${completedItems} trên ${refractionQuizItemCount} ý`}><strong>{completedItems}/{refractionQuizItemCount}</strong><span><i style={{ width: `${completedItems / refractionQuizItemCount * 100}%` }} /></span></div>
       </div>
 
@@ -262,8 +262,8 @@ export default function RefractionApplicationQuiz() {
 
       {result && (
         <div className={`quiz-result ${result.bonusPoint ? "bonus-earned" : "bonus-missed"}`} aria-live="polite">
-          <div className="quiz-score"><span>Kết quả</span><strong>{result.bonusPoint ? "+1" : "—"}</strong><b>điểm cộng</b></div>
-          <div><h4>{result.bonusPoint ? "Chúc mừng! Em nhận +1 điểm cộng." : "Em chưa đạt điểm cộng lần này."}</h4><p>Em trả lời đúng {result.correctCount}/{result.totalItems} ý. Cần đạt ít nhất {refractionQuizBonusThreshold}/{result.totalItems} ý để nhận điểm cộng.</p></div>
+          <div className="quiz-score"><span>Kết quả</span><strong>{result.bonusPoint ? `+${result.bonusPoint}` : "—"}</strong><b>điểm cộng</b></div>
+          <div><h4>{result.bonusPoint ? `Chúc mừng! Em nhận +${result.bonusPoint} điểm cộng.` : "Em chưa đạt điểm cộng lần này."}</h4><p>Em trả lời đúng {result.correctCount}/{result.totalItems} ý. Mốc điểm: 15/16 = +1; 16/16 = +2.</p></div>
         </div>
       )}
 

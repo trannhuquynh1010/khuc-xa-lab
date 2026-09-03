@@ -1,15 +1,15 @@
 import "server-only";
 
 import {
+  getRefractionQuizBonusPoint,
   phenomenonChoices,
-  refractionQuizBonusPoint,
-  refractionQuizBonusThreshold,
   refractionQuizItemCount,
   refractionStatementChoices,
   refractiveIndexChoices,
   sortingItems,
   trueFalseQuestions,
   type RefractionQuizAnswers,
+  type RefractionQuizBonusPoint,
   type RefractionSortBucket,
   type TrueFalseAnswer,
 } from "@/lib/refraction-quiz";
@@ -31,7 +31,7 @@ const sortingKey: Record<string, Exclude<RefractionSortBucket, "">> = {
 const correctStatementIds = new Set(["a", "d", "f"]);
 
 export type RefractionQuizEvaluation = {
-  bonusPoint: 0 | 1;
+  bonusPoint: RefractionQuizBonusPoint;
   correctCount: number;
   totalItems: number;
   sections: {
@@ -77,7 +77,7 @@ export function scoreRefractionQuiz(answers: RefractionQuizAnswers): RefractionQ
     ...sortingResults,
     ...statementResults,
   ].filter(Boolean).length;
-  const bonusPoint = correctCount >= refractionQuizBonusThreshold ? refractionQuizBonusPoint : 0;
+  const bonusPoint = getRefractionQuizBonusPoint(correctCount);
 
   return {
     bonusPoint,

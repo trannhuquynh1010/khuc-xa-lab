@@ -16,10 +16,12 @@ function formatDate(value: string) {
 
 export default function RefractionQuizResultTable({ submissions }: { submissions: RefractionQuizSubmission[] }) {
   const [view, setView] = useState<ResultView>("student-number");
-  const bonusCount = submissions.filter((submission) => submission.bonusPoint === 1).length;
+  const bonusSubmissions = submissions.filter((submission) => submission.bonusPoint > 0);
+  const bonusCount = bonusSubmissions.length;
+  const totalBonusPoints = bonusSubmissions.reduce((total, submission) => total + submission.bonusPoint, 0);
   const visibleSubmissions = useMemo(() => {
     const rows = view === "bonus-only"
-      ? submissions.filter((submission) => submission.bonusPoint === 1)
+      ? submissions.filter((submission) => submission.bonusPoint > 0)
       : [...submissions];
 
     return rows.sort((left, right) => {
@@ -36,7 +38,7 @@ export default function RefractionQuizResultTable({ submissions }: { submissions
   return (
     <div className="quiz-results-table-wrap">
       <div className="quiz-results-toolbar">
-        <p><strong>{bonusCount}</strong> học sinh đạt +1 điểm cộng</p>
+        <p><strong>{bonusCount}</strong> học sinh có điểm cộng · tổng <strong>{totalBonusPoints}</strong> điểm</p>
         <label>Hiển thị
           <select value={view} onChange={(event) => setView(event.target.value as ResultView)}>
             <option value="student-number">Theo STT</option>
@@ -52,7 +54,7 @@ export default function RefractionQuizResultTable({ submissions }: { submissions
             <tbody>{visibleSubmissions.map((submission) => (
               <tr key={submission.id}>
                 <th scope="row">{formatStudentNumber(submission.studentNumber!)}</th>
-                <td><strong className={`quiz-bonus-chip ${submission.bonusPoint ? "earned" : "not-earned"}`}>{submission.bonusPoint ? "+1" : "—"}</strong></td>
+                <td><strong className={`quiz-bonus-chip ${submission.bonusPoint ? "earned" : "not-earned"}`}>{submission.bonusPoint ? `+${submission.bonusPoint}` : "—"}</strong></td>
                 <td>{submission.correctCount}/{submission.totalItems}</td>
                 <td><span className={`score-release-chip ${submission.releasedAt ? "released" : "pending"}`}>{submission.releasedAt ? "Đã công bố" : "Chưa công bố"}</span></td>
                 <td><time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time></td>

@@ -68,4 +68,11 @@ export function countCompletedQuizItems(answers: RefractionQuizAnswers) {
 
 export const refractionQuizItemCount = 16;
 export const refractionQuizBonusThreshold = 15;
-export const refractionQuizBonusPoint = 1;
+
+export type RefractionQuizBonusPoint = 0 | 1 | 2;
+
+export function getRefractionQuizBonusPoint(correctCount: number): RefractionQuizBonusPoint {
+  if (correctCount >= refractionQuizItemCount) return 2;
+  if (correctCount >= refractionQuizBonusThreshold) return 1;
+  return 0;
+}
