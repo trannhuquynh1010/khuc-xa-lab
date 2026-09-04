@@ -5,7 +5,7 @@ import { getRefractionQuizClassSummary, listActivitySettings, listSchoolYears } 
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistivity } from "./actions";
+import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -140,16 +140,29 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       )}
 
       {selectedKey === "resistance-factors" && (
-        <section className="activity-control-panel construction-control-panel">
-          <div className="activity-control-title"><span aria-hidden="true">ρ</span><div><p className="eyebrow">MỤC 5</p><h2>Khám phá điện trở suất ρ</h2><p>Mở sau khi học sinh hoàn thành và tổng hợp ba kết luận.</p></div></div>
-          <div className="activity-control-actions">
-            <span className={`status-badge ${currentSetting.resistivityOpen ? "open" : "closed"}`}>{currentSetting.resistivityOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-            <form action={toggleResistivity}>
-              <input type="hidden" name="nextOpen" value={String(!currentSetting.resistivityOpen)} />
-              <TeacherToggleSubmitButton isOpen={currentSetting.resistivityOpen} openLabel="Mở điện trở suất" closeLabel="Đóng điện trở suất" />
-            </form>
-          </div>
-        </section>
+        <>
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">ρ</span><div><p className="eyebrow">MỤC 5</p><h2>Khám phá điện trở suất ρ</h2><p>Mở sau khi học sinh hoàn thành và tổng hợp ba kết luận.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.resistivityOpen ? "open" : "closed"}`}>{currentSetting.resistivityOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleResistivity}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.resistivityOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.resistivityOpen} openLabel="Mở điện trở suất" closeLabel="Đóng điện trở suất" />
+              </form>
+            </div>
+          </section>
+
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">R?</span><div><p className="eyebrow">BỘ LUYỆN TẬP</p><h2>Mật mã điện trở</h2><p>Vận dụng sau bài học: kiểm soát biến, suy luận tỉ lệ và bắt lỗi thí nghiệm.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.resistanceFactorsPracticeOpen ? "open" : "closed"}`}>{currentSetting.resistanceFactorsPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleResistanceFactorsPractice}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.resistanceFactorsPracticeOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.resistanceFactorsPracticeOpen} openLabel="Mở luyện tập" closeLabel="Đóng luyện tập" />
+              </form>
+            </div>
+          </section>
+        </>
       )}
 
       {selectedKey === "prism-colors" && (

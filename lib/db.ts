@@ -42,6 +42,7 @@ export type ActivitySetting = {
   iuPracticeOpen: boolean;
   ohmLawPracticeOpen: boolean;
   resistivityOpen: boolean;
+  resistanceFactorsPracticeOpen: boolean;
   updatedAt: string;
 };
 
@@ -133,6 +134,10 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'resistivity_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'resistance_factors_practice_open'
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -231,6 +236,7 @@ async function initializeSchema() {
       iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
+      resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -242,7 +248,8 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS color_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE
+    ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE
   `;
 
   for (const activity of activityDefinitions) {
@@ -340,7 +347,7 @@ async function initializeSchema() {
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-resistivity-v1"], { revalidate: false });
+}, ["physics-lab-schema-factor-practice-v2"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -356,7 +363,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open, resistivity_open, updated_at
+    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open, resistivity_open, resistance_factors_practice_open, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -372,6 +379,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       iuPracticeOpen: Boolean(row?.iu_practice_open),
       ohmLawPracticeOpen: Boolean(row?.ohm_law_practice_open),
       resistivityOpen: Boolean(row?.resistivity_open),
+      resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
@@ -459,6 +467,17 @@ export async function setResistivityOpen(isOpen: boolean) {
   await sql`
     UPDATE activity_settings
     SET resistivity_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'resistance-factors'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setResistanceFactorsPracticeOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET resistance_factors_practice_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'resistance-factors'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);

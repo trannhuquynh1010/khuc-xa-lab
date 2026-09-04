@@ -8,7 +8,7 @@ import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
 import PrismColorLabForm from "./PrismColorLabForm";
 import PhysicsBrand from "./PhysicsBrand";
 
-type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; resistivityOpen: boolean; updatedAt: string };
+type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; updatedAt: string };
 
 export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
@@ -56,6 +56,7 @@ export default function StudentWorkspace() {
   const currentVoltagePracticeOpen = activities?.find((activity) => activity.key === "ohm")?.iuPracticeOpen ?? false;
   const ohmsLawPracticeOpen = activities?.find((activity) => activity.key === "ohm")?.ohmLawPracticeOpen ?? false;
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
+  const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
   const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
@@ -103,7 +104,7 @@ export default function StudentWorkspace() {
           </nav>
           <div hidden={visibleActiveKey !== "refraction"}><LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /></div>
           <div hidden={visibleActiveKey !== "ohm"}><OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} /></div>
-          <div hidden={visibleActiveKey !== "resistance-factors"}><ResistanceFactorsLabForm showResistivity={resistivityOpen} /></div>
+          <div hidden={visibleActiveKey !== "resistance-factors"}><ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /></div>
           <div hidden={visibleActiveKey !== "prism-colors"}><PrismColorLabForm showColorActivity={prismColorOpen} /></div>
         </>
       )}
