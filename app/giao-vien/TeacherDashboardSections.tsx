@@ -4,7 +4,10 @@ import {
   listSubmittedGroups,
   type RefractionQuizClassSummary,
 } from "@/lib/db";
-import { toggleRefractionQuizScores } from "./actions";
+import { getPracticeDefinition, type PracticeKey } from "@/lib/practice-attempt-types";
+import { forceSubmitPractice, togglePracticeScores, toggleRefractionQuizScores } from "./actions";
+import ForceSubmitPracticeButton from "./ForceSubmitPracticeButton";
+import PracticeAttemptDisclosure from "./PracticeAttemptDisclosure";
 import TeacherClassFilter from "./TeacherClassFilter";
 import RefractionQuizDisclosure from "./RefractionQuizDisclosure";
 import ScoreReleaseSubmitButton from "./ScoreReleaseSubmitButton";
@@ -69,6 +72,12 @@ export async function RefractionQuizPanel({ summaryPromise, selectedClass, selec
         <div className="activity-control-title"><span aria-hidden="true">✓</span><div><p className="eyebrow">ĐIỂM CỘNG CÁ NHÂN</p><h2>Công bố kết quả</h2><p>Có thể công bố hoặc thu hồi kết quả của cả lớp.</p></div></div>
         <div className="activity-control-actions">
           <span className={`status-badge ${allReleased ? "open" : "closed"}`}>{releasedCount}/{submittedCount} bài đã công bố</span>
+          <form action={forceSubmitPractice}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value="refraction-application" />
+            <ForceSubmitPracticeButton disabled={submittedCount >= 33} />
+          </form>
           <form action={toggleRefractionQuizScores}>
             <input type="hidden" name="schoolYear" value={selectedYear} />
             <input type="hidden" name="className" value={selectedClass} />
@@ -77,7 +86,42 @@ export async function RefractionQuizPanel({ summaryPromise, selectedClass, selec
           </form>
         </div>
       </div>
-      <RefractionQuizDisclosure key={`${selectedYear}:${selectedClass}`} submittedCount={submittedCount} className={selectedClass} schoolYear={selectedYear} />
+      <RefractionQuizDisclosure key={`${selectedYear}:${selectedClass}:${submittedCount}:${releasedCount}`} submittedCount={submittedCount} className={selectedClass} schoolYear={selectedYear} />
+    </section>
+  );
+}
+
+export async function PracticeCollectionPanel({ summaryPromise, practiceKey, selectedClass, selectedYear }: {
+  summaryPromise: Promise<{ submittedCount: number; releasedCount: number; forcedCount: number }>;
+  practiceKey: PracticeKey;
+  selectedClass: string;
+  selectedYear: string;
+}) {
+  const { submittedCount, releasedCount, forcedCount } = await summaryPromise;
+  const definition = getPracticeDefinition(practiceKey);
+  const allReleased = submittedCount > 0 && releasedCount === submittedCount;
+
+  return (
+    <section className="activity-control-panel construction-control-panel quiz-release-control-panel practice-collection-panel">
+      <div className="quiz-release-header">
+        <div className="activity-control-title"><span aria-hidden="true">⇥</span><div><p className="eyebrow">THU BÀI CÁ NHÂN</p><h2>{definition.label}</h2><p>{submittedCount}/33 đã thu{forcedCount ? ` · ${forcedCount} bài thu tự động` : ""}</p></div></div>
+        <div className="activity-control-actions">
+          <form action={forceSubmitPractice}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value={practiceKey} />
+            <ForceSubmitPracticeButton disabled={submittedCount >= 33} />
+          </form>
+          <form action={togglePracticeScores}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value={practiceKey} />
+            <input type="hidden" name="nextReleased" value={String(!allReleased)} />
+            <ScoreReleaseSubmitButton disabled={submittedCount === 0} released={allReleased} pendingCount={submittedCount - releasedCount} />
+          </form>
+        </div>
+      </div>
+      <PracticeAttemptDisclosure key={`${practiceKey}:${selectedYear}:${selectedClass}:${submittedCount}:${releasedCount}:${forcedCount}`} submittedCount={submittedCount} practiceKey={practiceKey} className={selectedClass} schoolYear={selectedYear} />
     </section>
   );
 }

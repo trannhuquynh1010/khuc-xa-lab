@@ -1,12 +1,12 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { getRefractionQuizClassSummary, listActivitySettings, listSchoolYears } from "@/lib/db";
+import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivitySettings, listSchoolYears } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
 import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
-import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
+import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
 import TeacherToggleSubmitButton from "./TeacherToggleSubmitButton";
@@ -40,6 +40,15 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const activityDataPromise = loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
   const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
     ? getRefractionQuizClassSummary(selectedYear, selectedClass)
+    : null;
+  const currentVoltagePracticeSummaryPromise = selectedKey === "ohm"
+    ? getPracticeAttemptSummary(selectedYear, "current-voltage-practice", selectedClass)
+    : null;
+  const ohmLawPracticeSummaryPromise = selectedKey === "ohm"
+    ? getPracticeAttemptSummary(selectedYear, "ohm-law-practice", selectedClass)
+    : null;
+  const resistanceFactorsPracticeSummaryPromise = selectedKey === "resistance-factors"
+    ? getPracticeAttemptSummary(selectedYear, "resistance-factors-practice", selectedClass)
     : null;
   const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
@@ -93,7 +102,6 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               </form>
             </div>
           </section>
-
           <section className="activity-control-panel construction-control-panel">
             <div className="activity-control-title"><span aria-hidden="true">↘</span><div><p className="eyebrow">BỔ TRỢ</p><h2>Dựng hình khúc xạ</h2><p>Hiện hoặc ẩn riêng phần hướng dẫn dựng tia.</p></div></div>
             <div className="activity-control-actions">
@@ -125,6 +133,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               </form>
             </div>
           </section>
+          {currentVoltagePracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={currentVoltagePracticeSummaryPromise} practiceKey="current-voltage-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
 
           <section className="activity-control-panel construction-control-panel">
             <div className="activity-control-title"><span aria-hidden="true">Ω</span><div><p className="eyebrow">BỘ BÀI TẬP 2</p><h2>Định luật Ohm</h2><p>Ghép công thức, tính nhanh và xử lí tình huống mạch điện.</p></div></div>
@@ -136,6 +145,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               </form>
             </div>
           </section>
+          {ohmLawPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={ohmLawPracticeSummaryPromise} practiceKey="ohm-law-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
         </>
       )}
 
@@ -162,6 +172,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               </form>
             </div>
           </section>
+          {resistanceFactorsPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={resistanceFactorsPracticeSummaryPromise} practiceKey="resistance-factors-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
         </>
       )}
 

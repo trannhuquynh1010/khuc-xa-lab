@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
+import PracticeIdentityFields from "./PracticeIdentityFields";
+import usePracticeAttempt from "./usePracticeAttempt";
 
 type CircuitPart = "ammeter" | "voltmeter" | "switch";
 type CircuitSlot = "seriesMeter" | "control" | "parallelMeter";
@@ -146,6 +148,11 @@ export default function CurrentVoltagePractice() {
     + Number(Boolean(anomaly))
     + Number(Boolean(graph))
     + Number(Object.values(statementAnswers).every(Boolean));
+  const completedItems = Object.values(slots).filter(Boolean).length
+    + Number(Boolean(missingValue))
+    + Number(Boolean(anomaly))
+    + Number(Boolean(graph))
+    + Object.values(statementAnswers).filter(Boolean).length;
   const circuitScore = Number(slots.seriesMeter === "ammeter")
     + Number(slots.control === "switch")
     + Number(slots.parallelMeter === "voltmeter");
@@ -155,6 +162,11 @@ export default function CurrentVoltagePractice() {
     + Number(anomaly === "3")
     + Number(graph === "direct")
     + statementScore;
+  const attempt = usePracticeAttempt(
+    "current-voltage-practice",
+    { slots, missingValue, anomaly, graph, statementAnswers },
+    completedItems,
+  );
 
   function updateChoice(setter: (value: string) => void, value: string) {
     setter(value);
@@ -194,7 +206,10 @@ export default function CurrentVoltagePractice() {
         <strong>{completedChallenges}/5</strong>
       </div>
 
-      <div className="practice-grid">
+      <PracticeIdentityFields practiceKey="current-voltage-practice" className={attempt.className} studentNumber={attempt.studentNumber} onClassChange={attempt.setClassName} onStudentNumberChange={attempt.setStudentNumber} />
+      {attempt.locked ? <div className="quiz-submission-notice"><span>✓</span><div><strong>Đã thu bài</strong><p>{attempt.message}</p></div></div> : null}
+
+      <fieldset className="practice-grid practice-question-fieldset" disabled={attempt.locked || attempt.checking || attempt.submitting}>
         <article className="practice-card practice-card-wide">
           <div className="practice-card-heading"><span>01</span><div><h4>Hoàn thiện mạch đo</h4><p>Chọn một dụng cụ cho từng vị trí trong mạch.</p></div></div>
           <div className="circuit-builder" aria-label="Sơ đồ mạch điện cần hoàn thành">
@@ -259,13 +274,17 @@ export default function CurrentVoltagePractice() {
             })}
           </div>
         </article>
-      </div>
+      </fieldset>
+
+      {attempt.releasedResult ? <div className={`quiz-result ${attempt.releasedResult.bonusPoint ? "bonus-earned" : "bonus-missed"}`}><div className="quiz-score"><span>Kết quả</span><strong>{attempt.releasedResult.bonusPoint ? `+${attempt.releasedResult.bonusPoint}` : "—"}</strong><b>điểm cộng</b></div><div><h4>{attempt.releasedResult.bonusPoint ? `Em nhận +${attempt.releasedResult.bonusPoint} điểm cộng.` : "Em chưa đạt điểm cộng lần này."}</h4><p>Đúng {attempt.releasedResult.correctCount}/{attempt.releasedResult.totalItems} ý.</p></div></div> : null}
 
       <div className="practice-actions">
-        <span className="draft-status">{draftStatus}</span>
+        <span className="draft-status">{attempt.saving ? "Đang đồng bộ bài làm…" : draftStatus}</span>
+        {attempt.message && !attempt.locked ? <span className={`form-message ${attempt.messageType}`}>{attempt.message}</span> : null}
         {checked ? <p className={score === 10 ? "correct" : "incorrect"} aria-live="polite">{score === 10 ? "Chinh phục trọn bộ: 10/10!" : `Đúng ${score}/10. Hãy xem lại các mục màu cam.`}</p> : null}
-        <button type="button" className="secondary-button" onClick={resetPractice}>Làm lại</button>
-        <button type="button" className="primary-button" disabled={completedChallenges < 5} onClick={() => setChecked(true)}>Kiểm tra →</button>
+        <button type="button" className="secondary-button" disabled={attempt.locked} onClick={resetPractice}>Làm lại</button>
+        <button type="button" className="secondary-button" disabled={completedChallenges < 5 || attempt.locked} onClick={() => setChecked(true)}>Kiểm tra</button>
+        <button type="button" className="primary-button" disabled={completedItems < 10 || !attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang nộp…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
       </div>
     </div>
   );

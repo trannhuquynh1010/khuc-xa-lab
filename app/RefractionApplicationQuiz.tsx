@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   countCompletedQuizItems,
   createEmptyRefractionQuizAnswers,
@@ -15,17 +15,9 @@ import {
   type RefractionSortBucket,
   type TrueFalseAnswer,
 } from "@/lib/refraction-quiz";
-import type { RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
-import { formatStudentNumber, isRefractionQuizClassName, isStudentNumber, refractionQuizClassNames, studentNumbers } from "@/lib/classes";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
-
-type SubmitState = { type: "idle" | "sending" | "success" | "error"; message: string };
-type PublishedQuizResult = Pick<RefractionQuizEvaluation, "bonusPoint" | "correctCount" | "totalItems">;
-type SubmissionStatus = "idle" | "available" | "submitted";
-type QuizStatusResponse =
-  | { submitted: false; released: false }
-  | { submitted: true; released: false }
-  | ({ submitted: true; released: true } & PublishedQuizResult);
+import PracticeIdentityFields from "./PracticeIdentityFields";
+import usePracticeAttempt from "./usePracticeAttempt";
 
 function restoreAnswers(value: unknown) {
   if (!isDraftRecord(value)) return null;
@@ -53,71 +45,19 @@ function restoreAnswers(value: unknown) {
 }
 
 export default function RefractionApplicationQuiz() {
-  const [className, setClassName] = useState("");
-  const [studentNumber, setStudentNumber] = useState("");
   const [answers, setAnswers] = useState<RefractionQuizAnswers>(createEmptyRefractionQuizAnswers);
   const [selectedSortItem, setSelectedSortItem] = useState<string | null>(null);
-  const [result, setResult] = useState<PublishedQuizResult | null>(null);
-  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("idle");
-  const [statusCheckVersion, setStatusCheckVersion] = useState(0);
-  const [state, setState] = useState<SubmitState>({ type: "idle", message: "" });
-  const { draftStatus } = useDeviceDraft(deviceDraftKey("refraction-application"), { className, studentNumber, answers }, (value) => {
+  const { draftStatus } = useDeviceDraft(deviceDraftKey("refraction-application"), { answers }, (value) => {
     if (!isDraftRecord(value)) return;
-    if (isRefractionQuizClassName(value.className)) setClassName(value.className);
-    const restoredStudentNumber = Number(value.studentNumber);
-    if (isStudentNumber(restoredStudentNumber)) setStudentNumber(String(restoredStudentNumber));
     const restored = restoreAnswers(value.answers);
     if (restored) setAnswers(restored);
   });
   const completedItems = countCompletedQuizItems(answers);
-  const identityReady = isRefractionQuizClassName(className) && isStudentNumber(Number(studentNumber));
-  const checkingSubmission = identityReady && submissionStatus === "idle";
-  const hasSubmitted = submissionStatus === "submitted";
-
-  useEffect(() => {
-    const parsedStudentNumber = Number(studentNumber);
-    if (!isRefractionQuizClassName(className) || !isStudentNumber(parsedStudentNumber)) {
-      return;
-    }
-
-    const controller = new AbortController();
-    void fetch(`/api/refraction-quiz?className=${encodeURIComponent(className)}&studentNumber=${parsedStudentNumber}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Chưa thể kiểm tra bài nộp.");
-        return data as QuizStatusResponse;
-      })
-      .then((status) => {
-        if (!status.submitted) {
-          setSubmissionStatus("available");
-          setState({ type: "idle", message: "" });
-          return;
-        }
-        setSubmissionStatus("submitted");
-        if (status.released) {
-          setResult({ bonusPoint: status.bonusPoint, correctCount: status.correctCount, totalItems: status.totalItems });
-          setState({ type: "success", message: "Giáo viên đã công bố điểm." });
-        } else {
-          setState({ type: "success", message: "Bài đã được ghi nhận." });
-        }
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setSubmissionStatus("available");
-        setState({ type: "error", message: error instanceof Error ? error.message : "Chưa thể kiểm tra bài nộp." });
-      });
-
-    return () => controller.abort();
-  }, [className, studentNumber, statusCheckVersion]);
+  const attempt = usePracticeAttempt("refraction-application", answers, completedItems);
 
   function updateAnswer<K extends keyof RefractionQuizAnswers>(key: K, value: RefractionQuizAnswers[K]) {
-    if (hasSubmitted || checkingSubmission) return;
+    if (attempt.locked || attempt.checking) return;
     setAnswers((current) => ({ ...current, [key]: value }));
-    setResult(null);
-    setState({ type: "idle", message: "" });
   }
 
   function setTrueFalse(id: string, value: TrueFalseAnswer) {
@@ -135,61 +75,9 @@ export default function RefractionApplicationQuiz() {
       : [...answers.statements, id]);
   }
 
-  function updateIdentity(field: "className" | "studentNumber", value: string) {
-    if (field === "className") setClassName(value);
-    else setStudentNumber(value);
-    setResult(null);
-    setSubmissionStatus("idle");
-    setState({ type: "idle", message: "" });
-  }
-
   function resetQuiz() {
-    setClassName("");
-    setStudentNumber("");
     setAnswers(createEmptyRefractionQuizAnswers());
     setSelectedSortItem(null);
-    setResult(null);
-    setSubmissionStatus("idle");
-    setState({ type: "idle", message: "" });
-  }
-
-  async function submitQuiz() {
-    if (checkingSubmission) {
-      setState({ type: "error", message: "Đang kiểm tra trạng thái bài nộp. Em chờ một chút nhé." });
-      return;
-    }
-    if (hasSubmitted) {
-      setState({ type: "success", message: result ? "Giáo viên đã công bố điểm." : "Bài đã được ghi nhận." });
-      return;
-    }
-    if (!className) {
-      setState({ type: "error", message: "Hãy chọn lớp của em." });
-      return;
-    }
-    if (!isStudentNumber(Number(studentNumber))) {
-      setState({ type: "error", message: "Hãy chọn STT của em." });
-      return;
-    }
-    if (completedItems < refractionQuizItemCount) {
-      setState({ type: "error", message: `Còn ${refractionQuizItemCount - completedItems} ý chưa trả lời.` });
-      return;
-    }
-
-    setState({ type: "sending", message: "Đang gửi bài…" });
-    try {
-      const response = await fetch("/api/refraction-quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ className, studentNumber: Number(studentNumber), answers, website: "" }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Chưa thể nộp bài.");
-      setSubmissionStatus("submitted");
-      setResult(null);
-      setState({ type: "success", message: "Đã nộp bài." });
-    } catch (error) {
-      setState({ type: "error", message: error instanceof Error ? error.message : "Chưa thể nộp bài." });
-    }
   }
 
   return (
@@ -199,18 +87,15 @@ export default function RefractionApplicationQuiz() {
         <div className="quiz-progress" aria-label={`Đã trả lời ${completedItems} trên ${refractionQuizItemCount} ý`}><strong>{completedItems}/{refractionQuizItemCount}</strong><span><i style={{ width: `${completedItems / refractionQuizItemCount * 100}%` }} /></span></div>
       </div>
 
-      <div className="quiz-student-row">
-        <label>Lớp<select required value={className} onChange={(event) => updateIdentity("className", event.target.value)}><option value="">Chọn lớp</option>{refractionQuizClassNames.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <label>STT (01–33)<select required value={studentNumber} onChange={(event) => updateIdentity("studentNumber", event.target.value)}><option value="">Chọn STT</option>{studentNumbers.map((number) => <option key={number} value={number}>{formatStudentNumber(number)}</option>)}</select></label>
-      </div>
+      <PracticeIdentityFields practiceKey="refraction-application" className={attempt.className} studentNumber={attempt.studentNumber} onClassChange={attempt.setClassName} onStudentNumberChange={attempt.setStudentNumber} />
 
-      {hasSubmitted && !result && (
+      {attempt.locked && !attempt.releasedResult && (
         <div className="quiz-submission-notice" aria-live="polite">
-          <span>✓</span><div><strong>Đã nộp bài</strong><p>Kết quả đã được lưu.</p></div>
+          <span>✓</span><div><strong>Đã thu bài</strong><p>{attempt.message}</p></div>
         </div>
       )}
 
-      <fieldset className="quiz-grid quiz-question-fieldset" disabled={hasSubmitted || checkingSubmission || state.type === "sending"}>
+      <fieldset className="quiz-grid quiz-question-fieldset" disabled={attempt.locked || attempt.checking || attempt.submitting}>
         <article className="quiz-card quiz-card-wide">
           <div className="quiz-card-title"><span>01</span><div><h4>Đúng hay sai?</h4><p>Chọn Đúng hoặc Sai cho từng nhận định.</p></div></div>
           <div className="true-false-list">
@@ -260,19 +145,18 @@ export default function RefractionApplicationQuiz() {
         </article>
       </fieldset>
 
-      {result && (
-        <div className={`quiz-result ${result.bonusPoint ? "bonus-earned" : "bonus-missed"}`} aria-live="polite">
-          <div className="quiz-score"><span>Kết quả</span><strong>{result.bonusPoint ? `+${result.bonusPoint}` : "—"}</strong><b>điểm cộng</b></div>
-          <div><h4>{result.bonusPoint ? `Chúc mừng! Em nhận +${result.bonusPoint} điểm cộng.` : "Em chưa đạt điểm cộng lần này."}</h4><p>Em trả lời đúng {result.correctCount}/{result.totalItems} ý. Mốc điểm: 15/16 = +1; 16/16 = +2.</p></div>
+      {attempt.releasedResult && (
+        <div className={`quiz-result ${attempt.releasedResult.bonusPoint ? "bonus-earned" : "bonus-missed"}`} aria-live="polite">
+          <div className="quiz-score"><span>Kết quả</span><strong>{attempt.releasedResult.bonusPoint ? `+${attempt.releasedResult.bonusPoint}` : "—"}</strong><b>điểm cộng</b></div>
+          <div><h4>{attempt.releasedResult.bonusPoint ? `Chúc mừng! Em nhận +${attempt.releasedResult.bonusPoint} điểm cộng.` : "Em chưa đạt điểm cộng lần này."}</h4><p>Em trả lời đúng {attempt.releasedResult.correctCount}/{attempt.releasedResult.totalItems} ý. Mốc điểm: 15/16 = +1; 16/16 = +2.</p></div>
         </div>
       )}
 
       <div className="quiz-actions">
-        <span className="draft-status">{draftStatus}</span>
-        <span className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</span>
-        {hasSubmitted && !result && <button type="button" className="secondary-button" onClick={() => { setSubmissionStatus("idle"); setStatusCheckVersion((current) => current + 1); }}>Kiểm tra điểm</button>}
-        <button type="button" className="secondary-button" onClick={resetQuiz}>Làm lại</button>
-        <button type="button" className="primary-button" disabled={state.type === "sending" || checkingSubmission || hasSubmitted} onClick={submitQuiz}>{state.type === "sending" ? "Đang gửi…" : checkingSubmission ? "Đang kiểm tra…" : hasSubmitted ? "Đã nộp ✓" : "Nộp bài →"}</button>
+        <span className="draft-status">{attempt.saving ? "Đang đồng bộ bài làm…" : draftStatus}</span>
+        {attempt.message && !attempt.locked ? <span className={`form-message ${attempt.messageType}`} role={attempt.messageType === "error" ? "alert" : "status"}>{attempt.message}</span> : null}
+        <button type="button" className="secondary-button" disabled={attempt.locked} onClick={resetQuiz}>Làm lại</button>
+        <button type="button" className="primary-button" disabled={completedItems < refractionQuizItemCount || !attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang gửi…" : attempt.checking ? "Đang kiểm tra…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
       </div>
     </div>
   );

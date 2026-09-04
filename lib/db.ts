@@ -10,6 +10,8 @@ import { scoreRefractionQuiz, type RefractionQuizEvaluation } from "@/lib/refrac
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
 import { formatStudentNumber } from "@/lib/classes";
+import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
+import type { PracticeAttemptStatus, PracticeKey, TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 
 export type Measurement = {
   sequence: number;
@@ -80,6 +82,7 @@ const ACTIVITY_SETTINGS_CACHE_TAG = "activity-settings";
 const SCHOOL_YEARS_CACHE_TAG = "school-years";
 const TEACHER_PROGRESS_CACHE_TAG = "teacher-progress";
 const REFRACTION_QUIZ_CACHE_TAG = "refraction-quiz-submissions";
+const PRACTICE_ATTEMPTS_CACHE_TAG = "practice-attempts";
 
 function expireCacheTag(tag: string) {
   revalidateTag(tag, { expire: 0 });
@@ -105,12 +108,15 @@ async function initializeSchema() {
       to_regclass('public.activity_settings') IS NOT NULL AND
       to_regclass('public.experiment_submissions') IS NOT NULL AND
       to_regclass('public.refraction_quiz_submissions') IS NOT NULL AND
+      to_regclass('public.practice_attempts') IS NOT NULL AND
       to_regclass('public.submissions_year_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.refraction_quiz_year_class_number_unique_idx') IS NOT NULL AND
       to_regclass('public.submissions_school_year_class_created_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_created_idx') IS NOT NULL AND
       to_regclass('public.refraction_quiz_year_class_created_idx') IS NOT NULL AND
+      to_regclass('public.practice_attempts_year_key_class_status_idx') IS NOT NULL AND
+      to_regclass('public.practice_attempts_year_key_class_student_unique_idx') IS NOT NULL AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
@@ -342,12 +348,44 @@ async function initializeSchema() {
     CREATE INDEX IF NOT EXISTS refraction_quiz_year_class_created_idx
     ON refraction_quiz_submissions (school_year, class_name, created_at DESC)
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS practice_attempts (
+      id UUID PRIMARY KEY,
+      school_year VARCHAR(5) NOT NULL,
+      practice_key VARCHAR(50) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      student_number SMALLINT NOT NULL,
+      answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+      completed_count INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER NOT NULL DEFAULT 0,
+      total_items INTEGER NOT NULL,
+      bonus_point INTEGER NOT NULL DEFAULT 0,
+      status VARCHAR(12) NOT NULL DEFAULT 'draft',
+      forced BOOLEAN NOT NULL DEFAULT FALSE,
+      released_at TIMESTAMPTZ,
+      submitted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT practice_attempts_status_check CHECK (status IN ('draft', 'submitted'))
+    )
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS practice_attempts_year_key_class_student_unique_idx
+    ON practice_attempts (school_year, practice_key, class_name, student_number)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS practice_attempts_year_key_class_status_idx
+    ON practice_attempts (school_year, practice_key, class_name, status, updated_at DESC)
+  `;
 }
 
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-factor-practice-v2"], { revalidate: false });
+}, ["physics-lab-schema-individual-practice-v3"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -492,11 +530,13 @@ const getCachedSchoolYears = unstable_cache(async () => {
     SELECT school_year FROM experiment_submissions
     UNION
     SELECT school_year FROM refraction_quiz_submissions
+    UNION
+    SELECT school_year FROM practice_attempts
   `;
   const years = new Set(rows.map((row) => String(row.school_year)));
   years.add(getCurrentSchoolYear());
   return [...years].sort((left, right) => right.localeCompare(left));
-}, ["school-years-v1"], { tags: [SCHOOL_YEARS_CACHE_TAG], revalidate: 3600 });
+}, ["school-years-v2"], { tags: [SCHOOL_YEARS_CACHE_TAG], revalidate: 3600 });
 
 export async function listSchoolYears() {
   return getCachedSchoolYears();
@@ -508,9 +548,11 @@ export async function resetSchoolYearData(schoolYear: string) {
   await sql`DELETE FROM submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM experiment_submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM refraction_quiz_submissions WHERE school_year = ${schoolYear}`;
+  await sql`DELETE FROM practice_attempts WHERE school_year = ${schoolYear}`;
   expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
   expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
   expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
 }
 
 export async function createRefractionQuizSubmission(input: {
@@ -652,6 +694,231 @@ export async function setRefractionQuizScoresReleased(schoolYear: string, classN
     RETURNING id
   `;
   expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  return rows.length;
+}
+
+type PracticeAttemptInput = {
+  practiceKey: PracticeKey;
+  className: string;
+  studentNumber: number;
+  answers: unknown;
+};
+
+function rowToPracticeStatus(row: Record<string, unknown> | undefined): PracticeAttemptStatus {
+  if (!row) return { submitted: false, forced: false, released: false, completedCount: 0, totalItems: 0 };
+  const submitted = row.status === "submitted";
+  const released = submitted && row.released_at !== null;
+  return {
+    submitted,
+    forced: Boolean(row.forced),
+    released,
+    completedCount: Number(row.completed_count ?? 0),
+    totalItems: Number(row.total_items ?? 0),
+    ...(released ? {
+      correctCount: Number(row.correct_count ?? 0),
+      bonusPoint: Number(row.bonus_point ?? 0),
+    } : {}),
+  };
+}
+
+async function savePracticeAttempt(input: PracticeAttemptInput, submit: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  const schoolYear = getCurrentSchoolYear();
+  const evaluation = scorePracticeAttempt(input.practiceKey, input.answers);
+  const id = randomUUID();
+  const nextStatus = submit ? "submitted" : "draft";
+  const rows = await sql`
+    INSERT INTO practice_attempts (
+      id, school_year, practice_key, class_name, student_number, answers,
+      completed_count, correct_count, total_items, bonus_point, status, forced, submitted_at, updated_at
+    )
+    VALUES (
+      ${id}, ${schoolYear}, ${input.practiceKey}, ${input.className}, ${input.studentNumber}, ${JSON.stringify(input.answers)}::jsonb,
+      ${evaluation.completedCount}, ${evaluation.correctCount}, ${evaluation.totalItems}, ${evaluation.bonusPoint}, ${nextStatus}, FALSE,
+      ${submit ? new Date().toISOString() : null}, NOW()
+    )
+    ON CONFLICT (school_year, practice_key, class_name, student_number)
+    DO UPDATE SET
+      answers = EXCLUDED.answers,
+      completed_count = EXCLUDED.completed_count,
+      correct_count = EXCLUDED.correct_count,
+      total_items = EXCLUDED.total_items,
+      bonus_point = EXCLUDED.bonus_point,
+      status = EXCLUDED.status,
+      submitted_at = CASE WHEN EXCLUDED.status = 'submitted' THEN NOW() ELSE practice_attempts.submitted_at END,
+      updated_at = NOW()
+    WHERE practice_attempts.status = 'draft'
+    RETURNING status, forced, released_at, completed_count, correct_count, total_items, bonus_point
+  `;
+  const row = rows[0] ?? (await sql`
+    SELECT status, forced, released_at, completed_count, correct_count, total_items, bonus_point
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = ${input.practiceKey}
+      AND class_name = ${input.className} AND student_number = ${input.studentNumber}
+    LIMIT 1
+  `)[0];
+  if (submit) expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return rowToPracticeStatus(row as Record<string, unknown> | undefined);
+}
+
+export async function savePracticeDraft(input: PracticeAttemptInput) {
+  return savePracticeAttempt(input, false);
+}
+
+export async function submitPracticeAttempt(input: PracticeAttemptInput) {
+  return savePracticeAttempt(input, true);
+}
+
+export async function getPracticeAttemptStatus(practiceKey: PracticeKey, className: string, studentNumber: number, schoolYear = getCurrentSchoolYear()) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT status, forced, released_at, completed_count, correct_count, total_items, bonus_point
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND student_number = ${studentNumber}
+    LIMIT 1
+  `;
+  return rowToPracticeStatus(rows[0] as Record<string, unknown> | undefined);
+}
+
+const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, practiceKey: PracticeKey, className: string): Promise<TeacherPracticeAttempt[]> => {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, class_name, student_number, completed_count, correct_count, total_items, bonus_point,
+      forced, released_at, submitted_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND status = 'submitted'
+    ORDER BY student_number ASC
+  `;
+  return rows.map((row) => ({
+    id: String(row.id),
+    className: String(row.class_name),
+    studentNumber: Number(row.student_number),
+    completedCount: Number(row.completed_count),
+    correctCount: Number(row.correct_count),
+    totalItems: Number(row.total_items),
+    bonusPoint: Number(row.bonus_point),
+    forced: Boolean(row.forced),
+    releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
+    submittedAt: row.submitted_at === null ? null : new Date(String(row.submitted_at)).toISOString(),
+  }));
+}, ["practice-attempts-v1"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
+
+export async function listPracticeAttempts(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  return getCachedPracticeAttempts(schoolYear, practiceKey, className);
+}
+
+export async function getPracticeAttemptSummary(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  const attempts = await listPracticeAttempts(schoolYear, practiceKey, className);
+  return {
+    submittedCount: attempts.length,
+    releasedCount: attempts.filter((attempt) => attempt.releasedAt !== null).length,
+    forcedCount: attempts.filter((attempt) => attempt.forced).length,
+  };
+}
+
+export async function forceSubmitPracticeClass(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  await ensureSchema();
+  const sql = getSql();
+  if (practiceKey === "refraction-application") {
+    await sql`
+      INSERT INTO practice_attempts (
+        id, school_year, practice_key, class_name, student_number, answers,
+        completed_count, correct_count, total_items, bonus_point, status, forced,
+        released_at, submitted_at, created_at, updated_at
+      )
+      SELECT id, school_year, ${practiceKey}, class_name, student_number, answers,
+        total_items, correct_count, total_items, score, 'submitted', FALSE,
+        released_at, created_at, created_at, NOW()
+      FROM refraction_quiz_submissions
+      WHERE school_year = ${schoolYear} AND class_name = ${className} AND student_number IS NOT NULL
+      ON CONFLICT (school_year, practice_key, class_name, student_number) DO NOTHING
+    `;
+  }
+  await sql`
+    UPDATE practice_attempts
+    SET status = 'submitted', forced = TRUE, submitted_at = NOW(), updated_at = NOW()
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND status = 'draft'
+  `;
+
+  const emptyAnswers = emptyPracticeAnswers(practiceKey);
+  const evaluation = scorePracticeAttempt(practiceKey, emptyAnswers);
+  const placeholders = Array.from({ length: 33 }, (_, index) => ({
+    id: randomUUID(),
+    student_number: index + 1,
+    answers: emptyAnswers,
+  }));
+  await sql`
+    INSERT INTO practice_attempts (
+      id, school_year, practice_key, class_name, student_number, answers,
+      completed_count, correct_count, total_items, bonus_point, status, forced, submitted_at, updated_at
+    )
+    SELECT
+      item.id::uuid, ${schoolYear}, ${practiceKey}, ${className}, item.student_number, item.answers,
+      ${evaluation.completedCount}, ${evaluation.correctCount}, ${evaluation.totalItems}, ${evaluation.bonusPoint},
+      'submitted', TRUE, NOW(), NOW()
+    FROM jsonb_to_recordset(${JSON.stringify(placeholders)}::jsonb) AS item(id TEXT, student_number SMALLINT, answers JSONB)
+    ON CONFLICT (school_year, practice_key, class_name, student_number) DO NOTHING
+  `;
+
+  if (practiceKey === "refraction-application") {
+    const attempts = await sql`
+      SELECT student_number, answers, correct_count, total_items, bonus_point
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+        AND class_name = ${className} AND status = 'submitted'
+    `;
+    const quizRows = attempts.map((row) => {
+      const studentNumber = Number(row.student_number);
+      const formatted = formatStudentNumber(studentNumber);
+      return {
+        id: randomUUID(),
+        student_number: studentNumber,
+        student_name: `STT ${formatted}`,
+        student_key: `stt-${formatted}`,
+        answers: row.answers,
+        score: Number(row.bonus_point),
+        correct_count: Number(row.correct_count),
+        total_items: Number(row.total_items),
+      };
+    });
+    await sql`
+      INSERT INTO refraction_quiz_submissions (
+        id, school_year, class_name, student_name, student_key, student_number,
+        answers, score, correct_count, total_items, created_at
+      )
+      SELECT item.id::uuid, ${schoolYear}, ${className}, item.student_name, item.student_key,
+        item.student_number, item.answers, item.score, item.correct_count, item.total_items, NOW()
+      FROM jsonb_to_recordset(${JSON.stringify(quizRows)}::jsonb) AS item(
+        id TEXT, student_name TEXT, student_key TEXT, student_number SMALLINT,
+        answers JSONB, score NUMERIC, correct_count INTEGER, total_items INTEGER
+      )
+      ON CONFLICT (school_year, class_name, student_number) DO NOTHING
+    `;
+    expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  }
+
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return 33;
+}
+
+export async function setPracticeScoresReleased(schoolYear: string, practiceKey: PracticeKey, className: string, released: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE practice_attempts
+    SET released_at = CASE WHEN ${released} THEN COALESCE(released_at, NOW()) ELSE NULL END,
+      updated_at = NOW()
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND status = 'submitted'
+    RETURNING id
+  `;
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
   return rows.length;
 }
 
