@@ -759,6 +759,110 @@ details .table-scroll { margin-top: 12px; }
 .empty-state h2 { margin: 0; font-size: 1.2rem; }
 .sr-only { position: absolute; left: -10000px; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+/* Whole-class I–U and Ohm race */
+.ohm-race-game { overflow: hidden; border: 1.5px solid var(--ink); border-radius: 24px; background: #f5f2ea; box-shadow: 5px 5px 0 var(--ink); }
+.race-hero { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 22px 24px; color: #fff; background: radial-gradient(circle at 82% 10%, rgba(203, 255, 77, .22), transparent 32%), linear-gradient(135deg, #19162d, #30246e); }
+.race-hero h3 { margin: 3px 0 5px; font-size: clamp(1.5rem, 3vw, 2.3rem); letter-spacing: -.045em; }
+.race-hero p { max-width: 680px; margin: 0; color: #d8d3ed; }
+.race-hero .eyebrow { color: var(--lime); }
+.race-clock { display: grid; min-width: 132px; padding: 12px 16px; border: 1px solid rgba(255,255,255,.42); border-radius: 16px; background: rgba(0,0,0,.18); text-align: center; }
+.race-clock span, .race-clock small { color: #d8d3ed; font-size: .65rem; font-weight: 900; letter-spacing: .1em; }
+.race-clock strong { color: var(--lime); font-size: 1.75rem; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.ohm-race-game > .practice-student-row { margin: 0; padding: 16px 24px; border-bottom: 1px solid var(--soft-line); background: #fff; }
+.race-track { position: relative; display: grid; grid-template-columns: repeat(6, minmax(78px, 1fr)); gap: 8px; margin: 22px 24px 18px; padding-top: 17px; }
+.race-track-line { position: absolute; top: 1px; left: 3%; right: 3%; height: 6px; overflow: hidden; border: 1px solid var(--ink); border-radius: 999px; background: #ded9d0; }
+.race-track-line span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple), var(--lime)); transition: width .35s ease; }
+.race-station { display: grid; justify-items: center; gap: 4px; color: var(--muted); font-size: .67rem; font-weight: 900; text-align: center; }
+.race-station b { display: grid; place-items: center; width: 34px; height: 34px; border: 1.5px solid var(--ink); border-radius: 50%; background: #e7e2d9; font-size: .78rem; }
+.race-station.current { color: var(--ink); }
+.race-station.current b { color: #fff; background: var(--purple); box-shadow: 0 0 0 5px rgba(112, 83, 220, .16); }
+.race-station.done { color: var(--ink); }
+.race-station.done b { background: var(--lime); }
+.race-runner { position: absolute; top: -18px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; border: 1.5px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--orange); font-size: 1rem; font-weight: 900; transform: translateX(-50%); transition: left .35s ease; }
+.race-lobby, .race-finish-card, .race-final-gate { display: flex; gap: 16px; align-items: center; margin: 18px 24px 24px; padding: 22px; border: 1.5px solid var(--ink); border-radius: 18px; background: #fff; }
+.race-lobby > span, .race-finish-card > span { display: grid; place-items: center; width: 52px; height: 52px; flex: 0 0 52px; border-radius: 50%; color: #fff; background: var(--purple); font-size: 1.45rem; }
+.race-lobby.ready { background: var(--lime); }
+.race-lobby.ready > span { color: var(--ink); background: var(--orange); }
+.race-lobby h4, .race-finish-card h4, .race-final-gate h4 { margin: 2px 0 4px; font-size: 1.22rem; }
+.race-lobby p, .race-finish-card p, .race-final-gate p { margin: 0; color: var(--muted); }
+.race-finish-card { background: var(--lime); }
+.race-finish-card > span { color: var(--ink); background: var(--orange); }
+.race-finish-card > strong { margin-left: auto; font-size: 1.55rem; font-variant-numeric: tabular-nums; }
+.race-final-gate { justify-content: space-between; background: linear-gradient(120deg, var(--lime), #fff9b8); }
+.race-final-gate > div { position: relative; padding-left: 64px; }
+.race-final-gate > div > span { position: absolute; left: 0; top: 2px; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: var(--orange); font-size: 1.5rem; }
+.race-countdown { display: grid; justify-items: center; gap: 4px; margin: 18px 24px 24px; padding: 25px; border: 1.5px solid var(--ink); border-radius: 20px; color: #fff; background: var(--purple); text-align: center; }
+.race-countdown p, .race-countdown span { margin: 0; font-size: .72rem; font-weight: 900; letter-spacing: .12em; }
+.race-countdown strong { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: 3rem; line-height: 1; }
+.race-question-card { min-width: 0; margin: 18px 24px 24px; padding: 22px; border: 1.5px solid var(--ink); border-radius: 20px; background: #fff; }
+.race-question-heading { display: flex; gap: 13px; align-items: center; }
+.race-question-heading > span { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%; color: #fff; background: var(--purple); font-size: .85rem; font-weight: 900; }
+.race-question-heading h4 { margin: 2px 0 0; font-size: 1.3rem; letter-spacing: -.025em; }
+.race-prompt { margin: 18px 0 5px; font-size: 1.05rem; font-weight: 800; line-height: 1.55; }
+.race-detail { margin: 0 0 14px; color: var(--muted); }
+.race-meter { max-width: 430px; margin: 18px 0 6px; padding: 18px 20px 12px; border: 1.3px solid var(--ink); border-radius: 15px 15px 55px 55px; background: #f7f3e9; }
+.race-meter-scale { position: relative; height: 42px; border-top: 4px solid var(--ink); background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), var(--ink) calc(10% - 1px), var(--ink) 10%); }
+.race-meter-scale i { position: absolute; bottom: 2px; width: 3px; height: 48px; background: var(--danger); transform: translateX(-50%) rotate(4deg); transform-origin: bottom; }
+.race-meter-scale span { position: absolute; bottom: -8px; font-size: .65rem; font-weight: 900; }
+.race-meter-scale span:first-of-type { left: 0; }
+.race-meter-scale span:last-of-type { right: 0; }
+.race-choice-grid { display: grid; gap: 8px; margin-top: 16px; }
+.race-choice-grid button { display: grid; grid-template-columns: 38px 1fr; gap: 10px; align-items: center; width: 100%; min-height: 54px; padding: 8px 12px; border: 1.3px solid var(--ink); border-radius: 13px; color: var(--ink); background: #f7f4ed; text-align: left; cursor: pointer; }
+.race-choice-grid button b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #e3ddd3; }
+.race-choice-grid button span { font-weight: 800; line-height: 1.4; }
+.race-choice-grid button:hover, .race-choice-grid button.selected { background: #ece8ff; }
+.race-choice-grid button.selected { box-shadow: inset 0 0 0 2px var(--purple); }
+.race-choice-grid button.selected b { color: #fff; background: var(--purple); }
+.race-number-answer { display: grid; gap: 6px; max-width: 300px; margin-top: 17px; font-weight: 900; }
+.race-number-answer > div { display: grid; grid-template-columns: 1fr auto; align-items: center; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 13px; background: #fff; }
+.race-number-answer input { min-width: 0; border: 0; border-radius: 0; font-size: 1.15rem; }
+.race-number-answer span { padding: 0 14px; font-weight: 900; }
+.race-answer-actions { display: flex; justify-content: flex-end; gap: 14px; align-items: center; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--soft-line); }
+.race-answer-actions p { flex: 1; margin: 0; font-weight: 900; }
+.race-answer-actions p.correct { color: var(--success); }
+.race-answer-actions p.incorrect { color: var(--danger); }
+.race-sync-row { display: flex; justify-content: space-between; gap: 16px; padding: 11px 24px; color: var(--muted); background: #e8e3d9; font-size: .72rem; font-weight: 900; }
+.ohm-race-game > .form-message { margin: 0; padding: 10px 24px; }
+
+.ohm-race-control-panel { background: #e9ffb0; }
+.ohm-race-control-panel .activity-control-title > span { color: var(--ink); background: var(--orange); }
+.ohm-race-dashboard { margin-top: 12px; padding: 18px 20px; border: 1.5px solid var(--ink); border-radius: 20px; background: #19162d; color: #fff; }
+.race-dashboard-summary { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.race-dashboard-summary h2 { margin: 3px 0 0; font-size: 1.45rem; }
+.race-dashboard-summary .eyebrow { color: var(--lime); }
+.race-dashboard-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.race-dashboard-stats span { padding: 7px 10px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: #d8d3ed; font-size: .7rem; font-weight: 900; }
+.race-dashboard-stats b { color: #fff; }
+.race-dashboard-stats .running b { color: var(--lime); }
+.race-podium { display: flex; justify-content: center; gap: 9px; align-items: end; margin: 17px 0; }
+.race-podium > div { display: grid; justify-items: center; gap: 3px; min-width: 112px; padding: 12px; border: 1px solid rgba(255,255,255,.32); border-radius: 14px; background: rgba(255,255,255,.08); }
+.race-podium .place-1 { min-height: 100px; color: var(--ink); background: var(--lime); }
+.race-podium > div > span { font-size: 1.25rem; font-weight: 900; }
+.race-podium small { opacity: .78; font-variant-numeric: tabular-nums; }
+.race-no-finish { display: flex; justify-content: center; gap: 9px; align-items: center; min-height: 64px; color: #b9b4ca; }
+.race-no-finish p { margin: 0; }
+.race-class-grid { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 6px; }
+.race-student-card { display: grid; gap: 6px; min-width: 0; padding: 8px; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; background: rgba(255,255,255,.06); }
+.race-student-card > div { display: flex; justify-content: space-between; gap: 4px; align-items: center; }
+.race-student-card strong { font-size: .76rem; }
+.race-student-card span { color: #aaa4bd; font-size: .62rem; font-weight: 900; }
+.race-student-card > i { display: block; height: 4px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.16); }
+.race-student-card > i span { display: block; height: 100%; background: var(--purple); }
+.race-student-card.ready { border-color: rgba(255,216,78,.55); }
+.race-student-card.racing { border-color: var(--purple); background: rgba(112,83,220,.2); }
+.race-student-card.racing > i span { background: var(--orange); }
+.race-student-card.finished { color: var(--ink); border-color: var(--lime); background: var(--lime); }
+.race-student-card.finished span { color: var(--ink); }
+.race-student-card.finished > i { background: rgba(0,0,0,.2); }
+.race-student-card.finished > i span { background: var(--ink); }
+.race-dashboard-error { margin: 12px 0 0; color: #ffc8bd; text-align: center; font-size: .72rem; font-weight: 900; }
+.ohm-race-dashboard.presentation { margin-top: 0; padding: 24px; border-radius: 26px; }
+.ohm-race-dashboard.presentation .race-dashboard-summary h2 { font-size: clamp(1.8rem, 3vw, 3rem); }
+.ohm-race-dashboard.presentation .race-class-grid { gap: 9px; }
+.ohm-race-dashboard.presentation .race-student-card { min-height: 64px; padding: 10px; }
+.ohm-race-dashboard.presentation .race-student-card strong { font-size: 1.05rem; }
+.ohm-race-dashboard.presentation .race-student-card span { font-size: .78rem; }
+
 .presentation-shell { width: min(1540px, calc(100% - 42px)); margin: 0 auto; padding: 20px 0 40px; }
 .presentation-header { display: flex; justify-content: space-between; gap: 30px; align-items: flex-end; margin-bottom: 16px; padding: 24px 28px; border: 1.5px solid var(--ink); border-radius: 28px; color: #fff; background: var(--ink); box-shadow: 6px 6px 0 var(--lime); }
 .presentation-header .physics-brand { margin-bottom: 16px; }
@@ -790,6 +894,7 @@ details .table-scroll { margin-top: 12px; }
   .ray-guide-layout { grid-template-columns: 1fr; }
   .prism-guide-layout, .color-challenge-layout { grid-template-columns: 1fr; }
   .resistivity-materials { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .race-class-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }
 
 @media (max-width: 820px) {
@@ -811,6 +916,9 @@ details .table-scroll { margin-top: 12px; }
   .status-badge { text-align: left; }
   .presentation-header { align-items: flex-start; flex-direction: column; }
   .presentation-header > div:last-child { justify-items: start; }
+  .race-hero, .race-dashboard-summary { align-items: flex-start; flex-direction: column; }
+  .race-dashboard-stats { justify-content: flex-start; }
+  .race-class-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 @media (max-width: 620px) {
@@ -922,4 +1030,20 @@ details .table-scroll { margin-top: 12px; }
   .presentation-shell { width: min(100% - 18px, 1540px); padding-top: 10px; }
   .presentation-header { padding: 22px 18px; border-radius: 22px; }
   .presentation-toolbar { align-items: flex-start; flex-direction: column; }
+  .race-hero { padding: 18px 14px; }
+  .race-clock { width: 100%; }
+  .ohm-race-game > .practice-student-row { padding: 14px; }
+  .race-track { overflow-x: auto; grid-template-columns: repeat(6, 74px); margin: 22px 12px 17px; padding-bottom: 5px; }
+  .race-lobby, .race-finish-card, .race-final-gate, .race-question-card, .race-countdown { margin-right: 12px; margin-left: 12px; padding: 16px 12px; }
+  .race-finish-card, .race-final-gate, .race-answer-actions { align-items: stretch; flex-direction: column; }
+  .race-finish-card > strong { margin-left: 0; }
+  .race-final-gate > div { padding-left: 0; padding-top: 62px; }
+  .race-question-heading { align-items: flex-start; }
+  .race-choice-grid button { grid-template-columns: 34px 1fr; padding: 8px; }
+  .race-answer-actions .primary-button { width: 100%; }
+  .race-sync-row { padding: 11px 14px; }
+  .ohm-race-dashboard { padding: 15px 10px; }
+  .race-podium > div { min-width: 0; flex: 1; padding: 9px 5px; }
+  .race-class-grid, .ohm-race-dashboard.presentation .race-class-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .ohm-race-dashboard.presentation { padding: 15px 10px; }
 }

@@ -4,6 +4,7 @@ export const practiceDefinitions = [
   { key: "refraction-application", activityKey: "refraction", label: "Bài vận dụng khúc xạ", totalItems: 16 },
   { key: "current-voltage-practice", activityKey: "ohm", label: "Luyện tập I phụ thuộc vào U", totalItems: 13 },
   { key: "ohm-law-practice", activityKey: "ohm", label: "Định luật Ohm", totalItems: 7 },
+  { key: "ohm-race", activityKey: "ohm", label: "Đường đua Điện học", totalItems: 6 },
   { key: "resistance-factors-practice", activityKey: "resistance-factors", label: "Mật mã điện trở", totalItems: 12 },
 ] as const satisfies ReadonlyArray<{ key: string; activityKey: ActivityKey; label: string; totalItems: number }>;
 

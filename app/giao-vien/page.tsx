@@ -5,13 +5,15 @@ import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivityS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
 import TeacherToggleSubmitButton from "./TeacherToggleSubmitButton";
 import TeacherActivityTabs from "./TeacherActivityTabs";
 import PhysicsBrand from "../PhysicsBrand";
+import OhmRaceDashboard from "./OhmRaceDashboard";
+import ResetPracticeButton from "./ResetPracticeButton";
 
 export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string; year?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
@@ -136,7 +138,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
           {currentVoltagePracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={currentVoltagePracticeSummaryPromise} practiceKey="current-voltage-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
 
           <section className="activity-control-panel construction-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">Ω</span><div><p className="eyebrow">BỘ BÀI TẬP 2</p><h2>Định luật Ohm</h2><p>Ghép công thức, tính nhanh và xử lí tình huống mạch điện.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">Ω</span><div><p className="eyebrow">BỘ BÀI TẬP 2</p><h2>Định luật Ohm</h2><p>Giải mã số liệu, vận dụng định luật và chọn giới hạn an toàn.</p></div></div>
             <div className="activity-control-actions">
               <span className={`status-badge ${currentSetting.ohmLawPracticeOpen ? "open" : "closed"}`}>{currentSetting.ohmLawPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleOhmsLawPractice}>
@@ -146,6 +148,31 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             </div>
           </section>
           {ohmLawPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={ohmLawPracticeSummaryPromise} practiceKey="ohm-law-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
+
+          <section className="activity-control-panel construction-control-panel ohm-race-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">ϟ</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.ohmRaceRound}</p><h2>Đường đua Điện học</h2><p>24 câu mới · mỗi học sinh vượt 6 trạm I–U và định luật Ohm.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.ohmRaceRunning ? "open" : "closed"}`}>{currentSetting.ohmRaceRunning ? "● Đang đua" : currentSetting.ohmRaceOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
+              <form action={toggleOhmRace}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmRaceOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.ohmRaceOpen} openLabel="Mở phòng đua" closeLabel="Đóng phòng đua" />
+              </form>
+              {currentSetting.ohmRaceOpen ? (
+                <form action={toggleOhmRaceRunning}>
+                  <input type="hidden" name="nextRunning" value={String(!currentSetting.ohmRaceRunning)} />
+                  <TeacherToggleSubmitButton isOpen={currentSetting.ohmRaceRunning} openLabel="Bắt đầu đua" closeLabel="Tạm dừng" />
+                </form>
+              ) : null}
+              <Link className="presentation-button" href={`/giao-vien/trinh-chieu/ohm-race?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu đua</Link>
+              <form action={resetPracticeAttempts}>
+                <input type="hidden" name="schoolYear" value={selectedYear} />
+                <input type="hidden" name="className" value={selectedClass} />
+                <input type="hidden" name="practiceKey" value="ohm-race" />
+                <ResetPracticeButton className={selectedClass} practiceLabel="đường đua Điện học" />
+              </form>
+            </div>
+          </section>
+          <OhmRaceDashboard className={selectedClass} schoolYear={selectedYear} />
         </>
       )}
 

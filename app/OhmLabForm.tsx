@@ -11,6 +11,7 @@ import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft"
 
 const CurrentVoltagePractice = dynamic(() => import("./CurrentVoltagePractice"));
 const OhmsLawPractice = dynamic(() => import("./OhmsLawPractice"));
+const OhmRaceGame = dynamic(() => import("./OhmRaceGame"));
 
 type InputRow = { id: number; voltage: string; current: string };
 const blankRow = (id: number): InputRow => ({ id, voltage: "", current: "" });
@@ -38,7 +39,14 @@ function rowsToMeasurements(rows: InputRow[]): OhmMeasurement[] {
   });
 }
 
-export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPractice }: { showCurrentVoltagePractice: boolean; showOhmsLawPractice: boolean }) {
+export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPractice, showRace, raceRunning, raceRound, raceStartedAt }: {
+  showCurrentVoltagePractice: boolean;
+  showOhmsLawPractice: boolean;
+  showRace: boolean;
+  raceRunning: boolean;
+  raceRound: number;
+  raceStartedAt: string | null;
+}) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
@@ -174,6 +182,13 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
         <section aria-labelledby="ohms-law-practice-heading">
           <div className="section-heading data-heading"><span>{showCurrentVoltagePractice ? 4 : 3}</span><div><h2 id="ohms-law-practice-heading">Luyện tập định luật Ohm</h2><p>Giải mã số liệu, vận dụng định luật và chọn giới hạn an toàn.</p></div></div>
           <OhmsLawPractice />
+        </section>
+      )}
+
+      {showRace && (
+        <section aria-labelledby="ohm-race-heading">
+          <div className="section-heading data-heading"><span>{3 + Number(showCurrentVoltagePractice) + Number(showOhmsLawPractice)}</span><div><h2 id="ohm-race-heading">Đường đua Điện học</h2><p>Vượt 6 trạm bằng kiến thức I–U và định luật Ohm.</p></div></div>
+          <OhmRaceGame round={raceRound} running={raceRunning} startedAt={raceStartedAt} />
         </section>
       )}
 

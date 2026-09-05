@@ -12,6 +12,7 @@ import type { TeamAssignments } from "@/lib/team";
 import { formatStudentNumber } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import type { PracticeAttemptStatus, PracticeKey, TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
+import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
 
 export type Measurement = {
   sequence: number;
@@ -43,6 +44,10 @@ export type ActivitySetting = {
   colorOpen: boolean;
   iuPracticeOpen: boolean;
   ohmLawPracticeOpen: boolean;
+  ohmRaceOpen: boolean;
+  ohmRaceRunning: boolean;
+  ohmRaceRound: number;
+  ohmRaceStartedAt: string | null;
   resistivityOpen: boolean;
   resistanceFactorsPracticeOpen: boolean;
   updatedAt: string;
@@ -136,6 +141,22 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_law_practice_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_running'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_round'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_started_at'
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -241,6 +262,10 @@ async function initializeSchema() {
       color_open BOOLEAN NOT NULL DEFAULT FALSE,
       iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_race_open BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_race_running BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_race_round INTEGER NOT NULL DEFAULT 1,
+      ohm_race_started_at TIMESTAMPTZ,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
       resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -254,6 +279,10 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS color_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS ohm_race_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS ohm_race_running BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS ohm_race_round INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS ohm_race_started_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE
   `;
@@ -385,7 +414,7 @@ async function initializeSchema() {
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-individual-practice-v3"], { revalidate: false });
+}, ["physics-lab-schema-individual-practice-v4"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -401,7 +430,9 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open, resistivity_open, resistance_factors_practice_open, updated_at
+    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
+      ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
+      resistivity_open, resistance_factors_practice_open, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -416,12 +447,16 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       colorOpen: Boolean(row?.color_open),
       iuPracticeOpen: Boolean(row?.iu_practice_open),
       ohmLawPracticeOpen: Boolean(row?.ohm_law_practice_open),
+      ohmRaceOpen: Boolean(row?.ohm_race_open),
+      ohmRaceRunning: Boolean(row?.ohm_race_running),
+      ohmRaceRound: Math.max(1, Number(row?.ohm_race_round ?? 1)),
+      ohmRaceStartedAt: row?.ohm_race_started_at ? new Date(String(row.ohm_race_started_at)).toISOString() : null,
       resistivityOpen: Boolean(row?.resistivity_open),
       resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v1"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v2"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
@@ -494,6 +529,49 @@ export async function setOhmsLawPracticeOpen(isOpen: boolean) {
   await sql`
     UPDATE activity_settings
     SET ohm_law_practice_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'ohm'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setOhmRaceOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_open = ${isOpen},
+      ohm_race_running = CASE WHEN ${isOpen} THEN ohm_race_running ELSE FALSE END,
+      updated_at = NOW()
+    WHERE activity_key = 'ohm'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setOhmRaceRunning(isRunning: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_running = ${isRunning},
+      ohm_race_started_at = CASE
+        WHEN ${isRunning} THEN COALESCE(ohm_race_started_at, NOW() + INTERVAL '5 seconds')
+        ELSE ohm_race_started_at
+      END,
+      updated_at = NOW()
+    WHERE activity_key = 'ohm' AND (ohm_race_open = TRUE OR ${isRunning} = FALSE)
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function advanceOhmRaceRound() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_round = ohm_race_round + 1,
+      ohm_race_running = FALSE,
+      ohm_race_started_at = NULL,
+      updated_at = NOW()
     WHERE activity_key = 'ohm'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
@@ -781,6 +859,61 @@ export async function getPracticeAttemptStatus(practiceKey: PracticeKey, classNa
     LIMIT 1
   `;
   return rowToPracticeStatus(rows[0] as Record<string, unknown> | undefined);
+}
+
+export async function getOhmRaceSnapshot(schoolYear: string, className: string): Promise<OhmRaceSnapshot> {
+  await ensureSchema();
+  const sql = getSql();
+  const settingsPromise = listActivitySettings();
+  const rowsPromise = sql`
+    SELECT student_number, correct_count, status, answers, submitted_at, created_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = 'ohm-race' AND class_name = ${className}
+  `;
+  const [settings, rows] = await Promise.all([settingsPromise, rowsPromise]);
+  const setting = settings.find((item) => item.key === "ohm");
+  const sharedStartTime = setting?.ohmRaceStartedAt ? new Date(setting.ohmRaceStartedAt).getTime() : null;
+
+  const racers: OhmRaceRacer[] = rows.map((row) => {
+    const answerData = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers)
+      ? row.answers as Record<string, unknown>
+      : {};
+    const rawWrongCount = Number(answerData.wrongCount ?? 0);
+    const wrongCount = Number.isFinite(rawWrongCount) ? Math.min(99, Math.max(0, Math.trunc(rawWrongCount))) : 0;
+    const finished = row.status === "submitted";
+    const submittedTime = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+    const fallbackStartTime = row.created_at ? new Date(String(row.created_at)).getTime() : null;
+    const startTime = sharedStartTime ?? fallbackStartTime;
+    const adjustedSeconds = finished && submittedTime !== null && startTime !== null
+      ? Math.max(0, Math.round((submittedTime - startTime) / 1000)) + wrongCount * OHM_RACE_PENALTY_SECONDS
+      : null;
+    return {
+      studentNumber: Number(row.student_number),
+      progress: Math.min(6, Math.max(0, Number(row.correct_count ?? 0))),
+      finished,
+      wrongCount,
+      adjustedSeconds,
+      rank: null,
+    };
+  });
+
+  const finishers = racers
+    .filter((racer) => racer.finished)
+    .sort((left, right) => (left.adjustedSeconds ?? Number.MAX_SAFE_INTEGER) - (right.adjustedSeconds ?? Number.MAX_SAFE_INTEGER) || left.studentNumber - right.studentNumber);
+  const rankByStudent = new Map(finishers.map((racer, index) => [racer.studentNumber, index + 1]));
+  racers.forEach((racer) => {
+    racer.rank = rankByStudent.get(racer.studentNumber) ?? null;
+  });
+
+  return {
+    round: setting?.ohmRaceRound ?? 1,
+    isOpen: setting?.ohmRaceOpen ?? false,
+    isRunning: setting?.ohmRaceRunning ?? false,
+    startedAt: setting?.ohmRaceStartedAt ?? null,
+    readyCount: racers.length,
+    finishedCount: finishers.length,
+    racers: racers.sort((left, right) => left.studentNumber - right.studentNumber),
+  };
 }
 
 const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, practiceKey: PracticeKey, className: string): Promise<TeacherPracticeAttempt[]> => {
