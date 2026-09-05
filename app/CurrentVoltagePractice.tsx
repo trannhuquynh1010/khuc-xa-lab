@@ -8,6 +8,8 @@ import usePracticeAttempt from "./usePracticeAttempt";
 type CircuitPart = "ammeter" | "voltmeter" | "switch";
 type CircuitSlot = "seriesMeter" | "control" | "parallelMeter";
 type CircuitSlots = Record<CircuitSlot, CircuitPart | "">;
+type MissingValueKey = "currentAt15" | "voltageAt012" | "currentAt45";
+type MissingValues = Record<MissingValueKey, string>;
 type GraphKind = "direct" | "offset" | "curve";
 type StatementId = "scale" | "origin" | "ammeter" | "repeat";
 type TruthChoice = "true" | "false" | "";
@@ -17,12 +19,6 @@ const circuitParts: Array<{ id: CircuitPart; symbol: string; label: string }> = 
   { id: "ammeter", symbol: "A", label: "Ampe kế" },
   { id: "voltmeter", symbol: "V", label: "Vôn kế" },
   { id: "switch", symbol: "K", label: "Công tắc" },
-];
-
-const missingValueChoices = [
-  { id: "0.15", text: "0,15 A" },
-  { id: "0.18", text: "0,18 A" },
-  { id: "0.24", text: "0,24 A" },
 ];
 
 const anomalyRows = [
@@ -40,6 +36,7 @@ const statements: Array<{ id: StatementId; text: string; answer: Exclude<TruthCh
 ];
 
 const emptySlots: CircuitSlots = { seriesMeter: "", control: "", parallelMeter: "" };
+const emptyMissingValues: MissingValues = { currentAt15: "", voltageAt012: "", currentAt45: "" };
 const emptyStatements: StatementAnswers = { scale: "", origin: "", ammeter: "", repeat: "" };
 
 function isCircuitPart(value: unknown): value is CircuitPart {
@@ -48,6 +45,11 @@ function isCircuitPart(value: unknown): value is CircuitPart {
 
 function isTruthChoice(value: unknown): value is TruthChoice {
   return value === "true" || value === "false" || value === "";
+}
+
+function approximately(value: string, expected: number) {
+  const parsed = Number(value.trim().replace(",", "."));
+  return Number.isFinite(parsed) && Math.abs(parsed - expected) < 0.001;
 }
 
 function MiniGraph({ kind }: { kind: GraphKind }) {
@@ -72,54 +74,63 @@ function MiniGraph({ kind }: { kind: GraphKind }) {
   );
 }
 
-function CircuitSlotChooser({
+function CircuitSlotTarget({
   slot,
   hint,
   value,
   correctPart,
   checked,
-  onChoose,
+  selectedPart,
+  onPlace,
 }: {
   slot: CircuitSlot;
   hint: string;
   value: CircuitPart | "";
   correctPart: CircuitPart;
   checked: boolean;
-  onChoose: (slot: CircuitSlot, part: CircuitPart) => void;
+  selectedPart: CircuitPart | null;
+  onPlace: (slot: CircuitSlot, part: CircuitPart) => void;
 }) {
   const resultClass = checked ? value === correctPart ? "practice-correct" : "practice-incorrect" : "";
+  const currentPart = circuitParts.find((part) => part.id === value);
+  const selected = circuitParts.find((part) => part.id === selectedPart);
+
+  function place(part: CircuitPart | null) {
+    if (part) onPlace(slot, part);
+  }
 
   return (
-    <div className={`circuit-slot-chooser ${value ? "filled" : ""} ${resultClass}`} role="group" aria-label={hint}>
-      <small>{hint}</small>
-      <div className="circuit-slot-options">
-        {circuitParts.map((part) => (
-          <button
-            key={part.id}
-            type="button"
-            aria-label={`${hint}: chọn ${part.label}`}
-            aria-pressed={value === part.id}
-            className={value === part.id ? "selected" : ""}
-            onClick={() => onChoose(slot, part.id)}
-          >
-            <b>{part.symbol}</b><span>{part.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
+    <button
+      type="button"
+      className={`circuit-slot-target ${value ? "filled" : ""} ${selectedPart ? "ready" : ""} ${resultClass}`}
+      aria-label={`${hint}: ${currentPart?.label ?? "ô trống"}`}
+      onClick={() => place(selectedPart)}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        const dropped = event.dataTransfer.getData("text/plain");
+        if (isCircuitPart(dropped)) place(dropped);
+      }}
+    >
+      <b>{currentPart?.symbol ?? "?"}</b>
+      <span>{hint}</span>
+      <small>{currentPart?.label ?? (selected ? `Đặt ${selected.label}` : "Chọn linh kiện")}</small>
+    </button>
   );
 }
 
 export default function CurrentVoltagePractice() {
   const [slots, setSlots] = useState<CircuitSlots>(emptySlots);
-  const [missingValue, setMissingValue] = useState("");
+  const [selectedPart, setSelectedPart] = useState<CircuitPart | null>(null);
+  const [missingValues, setMissingValues] = useState<MissingValues>(emptyMissingValues);
+  const [incrementAnswer, setIncrementAnswer] = useState("");
   const [anomaly, setAnomaly] = useState("");
   const [graph, setGraph] = useState<GraphKind | "">("");
   const [statementAnswers, setStatementAnswers] = useState<StatementAnswers>(emptyStatements);
   const [checked, setChecked] = useState(false);
   const { draftStatus } = useDeviceDraft(
-    deviceDraftKey("ohm-current-voltage-practice-v2"),
-    { slots, missingValue, anomaly, graph, statementAnswers },
+    deviceDraftKey("ohm-current-voltage-practice-v3"),
+    { slots, missingValues, incrementAnswer, anomaly, graph, statementAnswers },
     (value) => {
       if (!isDraftRecord(value)) return;
       if (isDraftRecord(value.slots)) {
@@ -129,7 +140,14 @@ export default function CurrentVoltagePractice() {
           parallelMeter: isCircuitPart(value.slots.parallelMeter) ? value.slots.parallelMeter : "",
         });
       }
-      if (typeof value.missingValue === "string") setMissingValue(value.missingValue);
+      if (isDraftRecord(value.missingValues)) {
+        setMissingValues({
+          currentAt15: typeof value.missingValues.currentAt15 === "string" ? value.missingValues.currentAt15 : "",
+          voltageAt012: typeof value.missingValues.voltageAt012 === "string" ? value.missingValues.voltageAt012 : "",
+          currentAt45: typeof value.missingValues.currentAt45 === "string" ? value.missingValues.currentAt45 : "",
+        });
+      }
+      if (typeof value.incrementAnswer === "string") setIncrementAnswer(value.incrementAnswer);
       if (typeof value.anomaly === "string") setAnomaly(value.anomaly);
       if (value.graph === "direct" || value.graph === "offset" || value.graph === "curve") setGraph(value.graph);
       if (isDraftRecord(value.statementAnswers)) {
@@ -144,12 +162,14 @@ export default function CurrentVoltagePractice() {
   );
 
   const completedChallenges = Number(Object.values(slots).every(Boolean))
-    + Number(Boolean(missingValue))
+    + Number(Object.values(missingValues).every((value) => Boolean(value.trim())))
+    + Number(Boolean(incrementAnswer.trim()))
     + Number(Boolean(anomaly))
     + Number(Boolean(graph))
     + Number(Object.values(statementAnswers).every(Boolean));
   const completedItems = Object.values(slots).filter(Boolean).length
-    + Number(Boolean(missingValue))
+    + Object.values(missingValues).filter((value) => Boolean(value.trim())).length
+    + Number(Boolean(incrementAnswer.trim()))
     + Number(Boolean(anomaly))
     + Number(Boolean(graph))
     + Object.values(statementAnswers).filter(Boolean).length;
@@ -158,13 +178,16 @@ export default function CurrentVoltagePractice() {
     + Number(slots.parallelMeter === "voltmeter");
   const statementScore = statements.filter((statement) => statementAnswers[statement.id] === statement.answer).length;
   const score = circuitScore
-    + Number(missingValue === "0.18")
+    + Number(approximately(missingValues.currentAt15, 0.06))
+    + Number(approximately(missingValues.voltageAt012, 3))
+    + Number(approximately(missingValues.currentAt45, 0.18))
+    + Number(approximately(incrementAnswer, 0.35))
     + Number(anomaly === "3")
     + Number(graph === "direct")
     + statementScore;
   const attempt = usePracticeAttempt(
     "current-voltage-practice",
-    { slots, missingValue, anomaly, graph, statementAnswers },
+    { slots, missingValues, incrementAnswer, anomaly, graph, statementAnswers },
     completedItems,
   );
 
@@ -180,6 +203,12 @@ export default function CurrentVoltagePractice() {
       parallelMeter: current.parallelMeter === part ? "" : current.parallelMeter,
       [slot]: part,
     }));
+    setSelectedPart(null);
+    setChecked(false);
+  }
+
+  function updateMissingValue(key: MissingValueKey, value: string) {
+    setMissingValues((current) => ({ ...current, [key]: value }));
     setChecked(false);
   }
 
@@ -190,7 +219,9 @@ export default function CurrentVoltagePractice() {
 
   function resetPractice() {
     setSlots(emptySlots);
-    setMissingValue("");
+    setSelectedPart(null);
+    setMissingValues(emptyMissingValues);
+    setIncrementAnswer("");
     setAnomaly("");
     setGraph("");
     setStatementAnswers(emptyStatements);
@@ -202,8 +233,8 @@ export default function CurrentVoltagePractice() {
   return (
     <div className="electric-practice current-voltage-practice">
       <div className="practice-intro">
-        <div><p className="eyebrow">LUYỆN TẬP NÂNG CAO I – U</p><h3>Thử thách phòng thí nghiệm</h3><p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ.</p></div>
-        <strong>{completedChallenges}/5</strong>
+        <div><p className="eyebrow">LUYỆN TẬP NÂNG CAO I – U</p><h3>Thử thách phòng thí nghiệm</h3><p>Vận dụng kiến thức đã học để hoàn thành 6 nhiệm vụ.</p></div>
+        <strong>{completedChallenges}/6</strong>
       </div>
 
       <PracticeIdentityFields practiceKey="current-voltage-practice" className={attempt.className} studentNumber={attempt.studentNumber} onClassChange={attempt.setClassName} onStudentNumberChange={attempt.setStudentNumber} />
@@ -211,54 +242,65 @@ export default function CurrentVoltagePractice() {
 
       <fieldset className="practice-grid practice-question-fieldset" disabled={attempt.locked || attempt.checking || attempt.submitting}>
         <article className="practice-card practice-card-wide">
-          <div className="practice-card-heading"><span>01</span><div><h4>Hoàn thiện mạch đo</h4><p>Chọn một dụng cụ cho từng vị trí trong mạch.</p></div></div>
+          <div className="practice-card-heading"><span>01</span><div><h4>Hoàn thiện mạch đo</h4><p>Chọn một linh kiện ở khay, rồi chạm vào vị trí cần đặt.</p></div></div>
           <div className="circuit-builder" aria-label="Sơ đồ mạch điện cần hoàn thành">
+            <div className="circuit-build-guide"><span><b>1</b> Chọn linh kiện</span><i aria-hidden="true">→</i><span><b>2</b> Chạm ô trên mạch</span></div>
+            <div className="circuit-part-bank" role="group" aria-label="Khay linh kiện">
+              {circuitParts.map((part) => <button key={part.id} type="button" draggable aria-pressed={selectedPart === part.id} className={selectedPart === part.id ? "selected" : ""} onDragStart={(event) => event.dataTransfer.setData("text/plain", part.id)} onClick={() => setSelectedPart((current) => current === part.id ? null : part.id)}><b>{part.symbol}</b><span>{part.label}</span></button>)}
+            </div>
             <div className="circuit-route-card">
               <div className="circuit-route-heading"><strong>Mạch chính</strong><span>Nối tiếp</span></div>
               <div className="circuit-route-flow circuit-main-flow">
                 <span className="circuit-fixed"><b>＋ | | −</b><small>Nguồn điện</small></span><i aria-hidden="true">→</i>
-                <CircuitSlotChooser slot="seriesMeter" hint="Vị trí nối tiếp" value={slots.seriesMeter} correctPart="ammeter" checked={checked} onChoose={placePart} /><i aria-hidden="true">→</i>
+                <CircuitSlotTarget slot="seriesMeter" hint="Đo dòng qua X" value={slots.seriesMeter} correctPart="ammeter" checked={checked} selectedPart={selectedPart} onPlace={placePart} /><i aria-hidden="true">→</i>
                 <span className="circuit-fixed conductor"><b>▱</b><small>Dây dẫn X</small></span><i aria-hidden="true">→</i>
-                <CircuitSlotChooser slot="control" hint="Vị trí điều khiển" value={slots.control} correctPart="switch" checked={checked} onChoose={placePart} />
+                <CircuitSlotTarget slot="control" hint="Đóng / ngắt mạch" value={slots.control} correctPart="switch" checked={checked} selectedPart={selectedPart} onPlace={placePart} />
               </div>
             </div>
             <div className="circuit-route-card parallel-route-card">
               <div className="circuit-route-heading"><strong>Nhánh đo hai đầu X</strong><span>Song song</span></div>
               <div className="circuit-route-flow circuit-parallel-flow">
                 <span className="circuit-terminal"><b>●</b><small>Đầu X</small></span><i aria-hidden="true">→</i>
-                <CircuitSlotChooser slot="parallelMeter" hint="Vị trí ở nhánh đo" value={slots.parallelMeter} correctPart="voltmeter" checked={checked} onChoose={placePart} /><i aria-hidden="true">→</i>
+                <CircuitSlotTarget slot="parallelMeter" hint="Đo giữa hai đầu X" value={slots.parallelMeter} correctPart="voltmeter" checked={checked} selectedPart={selectedPart} onPlace={placePart} /><i aria-hidden="true">→</i>
                 <span className="circuit-terminal"><b>●</b><small>Đầu X</small></span>
               </div>
             </div>
+            <p className="circuit-selection-status" aria-live="polite">{selectedPart ? `Đã chọn ${circuitParts.find((part) => part.id === selectedPart)?.label}. Hãy chạm vào một ô trên mạch.` : "Chọn A, V hoặc K để bắt đầu."}</p>
           </div>
         </article>
 
         <article className="practice-card">
-          <div className="practice-card-heading"><span>02</span><div><h4>Giải mã ô trống</h4><p>Dựa vào quy luật của cùng một dây dẫn.</p></div></div>
-          <div className="mini-data-table" role="table" aria-label="Bảng số liệu có một giá trị cường độ dòng điện còn thiếu">
-            <div role="row"><strong role="columnheader">U (V)</strong><span>1,5</span><span>3,0</span><span>4,5</span><span>6,0</span></div>
-            <div role="row"><strong role="rowheader">I (A)</strong><span>0,06</span><span>0,12</span><span className="missing-cell">?</span><span>0,24</span></div>
+          <div className="practice-card-heading"><span>02</span><div><h4>Giải mã ba ô trống</h4><p>Nhập số, không cần ghi đơn vị.</p></div></div>
+          <div className="mini-data-table data-hole-table" role="table" aria-label="Bảng số liệu có ba ô trống">
+            <div role="row"><strong role="columnheader">U (V)</strong><span>1,5</span><span className="missing-cell"><input inputMode="decimal" aria-label="Hiệu điện thế khi I bằng 0,12 A" value={missingValues.voltageAt012} className={resultClass(approximately(missingValues.voltageAt012, 3))} onChange={(event) => updateMissingValue("voltageAt012", event.target.value)} placeholder="?" /></span><span>4,5</span><span>6,0</span></div>
+            <div role="row"><strong role="rowheader">I (A)</strong><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 1,5 V" value={missingValues.currentAt15} className={resultClass(approximately(missingValues.currentAt15, 0.06))} onChange={(event) => updateMissingValue("currentAt15", event.target.value)} placeholder="?" /></span><span>0,12</span><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 4,5 V" value={missingValues.currentAt45} className={resultClass(approximately(missingValues.currentAt45, 0.18))} onChange={(event) => updateMissingValue("currentAt45", event.target.value)} placeholder="?" /></span><span>0,24</span></div>
           </div>
-          <p>Giá trị còn thiếu hợp lí nhất là:</p>
-          <div className="practice-options compact-choice-grid">{missingValueChoices.map((choice) => <button key={choice.id} type="button" className={`${missingValue === choice.id ? "selected" : ""} ${missingValue === choice.id ? resultClass(choice.id === "0.18") : ""}`} onClick={() => updateChoice(setMissingValue, choice.id)}>{choice.text}</button>)}</div>
+          <p className="table-hole-note">Cùng một dây dẫn và nhiệt độ không đổi.</p>
+        </article>
+
+        <article className="practice-card increment-challenge-card practice-calculation-card">
+          <div className="practice-card-heading"><span>03</span><div><h4>Tăng thêm, không phải gấp</h4><p>Tính giá trị mới của cường độ dòng điện.</p></div></div>
+          <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 4 V</b><b>I₁ = 0,20 A</b></div><span><strong>+3 V</strong><small>Tăng thêm</small></span><div><small>Sau đó</small><b>U₂ = 7 V</b><b>I₂ = ?</b></div></div>
+          <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} className={resultClass(approximately(incrementAnswer, 0.35))} onChange={(event) => { setIncrementAnswer(event.target.value); setChecked(false); }} placeholder="0,00" /><span>A</span></div></label>
+          <details className="practice-hint"><summary>Gợi ý</summary><p>Với cùng dây dẫn: I₂ / I₁ = U₂ / U₁.</p></details>
         </article>
 
         <article className="practice-card anomaly-card">
-          <div className="practice-card-heading"><span>03</span><div><h4>Truy tìm số liệu bất thường</h4><p>Chọn phép đo cần thực hiện lại.</p></div></div>
+          <div className="practice-card-heading"><span>04</span><div><h4>Truy tìm số liệu bất thường</h4><p>Chọn phép đo cần thực hiện lại.</p></div></div>
           <div className="anomaly-grid" aria-label="Bốn phép đo U và I">
             {anomalyRows.map((row) => <button key={row.id} type="button" className={`${anomaly === row.id ? "selected" : ""} ${anomaly === row.id ? resultClass(row.id === "3") : ""}`} onClick={() => updateChoice(setAnomaly, row.id)}><b>Lần {row.id}</b><span>U = {row.voltage} V</span><span>I = {row.current} A</span></button>)}
           </div>
         </article>
 
         <article className="practice-card practice-card-wide">
-          <div className="practice-card-heading"><span>04</span><div><h4>Chọn dấu vết đồ thị</h4><p>Đồ thị nào mô tả đúng I phụ thuộc vào U?</p></div></div>
+          <div className="practice-card-heading"><span>05</span><div><h4>Chọn dấu vết đồ thị</h4><p>Đồ thị nào mô tả đúng I phụ thuộc vào U?</p></div></div>
           <div className="graph-choice-grid">
             {(["direct", "offset", "curve"] as const).map((kind, index) => <button key={kind} type="button" aria-label={`Chọn đồ thị ${String.fromCharCode(65 + index)}`} className={`${graph === kind ? "selected" : ""} ${graph === kind ? resultClass(kind === "direct") : ""}`} onClick={() => { setGraph(kind); setChecked(false); }}><span>Đồ thị {String.fromCharCode(65 + index)}</span><MiniGraph kind={kind} /></button>)}
           </div>
         </article>
 
         <article className="practice-card practice-card-wide">
-          <div className="practice-card-heading"><span>05</span><div><h4>Phòng kiểm định đúng – sai</h4><p>Nhận định từng phát biểu; phải trả lời đủ bốn ý.</p></div></div>
+          <div className="practice-card-heading"><span>06</span><div><h4>Phòng kiểm định đúng – sai</h4><p>Nhận định từng phát biểu; phải trả lời đủ bốn ý.</p></div></div>
           <div className="truth-statement-list">
             {statements.map((statement, index) => {
               const answer = statementAnswers[statement.id];
@@ -281,10 +323,10 @@ export default function CurrentVoltagePractice() {
       <div className="practice-actions">
         <span className="draft-status">{attempt.saving ? "Đang đồng bộ bài làm…" : draftStatus}</span>
         {attempt.message && !attempt.locked ? <span className={`form-message ${attempt.messageType}`}>{attempt.message}</span> : null}
-        {checked ? <p className={score === 10 ? "correct" : "incorrect"} aria-live="polite">{score === 10 ? "Chinh phục trọn bộ: 10/10!" : `Đúng ${score}/10. Hãy xem lại các mục màu cam.`}</p> : null}
+        {checked ? <p className={score === 13 ? "correct" : "incorrect"} aria-live="polite">{score === 13 ? "Chinh phục trọn bộ: 13/13!" : `Đúng ${score}/13. Hãy xem lại các mục màu cam.`}</p> : null}
         <button type="button" className="secondary-button" disabled={attempt.locked} onClick={resetPractice}>Làm lại</button>
-        <button type="button" className="secondary-button" disabled={completedChallenges < 5 || attempt.locked} onClick={() => setChecked(true)}>Kiểm tra</button>
-        <button type="button" className="primary-button" disabled={completedItems < 10 || !attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang nộp…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
+        <button type="button" className="secondary-button" disabled={completedChallenges < 6 || attempt.locked} onClick={() => setChecked(true)}>Kiểm tra</button>
+        <button type="button" className="primary-button" disabled={completedItems < 13 || !attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang nộp…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
       </div>
     </div>
   );

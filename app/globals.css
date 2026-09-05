@@ -476,6 +476,15 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .meter-bank button b { display: grid; place-items: center; width: 30px; height: 30px; border: 1.2px solid var(--ink); border-radius: 50%; background: #fff; }
 .meter-bank button.selected, .formula-bank button.selected { color: #fff; background: var(--ink); box-shadow: 2px 2px 0 var(--purple); }
 .circuit-builder { display: grid; gap: 12px; padding: 16px; overflow: visible; border: 1.3px dashed var(--ink); border-radius: 15px; background: var(--cream); }
+.circuit-build-guide { display: flex; justify-content: center; gap: 10px; align-items: center; color: var(--ink); font-size: .7rem; font-weight: 850; }
+.circuit-build-guide span { display: flex; gap: 7px; align-items: center; }
+.circuit-build-guide b { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; color: #fff; background: var(--ink); font-size: .68rem; }
+.circuit-build-guide i { color: var(--muted); font-style: normal; }
+.circuit-part-bank { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: min(520px, 100%); margin-inline: auto; }
+.circuit-part-bank button { display: flex; justify-content: center; gap: 8px; align-items: center; min-height: 54px; padding: 7px 10px; border: 1.3px solid var(--ink); border-radius: 13px; color: var(--ink); background: #fff; font-size: .72rem; font-weight: 900; cursor: grab; }
+.circuit-part-bank button:hover { background: var(--lime); }
+.circuit-part-bank button.selected { color: #fff; background: var(--ink); box-shadow: 3px 3px 0 var(--purple); }
+.circuit-part-bank button b { display: grid; place-items: center; width: 31px; height: 31px; border: 1.4px solid currentColor; border-radius: 50%; font-size: .8rem; }
 .circuit-route-card { padding: 12px; border: 1.2px solid #c9c1b4; border-radius: 14px; background: rgba(255, 255, 255, .68); }
 .circuit-route-card.parallel-route-card { background: rgba(232, 241, 255, .72); }
 .circuit-route-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px; }
@@ -489,15 +498,14 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .circuit-fixed b { font-size: 1.15rem; }
 .circuit-fixed small { color: var(--muted); font-weight: 800; }
 .circuit-fixed.conductor b { font-size: 1.8rem; transform: rotate(-8deg); }
-.circuit-slot-chooser { display: grid; gap: 7px; align-content: center; min-height: 82px; padding: 8px; border: 2px dashed #807a70; border-radius: 13px; color: var(--ink); background: rgba(255, 255, 255, .7); }
-.circuit-slot-chooser > small { color: var(--muted); font-size: .64rem; font-weight: 850; text-align: center; }
-.circuit-slot-chooser.filled { border-style: solid; background: #e8f1ff; }
-.circuit-slot-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
-.circuit-slot-options button { display: grid; place-items: center; min-width: 0; padding: 4px; border: 1.3px solid var(--ink); border-radius: 9px; color: var(--ink); background: #fff; cursor: pointer; }
-.circuit-slot-options button:hover { background: var(--lime); }
-.circuit-slot-options button.selected { color: #fff; background: var(--ink); box-shadow: 2px 2px 0 var(--purple); }
-.circuit-slot-options b { display: grid; place-items: center; width: 28px; height: 28px; border: 1.2px solid currentColor; border-radius: 50%; font-size: .72rem; }
-.circuit-slot-options span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.circuit-slot-target { display: grid; place-items: center; gap: 2px; min-height: 82px; padding: 8px; border: 2px dashed #807a70; border-radius: 13px; color: var(--ink); background: rgba(255, 255, 255, .72); text-align: center; cursor: pointer; }
+.circuit-slot-target:hover, .circuit-slot-target.ready:not(.filled) { border-color: #557900; background: #f5ffd9; }
+.circuit-slot-target.filled { border-style: solid; background: #e8f1ff; }
+.circuit-slot-target b { display: grid; place-items: center; width: 34px; height: 34px; border: 1.4px solid currentColor; border-radius: 50%; font-size: .88rem; }
+.circuit-slot-target span { font-size: .67rem; font-weight: 900; }
+.circuit-slot-target small { color: var(--muted); font-size: .62rem; font-weight: 800; }
+.circuit-slot-target.filled small { color: var(--ink); }
+.circuit-selection-status { margin: 0 !important; color: var(--muted); font-size: .7rem !important; text-align: center; }
 .circuit-terminal { display: grid; place-items: center; min-height: 82px; padding: 8px; border: 1.3px solid #807a70; border-radius: 13px; color: var(--muted); background: #fff; text-align: center; }
 .circuit-terminal b { color: var(--orange); font-size: 1.2rem; }
 .circuit-terminal small { font-weight: 850; }
@@ -507,7 +515,21 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .mini-data-table strong, .mini-data-table span { display: grid; place-items: center; min-height: 44px; padding: 6px; border-right: 1px solid #d8d0c4; font-size: .78rem; text-align: center; }
 .mini-data-table span:last-child { border-right: 0; }
 .mini-data-table strong { color: #fff; background: var(--ink); }
-.mini-data-table .missing-cell { color: var(--ink); background: var(--lime); font-size: 1rem; font-weight: 950; }
+.mini-data-table .missing-cell { padding: 4px; color: var(--ink); background: #f5ffd9; font-size: 1rem; font-weight: 950; }
+.data-hole-table input { width: 100%; min-width: 0; min-height: 36px; padding: 4px; border: 1.4px dashed var(--ink); border-radius: 8px; color: var(--ink); background: #fff; font: inherit; font-size: .88rem; font-weight: 950; text-align: center; }
+.data-hole-table input::placeholder { color: var(--orange); opacity: 1; }
+.table-hole-note { margin: 0 !important; color: var(--muted); font-size: .7rem !important; text-align: center; }
+.increment-story { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; }
+.increment-story > div { display: grid; gap: 3px; min-height: 92px; align-content: center; padding: 12px; border: 1.3px solid var(--ink); border-radius: 13px; background: #fff; text-align: center; }
+.increment-story > div:last-child { background: #f5ffd9; }
+.increment-story > div small { color: var(--muted); font-size: .64rem; font-weight: 850; text-transform: uppercase; }
+.increment-story > div b { font-size: .78rem; }
+.increment-story > span { display: grid; place-items: center; gap: 2px; color: #fff; padding: 9px; border-radius: 12px; background: var(--purple); text-align: center; }
+.increment-story > span strong { font-size: .82rem; }
+.increment-story > span small { font-size: .58rem; font-weight: 850; }
+.practice-hint { margin-top: 12px; padding: 9px 11px; border: 1px solid #c9c1b4; border-radius: 11px; background: rgba(255, 255, 255, .7); }
+.practice-hint summary { color: var(--ink); font-size: .7rem; font-weight: 900; cursor: pointer; }
+.practice-hint p { margin: 7px 0 0; color: var(--muted); font-size: .72rem; font-weight: 750; }
 .compact-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .anomaly-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .anomaly-grid button { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; padding: 10px 12px; border: 1.3px solid var(--ink); border-radius: 12px; color: var(--ink); background: var(--paper); cursor: pointer; text-align: left; }
@@ -852,7 +874,12 @@ details .table-scroll { margin-top: 12px; }
   .circuit-builder { padding: 10px; }
   .circuit-route-flow { grid-template-columns: 1fr; gap: 7px; width: 100%; }
   .circuit-route-flow > i { min-height: 20px; transform: rotate(90deg); }
-  .circuit-fixed, .circuit-terminal, .circuit-slot-chooser { min-height: 66px; }
+  .circuit-build-guide { align-items: flex-start; }
+  .circuit-part-bank { grid-template-columns: 1fr; }
+  .circuit-part-bank button { justify-content: flex-start; }
+  .circuit-fixed, .circuit-terminal, .circuit-slot-target { min-height: 66px; }
+  .increment-story { grid-template-columns: 1fr; }
+  .increment-story > span { width: min(140px, 100%); margin-inline: auto; }
   .compact-choice-grid, .anomaly-grid { grid-template-columns: 1fr; }
   .truth-statement { grid-template-columns: 1fr; }
   .truth-statement > div { width: 100%; }

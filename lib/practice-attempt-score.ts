@@ -51,7 +51,7 @@ function normalizeRefractionAnswers(value: unknown): RefractionQuizAnswers {
 
 export function emptyPracticeAnswers(key: PracticeKey): unknown {
   if (key === "refraction-application") return createEmptyRefractionQuizAnswers();
-  if (key === "current-voltage-practice") return { slots: {}, missingValue: "", anomaly: "", graph: "", statementAnswers: {} };
+  if (key === "current-voltage-practice") return { slots: {}, missingValues: {}, incrementAnswer: "", anomaly: "", graph: "", statementAnswers: {} };
   if (key === "ohm-law-practice") return { formula: ["", "", ""], currentAnswer: "", voltageAnswer: "", resistanceAnswer: "", scenario: "" };
   return { controls: {}, rankOrder: [], lengthScale: "", areaScale: "", diagnosis: "", fix: "", statementAnswers: {} };
 }
@@ -73,10 +73,11 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
   const answers = record(value);
   if (key === "current-voltage-practice") {
     const slots = record(answers.slots);
+    const missingValues = record(answers.missingValues);
     const statements = record(answers.statementAnswers);
-    const responses = [slots.seriesMeter, slots.control, slots.parallelMeter, answers.missingValue, answers.anomaly, answers.graph, statements.scale, statements.origin, statements.ammeter, statements.repeat];
-    const correct = [slots.seriesMeter === "ammeter", slots.control === "switch", slots.parallelMeter === "voltmeter", answers.missingValue === "0.18", answers.anomaly === "3", answers.graph === "direct", statements.scale === "true", statements.origin === "true", statements.ammeter === "false", statements.repeat === "false"];
-    return finish(responses.filter(Boolean).length, correct.filter(Boolean).length, 10);
+    const responses = [slots.seriesMeter, slots.control, slots.parallelMeter, missingValues.currentAt15, missingValues.voltageAt012, missingValues.currentAt45, answers.incrementAnswer, answers.anomaly, answers.graph, statements.scale, statements.origin, statements.ammeter, statements.repeat];
+    const correct = [slots.seriesMeter === "ammeter", slots.control === "switch", slots.parallelMeter === "voltmeter", approximately(missingValues.currentAt15, 0.06), approximately(missingValues.voltageAt012, 3), approximately(missingValues.currentAt45, 0.18), approximately(answers.incrementAnswer, 0.35), answers.anomaly === "3", answers.graph === "direct", statements.scale === "true", statements.origin === "true", statements.ammeter === "false", statements.repeat === "false"];
+    return finish(responses.filter(Boolean).length, correct.filter(Boolean).length, 13);
   }
 
   if (key === "ohm-law-practice") {
