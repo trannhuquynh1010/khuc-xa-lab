@@ -5,20 +5,18 @@ import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft"
 import PracticeIdentityFields from "./PracticeIdentityFields";
 import usePracticeAttempt from "./usePracticeAttempt";
 
-type FormulaSymbol = "I" | "U" | "R";
-type FormulaSlots = [FormulaSymbol | "", FormulaSymbol | "", FormulaSymbol | ""];
+type BoxConclusion = "consistent" | "resistance-doubles" | "current-constant" | "";
 
-const formulaSymbols: FormulaSymbol[] = ["I", "U", "R"];
-const scenarioChoices = [
-  { id: "parallel", text: "Mắc ampe kế song song với dây dẫn để đo nhanh hơn." },
-  { id: "series", text: "Ngắt nguồn, mắc lại ampe kế nối tiếp với dây dẫn rồi mới đóng mạch." },
-  { id: "raise-voltage", text: "Tăng hiệu điện thế để ampe kế dễ hiện số." },
+const boxConclusionChoices: Array<{ id: Exclude<BoxConclusion, "">; text: string }> = [
+  { id: "consistent", text: "Hai phép đo phù hợp với cùng một điện trở." },
+  { id: "resistance-doubles", text: "Điện trở tăng gấp đôi khi U tăng gấp đôi." },
+  { id: "current-constant", text: "Cường độ dòng điện không phụ thuộc vào U." },
 ];
 
-const emptyFormula: FormulaSlots = ["", "", ""];
+const safeSourceChoices = ["3", "6", "9"];
 
-function isFormulaSymbol(value: unknown): value is FormulaSymbol {
-  return value === "I" || value === "U" || value === "R";
+function isBoxConclusion(value: unknown): value is BoxConclusion {
+  return value === "consistent" || value === "resistance-doubles" || value === "current-constant" || value === "";
 }
 
 function parseDecimal(value: string) {
@@ -32,63 +30,44 @@ function approximately(value: string, expected: number) {
 }
 
 export default function OhmsLawPractice() {
-  const [formula, setFormula] = useState<FormulaSlots>(emptyFormula);
-  const [selectedSymbol, setSelectedSymbol] = useState<FormulaSymbol | null>(null);
+  const [boxResistanceAnswer, setBoxResistanceAnswer] = useState("");
+  const [boxCurrentAnswer, setBoxCurrentAnswer] = useState("");
+  const [boxConclusion, setBoxConclusion] = useState<BoxConclusion>("");
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [voltageAnswer, setVoltageAnswer] = useState("");
   const [resistanceAnswer, setResistanceAnswer] = useState("");
-  const [scenario, setScenario] = useState("");
+  const [safeSource, setSafeSource] = useState("");
   const [checked, setChecked] = useState(false);
-  const { draftStatus } = useDeviceDraft(deviceDraftKey("ohm-law-practice"), { formula, currentAnswer, voltageAnswer, resistanceAnswer, scenario }, (value) => {
+  const { draftStatus } = useDeviceDraft(deviceDraftKey("ohm-law-practice-v2"), { boxResistanceAnswer, boxCurrentAnswer, boxConclusion, currentAnswer, voltageAnswer, resistanceAnswer, safeSource }, (value) => {
     if (!isDraftRecord(value)) return;
-    if (Array.isArray(value.formula) && value.formula.length === 3) {
-      setFormula(value.formula.map((symbol) => isFormulaSymbol(symbol) ? symbol : "") as FormulaSlots);
-    }
+    if (typeof value.boxResistanceAnswer === "string") setBoxResistanceAnswer(value.boxResistanceAnswer);
+    if (typeof value.boxCurrentAnswer === "string") setBoxCurrentAnswer(value.boxCurrentAnswer);
+    if (isBoxConclusion(value.boxConclusion)) setBoxConclusion(value.boxConclusion);
     if (typeof value.currentAnswer === "string") setCurrentAnswer(value.currentAnswer);
     if (typeof value.voltageAnswer === "string") setVoltageAnswer(value.voltageAnswer);
     if (typeof value.resistanceAnswer === "string") setResistanceAnswer(value.resistanceAnswer);
-    if (typeof value.scenario === "string") setScenario(value.scenario);
+    if (typeof value.safeSource === "string") setSafeSource(value.safeSource);
   });
 
-  const completedCount = formula.filter(Boolean).length
+  const completedCount = Number(Boolean(boxResistanceAnswer.trim()))
+    + Number(Boolean(boxCurrentAnswer.trim()))
+    + Number(Boolean(boxConclusion))
     + Number(Boolean(currentAnswer.trim()))
     + Number(Boolean(voltageAnswer.trim()))
     + Number(Boolean(resistanceAnswer.trim()))
-    + Number(Boolean(scenario));
-  const formulaResults = [formula[0] === "I", formula[1] === "U", formula[2] === "R"];
-  const score = formulaResults.filter(Boolean).length
+    + Number(Boolean(safeSource));
+  const score = Number(approximately(boxResistanceAnswer, 20))
+    + Number(approximately(boxCurrentAnswer, 0.45))
+    + Number(boxConclusion === "consistent")
     + Number(approximately(currentAnswer, 0.3))
     + Number(approximately(voltageAnswer, 6))
     + Number(approximately(resistanceAnswer, 30))
-    + Number(scenario === "series");
+    + Number(safeSource === "6");
   const attempt = usePracticeAttempt(
     "ohm-law-practice",
-    { formula, currentAnswer, voltageAnswer, resistanceAnswer, scenario },
+    { boxResistanceAnswer, boxCurrentAnswer, boxConclusion, currentAnswer, voltageAnswer, resistanceAnswer, safeSource },
     completedCount,
   );
-
-  function placeSymbol(index: number, symbol: FormulaSymbol) {
-    setFormula((current) => {
-      const next = current.map((item) => item === symbol ? "" : item) as FormulaSlots;
-      next[index] = symbol;
-      return next;
-    });
-    setSelectedSymbol(null);
-    setChecked(false);
-  }
-
-  function interactWithFormulaSlot(index: number) {
-    if (selectedSymbol) {
-      placeSymbol(index, selectedSymbol);
-      return;
-    }
-    const symbol = formula[index];
-    if (symbol) {
-      setFormula((current) => current.map((item, slotIndex) => slotIndex === index ? "" : item) as FormulaSlots);
-      setSelectedSymbol(symbol);
-      setChecked(false);
-    }
-  }
 
   function updateNumber(setter: (value: string) => void, value: string) {
     setter(value);
@@ -96,12 +75,13 @@ export default function OhmsLawPractice() {
   }
 
   function resetPractice() {
-    setFormula(emptyFormula);
-    setSelectedSymbol(null);
+    setBoxResistanceAnswer("");
+    setBoxCurrentAnswer("");
+    setBoxConclusion("");
     setCurrentAnswer("");
     setVoltageAnswer("");
     setResistanceAnswer("");
-    setScenario("");
+    setSafeSource("");
     setChecked(false);
   }
 
@@ -110,7 +90,7 @@ export default function OhmsLawPractice() {
   return (
     <div className="electric-practice ohms-law-practice">
       <div className="practice-intro ohm-law-intro">
-        <div><p className="eyebrow">ĐỊNH LUẬT OHM</p><h3>Từ công thức đến mạch điện</h3><p>Ghép đúng công thức, tính ba đại lượng và cứu một mạch mắc sai.</p></div>
+        <div><p className="eyebrow">ĐỊNH LUẬT OHM</p><h3>Thử thách suy luận điện học</h3><p>Giải mã số liệu, tính ba đại lượng và chọn nguồn điện an toàn.</p></div>
         <strong>{completedCount}/7</strong>
       </div>
 
@@ -119,13 +99,21 @@ export default function OhmsLawPractice() {
 
       <fieldset className="practice-grid practice-question-fieldset" disabled={attempt.locked || attempt.checking || attempt.submitting}>
         <article className="practice-card practice-card-wide">
-          <div className="practice-card-heading"><span>01</span><div><h4>Ghép công thức</h4><p>Chọn hoặc kéo I, U, R vào đúng vị trí.</p></div></div>
-          <div className="formula-builder">
-            <div className="formula-bank">{formulaSymbols.map((symbol) => <button key={symbol} type="button" draggable aria-pressed={selectedSymbol === symbol} className={selectedSymbol === symbol ? "selected" : ""} onDragStart={(event) => event.dataTransfer.setData("text/plain", symbol)} onClick={() => setSelectedSymbol((current) => current === symbol ? null : symbol)}>{symbol}</button>)}</div>
-            <div className="formula-equation" aria-label="Công thức định luật Ohm cần hoàn thành">
-              {formula.map((symbol, index) => <span key={index}>{index === 1 && <b>=</b>}{index === 2 && <b>/</b>}<button type="button" className={`${symbol ? "filled" : ""} ${resultClass(formulaResults[index])}`} onClick={() => interactWithFormulaSlot(index)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const dropped = event.dataTransfer.getData("text/plain"); if (isFormulaSymbol(dropped)) placeSymbol(index, dropped); }}>{symbol || "?"}</button></span>)}
+          <div className="practice-card-heading"><span>01</span><div><h4>Giải mã hộp đen X</h4><p>Dùng hai phép đo để xác định đặc điểm của dây dẫn.</p></div></div>
+          <div className="ohm-evidence-layout">
+            <div className="ohm-mystery-device" aria-label="Dây dẫn X chưa biết điện trở"><b>X</b><strong>Dây dẫn chưa biết</strong><span>Nhiệt độ không đổi</span></div>
+            <div className="ohm-evidence-table" role="table" aria-label="Hai phép đo trên dây dẫn X">
+              <div role="row"><strong role="columnheader">Lần đo</strong><strong role="columnheader">U (V)</strong><strong role="columnheader">I (A)</strong></div>
+              <div role="row"><span role="cell">1</span><span role="cell">3,0</span><span role="cell">0,15</span></div>
+              <div role="row"><span role="cell">2</span><span role="cell">6,0</span><span role="cell">0,30</span></div>
             </div>
           </div>
+          <div className="ohm-unlock-grid">
+            <label>Điện trở của X<div><input inputMode="decimal" aria-label="Điện trở của dây dẫn X" value={boxResistanceAnswer} className={resultClass(approximately(boxResistanceAnswer, 20))} onChange={(event) => updateNumber(setBoxResistanceAnswer, event.target.value)} placeholder="0,00" /><span>Ω</span></div></label>
+            <label>Nếu U = 9 V, dự đoán I<div><input inputMode="decimal" aria-label="Cường độ dòng điện dự đoán khi U bằng 9 V" value={boxCurrentAnswer} className={resultClass(approximately(boxCurrentAnswer, 0.45))} onChange={(event) => updateNumber(setBoxCurrentAnswer, event.target.value)} placeholder="0,00" /><span>A</span></div></label>
+          </div>
+          <p>Nhận định phù hợp nhất:</p>
+          <div className="practice-options practice-options-horizontal">{boxConclusionChoices.map((choice) => <button key={choice.id} type="button" className={`${boxConclusion === choice.id ? "selected" : ""} ${boxConclusion === choice.id ? resultClass(choice.id === "consistent") : ""}`} onClick={() => { setBoxConclusion(choice.id); setChecked(false); }}>{choice.text}</button>)}</div>
         </article>
 
         <article className="practice-card practice-calculation-card">
@@ -147,9 +135,10 @@ export default function OhmsLawPractice() {
         </article>
 
         <article className="practice-card practice-safety-card">
-          <div className="practice-card-heading"><span>05</span><div><h4>Cứu mạch điện</h4><p>Chọn cách xử lí an toàn và đúng.</p></div></div>
-          <p>Một bạn mắc ampe kế song song với dây dẫn X. Em nên làm gì?</p>
-          <div className="practice-options">{scenarioChoices.map((choice) => <button key={choice.id} type="button" className={`${scenario === choice.id ? "selected" : ""} ${scenario === choice.id ? resultClass(choice.id === "series") : ""}`} onClick={() => { setScenario(choice.id); setChecked(false); }}>{choice.text}</button>)}</div>
+          <div className="practice-card-heading"><span>05</span><div><h4>Chọn nguồn trong giới hạn</h4><p>Tìm nguồn điện lớn nhất vẫn bảo đảm phép đo an toàn.</p></div></div>
+          <p>Một dây dẫn có R = 24 Ω. Ampe kế chỉ đo an toàn khi I ≤ 0,25 A. Chọn nguồn có hiệu điện thế lớn nhất có thể sử dụng.</p>
+          <div className="safety-constraint" aria-label="Giới hạn của mạch"><span><small>Dây dẫn</small><b>R = 24 Ω</b></span><span><small>Giới hạn</small><b>I ≤ 0,25 A</b></span></div>
+          <div className="practice-options practice-options-horizontal">{safeSourceChoices.map((voltage) => <button key={voltage} type="button" className={`${safeSource === voltage ? "selected" : ""} ${safeSource === voltage ? resultClass(voltage === "6") : ""}`} onClick={() => { setSafeSource(voltage); setChecked(false); }}>Nguồn {voltage} V</button>)}</div>
         </article>
       </fieldset>
 

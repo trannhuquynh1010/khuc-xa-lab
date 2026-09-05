@@ -172,7 +172,7 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
 
       {showOhmsLawPractice && (
         <section aria-labelledby="ohms-law-practice-heading">
-          <div className="section-heading data-heading"><span>{showCurrentVoltagePractice ? 4 : 3}</span><div><h2 id="ohms-law-practice-heading">Luyện tập định luật Ohm</h2><p>Ghép công thức, tính nhanh và xử lí tình huống.</p></div></div>
+          <div className="section-heading data-heading"><span>{showCurrentVoltagePractice ? 4 : 3}</span><div><h2 id="ohms-law-practice-heading">Luyện tập định luật Ohm</h2><p>Giải mã số liệu, vận dụng định luật và chọn giới hạn an toàn.</p></div></div>
           <OhmsLawPractice />
         </section>
       )}

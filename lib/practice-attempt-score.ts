@@ -52,7 +52,7 @@ function normalizeRefractionAnswers(value: unknown): RefractionQuizAnswers {
 export function emptyPracticeAnswers(key: PracticeKey): unknown {
   if (key === "refraction-application") return createEmptyRefractionQuizAnswers();
   if (key === "current-voltage-practice") return { slots: {}, missingValues: {}, incrementAnswer: "", anomaly: "", graph: "", statementAnswers: {} };
-  if (key === "ohm-law-practice") return { formula: ["", "", ""], currentAnswer: "", voltageAnswer: "", resistanceAnswer: "", scenario: "" };
+  if (key === "ohm-law-practice") return { boxResistanceAnswer: "", boxCurrentAnswer: "", boxConclusion: "", currentAnswer: "", voltageAnswer: "", resistanceAnswer: "", safeSource: "" };
   return { controls: {}, rankOrder: [], lengthScale: "", areaScale: "", diagnosis: "", fix: "", statementAnswers: {} };
 }
 
@@ -81,9 +81,8 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
   }
 
   if (key === "ohm-law-practice") {
-    const formula = Array.isArray(answers.formula) ? answers.formula : [];
-    const responses = [formula[0], formula[1], formula[2], answers.currentAnswer, answers.voltageAnswer, answers.resistanceAnswer, answers.scenario];
-    const correct = [formula[0] === "I", formula[1] === "U", formula[2] === "R", approximately(answers.currentAnswer, 0.3), approximately(answers.voltageAnswer, 6), approximately(answers.resistanceAnswer, 30), answers.scenario === "series"];
+    const responses = [answers.boxResistanceAnswer, answers.boxCurrentAnswer, answers.boxConclusion, answers.currentAnswer, answers.voltageAnswer, answers.resistanceAnswer, answers.safeSource];
+    const correct = [approximately(answers.boxResistanceAnswer, 20), approximately(answers.boxCurrentAnswer, 0.45), answers.boxConclusion === "consistent", approximately(answers.currentAnswer, 0.3), approximately(answers.voltageAnswer, 6), approximately(answers.resistanceAnswer, 30), answers.safeSource === "6"];
     return finish(responses.filter((item) => String(item ?? "").trim()).length, correct.filter(Boolean).length, 7);
   }
 
