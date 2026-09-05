@@ -527,9 +527,6 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .increment-story > span { display: grid; place-items: center; gap: 2px; color: #fff; padding: 9px; border-radius: 12px; background: var(--purple); text-align: center; }
 .increment-story > span strong { font-size: .82rem; }
 .increment-story > span small { font-size: .58rem; font-weight: 850; }
-.practice-hint { margin-top: 12px; padding: 9px 11px; border: 1px solid #c9c1b4; border-radius: 11px; background: rgba(255, 255, 255, .7); }
-.practice-hint summary { color: var(--ink); font-size: .7rem; font-weight: 900; cursor: pointer; }
-.practice-hint p { margin: 7px 0 0; color: var(--muted); font-size: .72rem; font-weight: 750; }
 .compact-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .anomaly-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .anomaly-grid button { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; padding: 10px 12px; border: 1.3px solid var(--ink); border-radius: 12px; color: var(--ink); background: var(--paper); cursor: pointer; text-align: left; }

@@ -11,7 +11,7 @@ type CircuitSlots = Record<CircuitSlot, CircuitPart | "">;
 type MissingValueKey = "currentAt15" | "voltageAt012" | "currentAt45";
 type MissingValues = Record<MissingValueKey, string>;
 type GraphKind = "direct" | "offset" | "curve";
-type StatementId = "scale" | "origin" | "ammeter" | "repeat";
+type StatementId = "scale" | "origin" | "ammeter" | "increment";
 type TruthChoice = "true" | "false" | "";
 type StatementAnswers = Record<StatementId, TruthChoice>;
 
@@ -32,12 +32,12 @@ const statements: Array<{ id: StatementId; text: string; answer: Exclude<TruthCh
   { id: "scale", text: "Giữ nguyên dây dẫn và điều kiện đo: U tăng gấp 3 thì I cũng tăng gấp 3.", answer: "true" },
   { id: "origin", text: "Đồ thị biểu diễn I theo U là đường thẳng đi qua gốc tọa độ.", answer: "true" },
   { id: "ammeter", text: "Ampe kế phải mắc song song với dây dẫn đang khảo sát.", answer: "false" },
-  { id: "repeat", text: "Chỉ cần hai phép đo là đủ; không cần lặp lại khi có một số liệu lệch quy luật.", answer: "false" },
+  { id: "increment", text: "Với cùng một dây dẫn, khi U tăng từ 2 V lên 5 V thì I tăng thêm 150% so với ban đầu.", answer: "true" },
 ];
 
 const emptySlots: CircuitSlots = { seriesMeter: "", control: "", parallelMeter: "" };
 const emptyMissingValues: MissingValues = { currentAt15: "", voltageAt012: "", currentAt45: "" };
-const emptyStatements: StatementAnswers = { scale: "", origin: "", ammeter: "", repeat: "" };
+const emptyStatements: StatementAnswers = { scale: "", origin: "", ammeter: "", increment: "" };
 
 function isCircuitPart(value: unknown): value is CircuitPart {
   return value === "ammeter" || value === "voltmeter" || value === "switch";
@@ -129,7 +129,7 @@ export default function CurrentVoltagePractice() {
   const [statementAnswers, setStatementAnswers] = useState<StatementAnswers>(emptyStatements);
   const [checked, setChecked] = useState(false);
   const { draftStatus } = useDeviceDraft(
-    deviceDraftKey("ohm-current-voltage-practice-v3"),
+    deviceDraftKey("ohm-current-voltage-practice-v4"),
     { slots, missingValues, incrementAnswer, anomaly, graph, statementAnswers },
     (value) => {
       if (!isDraftRecord(value)) return;
@@ -155,7 +155,7 @@ export default function CurrentVoltagePractice() {
           scale: isTruthChoice(value.statementAnswers.scale) ? value.statementAnswers.scale : "",
           origin: isTruthChoice(value.statementAnswers.origin) ? value.statementAnswers.origin : "",
           ammeter: isTruthChoice(value.statementAnswers.ammeter) ? value.statementAnswers.ammeter : "",
-          repeat: isTruthChoice(value.statementAnswers.repeat) ? value.statementAnswers.repeat : "",
+          increment: isTruthChoice(value.statementAnswers.increment) ? value.statementAnswers.increment : "",
         });
       }
     },
@@ -279,10 +279,9 @@ export default function CurrentVoltagePractice() {
         </article>
 
         <article className="practice-card increment-challenge-card practice-calculation-card">
-          <div className="practice-card-heading"><span>03</span><div><h4>Tăng thêm, không phải gấp</h4><p>Tính giá trị mới của cường độ dòng điện.</p></div></div>
+          <div className="practice-card-heading"><span>03</span><div><h4>Tính I khi U thay đổi</h4><p>Tính giá trị mới của cường độ dòng điện.</p></div></div>
           <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 4 V</b><b>I₁ = 0,20 A</b></div><span><strong>+3 V</strong><small>Tăng thêm</small></span><div><small>Sau đó</small><b>U₂ = 7 V</b><b>I₂ = ?</b></div></div>
           <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} className={resultClass(approximately(incrementAnswer, 0.35))} onChange={(event) => { setIncrementAnswer(event.target.value); setChecked(false); }} placeholder="0,00" /><span>A</span></div></label>
-          <details className="practice-hint"><summary>Gợi ý</summary><p>Với cùng dây dẫn: I₂ / I₁ = U₂ / U₁.</p></details>
         </article>
 
         <article className="practice-card anomaly-card">
@@ -300,7 +299,7 @@ export default function CurrentVoltagePractice() {
         </article>
 
         <article className="practice-card practice-card-wide">
-          <div className="practice-card-heading"><span>06</span><div><h4>Phòng kiểm định đúng – sai</h4><p>Nhận định từng phát biểu; phải trả lời đủ bốn ý.</p></div></div>
+          <div className="practice-card-heading"><span>06</span><div><h4>Phòng kiểm định đúng – sai</h4><p>Nhận định từng phát biểu.</p></div></div>
           <div className="truth-statement-list">
             {statements.map((statement, index) => {
               const answer = statementAnswers[statement.id];
