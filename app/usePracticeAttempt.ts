@@ -36,6 +36,8 @@ export default function usePracticeAttempt(practiceKey: PracticeKey, answers: un
     if (!status.submitted) {
       setPhase("available");
       setReleasedResult(null);
+      setMessage("");
+      setMessageType("idle");
       return;
     }
     setPhase("submitted");

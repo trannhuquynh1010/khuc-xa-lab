@@ -645,6 +645,8 @@ footer a { text-decoration: none; }
 .quiz-release-control-panel button:disabled, .quiz-actions button:disabled { cursor: not-allowed; transform: none; box-shadow: none; }
 .force-submit-button { color: #8c3100; border-color: #b45200; background: #fff1d4; }
 .force-submit-button:hover:not(:disabled) { color: var(--paper); background: #b45200; }
+.reset-practice-button { color: var(--danger); border-color: var(--danger); background: var(--paper); }
+.reset-practice-button:hover:not(:disabled) { color: #fff; background: var(--danger); }
 .practice-collection-panel { background: #f1edff; }
 .practice-collection-panel .activity-control-title > span { color: var(--paper); background: var(--purple); }
 .quiz-release-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 24px; align-items: center; }

@@ -922,6 +922,41 @@ export async function setPracticeScoresReleased(schoolYear: string, practiceKey:
   return rows.length;
 }
 
+export async function resetPracticeClass(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  await ensureSchema();
+  const sql = getSql();
+  let deletedCount = 0;
+
+  if (practiceKey === "refraction-application") {
+    const rows = await sql`
+      WITH deleted_attempts AS (
+        DELETE FROM practice_attempts
+        WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey} AND class_name = ${className}
+        RETURNING id
+      ), deleted_legacy_quizzes AS (
+        DELETE FROM refraction_quiz_submissions
+        WHERE school_year = ${schoolYear} AND class_name = ${className} AND student_number IS NOT NULL
+        RETURNING id
+      )
+      SELECT
+        (SELECT COUNT(*)::INTEGER FROM deleted_attempts) AS attempt_count,
+        (SELECT COUNT(*)::INTEGER FROM deleted_legacy_quizzes) AS legacy_count
+    `;
+    deletedCount = Math.max(Number(rows[0]?.attempt_count ?? 0), Number(rows[0]?.legacy_count ?? 0));
+    expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  } else {
+    const rows = await sql`
+      DELETE FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey} AND class_name = ${className}
+      RETURNING id
+    `;
+    deletedCount = rows.length;
+  }
+
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return deletedCount;
+}
+
 type NewExperimentInput =
   | { activityKey: "ohm"; className: string; groupName: string; payload: OhmPayload }
   | { activityKey: "resistance-factors"; className: string; groupName: string; payload: ResistanceFactorsPayload }

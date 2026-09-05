@@ -3,7 +3,7 @@
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { forceSubmitPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmsLawPracticeOpen, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
+import { forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmsLawPracticeOpen, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
 import { isPracticeKey } from "@/lib/practice-attempt-types";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
@@ -113,6 +113,19 @@ export async function togglePracticeScores(formData: FormData) {
   if (practiceKey === "refraction-application") {
     await setRefractionQuizScoresReleased(schoolYear, className, nextReleased);
   }
+  revalidatePath("/giao-vien");
+}
+
+export async function resetPracticeAttempts(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  const schoolYear = formData.get("schoolYear");
+  const className = formData.get("className");
+  const practiceKey = formData.get("practiceKey");
+  if (!isSchoolYear(schoolYear) || !isClassName(className) || !isPracticeKey(practiceKey)) return;
+  if (practiceKey === "refraction-application" && !isRefractionQuizClassName(className)) return;
+
+  await resetPracticeClass(schoolYear, practiceKey, className);
   revalidatePath("/giao-vien");
 }
 

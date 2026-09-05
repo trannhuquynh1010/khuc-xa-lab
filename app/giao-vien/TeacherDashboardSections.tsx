@@ -5,9 +5,10 @@ import {
   type RefractionQuizClassSummary,
 } from "@/lib/db";
 import { getPracticeDefinition, type PracticeKey } from "@/lib/practice-attempt-types";
-import { forceSubmitPractice, togglePracticeScores, toggleRefractionQuizScores } from "./actions";
+import { forceSubmitPractice, resetPracticeAttempts, togglePracticeScores, toggleRefractionQuizScores } from "./actions";
 import ForceSubmitPracticeButton from "./ForceSubmitPracticeButton";
 import PracticeAttemptDisclosure from "./PracticeAttemptDisclosure";
+import ResetPracticeButton from "./ResetPracticeButton";
 import TeacherClassFilter from "./TeacherClassFilter";
 import RefractionQuizDisclosure from "./RefractionQuizDisclosure";
 import ScoreReleaseSubmitButton from "./ScoreReleaseSubmitButton";
@@ -84,6 +85,12 @@ export async function RefractionQuizPanel({ summaryPromise, selectedClass, selec
             <input type="hidden" name="nextReleased" value={String(!allReleased)} />
             <ScoreReleaseSubmitButton disabled={submittedCount === 0} released={allReleased} pendingCount={submittedCount - releasedCount} />
           </form>
+          <form action={resetPracticeAttempts}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value="refraction-application" />
+            <ResetPracticeButton disabled={submittedCount === 0} className={selectedClass} practiceLabel="bài vận dụng khúc xạ" />
+          </form>
         </div>
       </div>
       <RefractionQuizDisclosure key={`${selectedYear}:${selectedClass}:${submittedCount}:${releasedCount}`} submittedCount={submittedCount} className={selectedClass} schoolYear={selectedYear} />
@@ -118,6 +125,12 @@ export async function PracticeCollectionPanel({ summaryPromise, practiceKey, sel
             <input type="hidden" name="practiceKey" value={practiceKey} />
             <input type="hidden" name="nextReleased" value={String(!allReleased)} />
             <ScoreReleaseSubmitButton disabled={submittedCount === 0} released={allReleased} pendingCount={submittedCount - releasedCount} />
+          </form>
+          <form action={resetPracticeAttempts}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value={practiceKey} />
+            <ResetPracticeButton disabled={submittedCount === 0} className={selectedClass} practiceLabel={definition.label} />
           </form>
         </div>
       </div>
