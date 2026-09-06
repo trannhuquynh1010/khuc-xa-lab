@@ -5,7 +5,7 @@ import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivityS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -14,6 +14,7 @@ import TeacherActivityTabs from "./TeacherActivityTabs";
 import PhysicsBrand from "../PhysicsBrand";
 import OhmRaceDashboard from "./OhmRaceDashboard";
 import ResetPracticeButton from "./ResetPracticeButton";
+import OpticsQuestDashboard from "./OpticsQuestDashboard";
 
 export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string; year?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
@@ -39,7 +40,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const activityDataPromise = loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const activityDataPromise = selectedKey === "optics-game" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
   const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
     ? getRefractionQuizClassSummary(selectedYear, selectedClass)
     : null;
@@ -75,9 +76,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         <div className="academic-year-actions"><TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} /><ResetYearButton schoolYear={selectedYear} /></div>
       </section>
 
-      <Suspense fallback={<TeacherDataSkeleton />}>
-        <TeacherClassProgress dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
-      </Suspense>
+      {activityDataPromise ? <Suspense fallback={<TeacherDataSkeleton />}><TeacherClassProgress dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} /></Suspense> : null}
 
       <section className="activity-control-panel">
         <div className="activity-control-title"><span aria-hidden="true">{definition.symbol}</span><div><p className="eyebrow">HOẠT ĐỘNG</p><h2>{definition.label}</h2></div></div>
@@ -88,7 +87,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
             <TeacherToggleSubmitButton isOpen={currentSetting.isOpen} openLabel="Mở bài" closeLabel="Đóng bài" />
           </form>
-          <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
+          {selectedKey !== "optics-game" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
         </div>
       </section>
 
@@ -216,9 +215,22 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      <Suspense fallback={<TeacherDataSkeleton />}>
-        <TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
-      </Suspense>
+      {selectedKey === "optics-game" && (
+        <>
+          <section className="activity-control-panel construction-control-panel optics-game-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">✦</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.opticsGameRound}</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>Cá nhân vượt 6 trạm · điểm nhóm là trung bình · đủ 75% mới xếp hạng.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.opticsGameRunning ? "open" : "closed"}`}>{currentSetting.opticsGameRunning ? "● Đang chơi" : currentSetting.isOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
+              {currentSetting.isOpen ? <form action={toggleOpticsGameRunning}><input type="hidden" name="nextRunning" value={String(!currentSetting.opticsGameRunning)} /><TeacherToggleSubmitButton isOpen={currentSetting.opticsGameRunning} openLabel="Bắt đầu" closeLabel="Tạm dừng" /></form> : null}
+              <Link className="presentation-button" href={`/giao-vien/trinh-chieu/optics-game?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu game</Link>
+              <form action={resetPracticeAttempts}><input type="hidden" name="schoolYear" value={selectedYear} /><input type="hidden" name="className" value={selectedClass} /><input type="hidden" name="practiceKey" value="optics-quest" /><ResetPracticeButton className={selectedClass} practiceLabel="Photon Quest" /></form>
+            </div>
+          </section>
+          <OpticsQuestDashboard className={selectedClass} schoolYear={selectedYear} />
+        </>
+      )}
+
+      {activityDataPromise ? <Suspense fallback={<TeacherDataSkeleton />}><TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} /></Suspense> : null}
     </main>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isClassName, isRefractionQuizClassName, isStudentNumber } from "@/lib/classes";
+import { groupNames, isClassName, isRefractionQuizClassName, isStudentNumber } from "@/lib/classes";
 import { createRefractionQuizSubmission, DuplicateRefractionQuizSubmissionError, getPracticeAttemptStatus, getRefractionQuizSubmissionStatus, listActivitySettings, savePracticeDraft, submitPracticeAttempt } from "@/lib/db";
 import { scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import { getPracticeDefinition, isPracticeKey, type PracticeKey } from "@/lib/practice-attempt-types";
@@ -19,6 +19,7 @@ async function isPracticeOpen(practiceKey: PracticeKey) {
   if (practiceKey === "current-voltage-practice") return setting.iuPracticeOpen;
   if (practiceKey === "ohm-law-practice") return setting.ohmLawPracticeOpen;
   if (practiceKey === "ohm-race") return setting.ohmRaceOpen;
+  if (practiceKey === "optics-quest") return setting.isOpen;
   return setting.resistanceFactorsPracticeOpen;
 }
 
@@ -70,12 +71,27 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Cuộc đua đang tạm dừng." }, { status: 403 });
       }
     }
+    if (body.practiceKey === "optics-quest") {
+      const gameSetting = (await listActivitySettings()).find((item) => item.key === "optics-game");
+      if (Number(body.answers.round) !== gameSetting?.opticsGameRound) {
+        return NextResponse.json({ error: "Trò chơi đã chuyển sang vòng mới. Hãy tải lại trang." }, { status: 409 });
+      }
+      if (typeof body.answers.groupName !== "string" || !groupNames.includes(body.answers.groupName)) {
+        return NextResponse.json({ error: "Hãy chọn nhóm trước khi chơi." }, { status: 400 });
+      }
+      if (body.mode === "submit" && !gameSetting?.opticsGameRunning) {
+        return NextResponse.json({ error: "Trò chơi đang tạm dừng." }, { status: 403 });
+      }
+    }
     const evaluation = scorePracticeAttempt(body.practiceKey, body.answers);
     if (body.mode === "submit" && evaluation.completedCount < evaluation.totalItems) {
       return NextResponse.json({ error: `Còn ${evaluation.totalItems - evaluation.completedCount} ý chưa hoàn thành.` }, { status: 400 });
     }
     if (body.mode === "submit" && body.practiceKey === "ohm-race" && evaluation.correctCount < evaluation.totalItems) {
       return NextResponse.json({ error: "Hãy vượt qua đủ 6 trạm trước khi về đích." }, { status: 400 });
+    }
+    if (body.mode === "submit" && body.practiceKey === "optics-quest" && evaluation.correctCount < evaluation.totalItems) {
+      return NextResponse.json({ error: "Hãy vượt qua đủ 6 trạm trước khi hoàn tất." }, { status: 400 });
     }
     const input = { practiceKey: body.practiceKey, className: body.className, studentNumber: body.studentNumber, answers: body.answers };
     if (body.mode === "submit" && body.practiceKey === "refraction-application") {

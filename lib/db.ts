@@ -9,10 +9,11 @@ import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
 import { scoreRefractionQuiz, type RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
-import { formatStudentNumber } from "@/lib/classes";
+import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import type { PracticeAttemptStatus, PracticeKey, TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
+import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_STATION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
 
 export type Measurement = {
   sequence: number;
@@ -50,6 +51,9 @@ export type ActivitySetting = {
   ohmRaceStartedAt: string | null;
   resistivityOpen: boolean;
   resistanceFactorsPracticeOpen: boolean;
+  opticsGameRunning: boolean;
+  opticsGameRound: number;
+  opticsGameStartedAt: string | null;
   updatedAt: string;
 };
 
@@ -168,6 +172,18 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_running'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_round'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_started_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'student_number'
       ) AND
       EXISTS (
@@ -268,6 +284,9 @@ async function initializeSchema() {
       ohm_race_started_at TIMESTAMPTZ,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
       resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+      optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
+      optics_game_round INTEGER NOT NULL DEFAULT 1,
+      optics_game_started_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -284,7 +303,10 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS ohm_race_round INTEGER NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS ohm_race_started_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE
+    ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS optics_game_round INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS optics_game_started_at TIMESTAMPTZ
   `;
 
   for (const activity of activityDefinitions) {
@@ -414,7 +436,7 @@ async function initializeSchema() {
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-individual-practice-v4"], { revalidate: false });
+}, ["physics-lab-schema-individual-practice-v5"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -432,7 +454,8 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
   const rows = await sql`
     SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
       ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
-      resistivity_open, resistance_factors_practice_open, updated_at
+      resistivity_open, resistance_factors_practice_open,
+      optics_game_running, optics_game_round, optics_game_started_at, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -453,10 +476,13 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       ohmRaceStartedAt: row?.ohm_race_started_at ? new Date(String(row.ohm_race_started_at)).toISOString() : null,
       resistivityOpen: Boolean(row?.resistivity_open),
       resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
+      opticsGameRunning: Boolean(row?.optics_game_running),
+      opticsGameRound: Math.max(1, Number(row?.optics_game_round ?? 1)),
+      opticsGameStartedAt: row?.optics_game_started_at ? new Date(String(row.optics_game_started_at)).toISOString() : null,
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v2"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v3"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
@@ -474,7 +500,39 @@ export async function setActivityOpen(key: ActivityKey, isOpen: boolean) {
     INSERT INTO activity_settings (activity_key, is_open, updated_at)
     VALUES (${key}, ${isOpen}, NOW())
     ON CONFLICT (activity_key)
-    DO UPDATE SET is_open = EXCLUDED.is_open, updated_at = NOW()
+    DO UPDATE SET is_open = EXCLUDED.is_open,
+      optics_game_running = CASE WHEN ${key} = 'optics-game' AND NOT ${isOpen} THEN FALSE ELSE activity_settings.optics_game_running END,
+      updated_at = NOW()
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setOpticsGameRunning(isRunning: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET optics_game_running = ${isRunning},
+      optics_game_started_at = CASE
+        WHEN ${isRunning} THEN COALESCE(optics_game_started_at, NOW() + INTERVAL '5 seconds')
+        ELSE optics_game_started_at
+      END,
+      updated_at = NOW()
+    WHERE activity_key = 'optics-game' AND (is_open = TRUE OR ${isRunning} = FALSE)
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function advanceOpticsGameRound() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET optics_game_round = optics_game_round + 1,
+      optics_game_running = FALSE,
+      optics_game_started_at = NULL,
+      updated_at = NOW()
+    WHERE activity_key = 'optics-game'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
@@ -913,6 +971,70 @@ export async function getOhmRaceSnapshot(schoolYear: string, className: string):
     readyCount: racers.length,
     finishedCount: finishers.length,
     racers: racers.sort((left, right) => left.studentNumber - right.studentNumber),
+  };
+}
+
+export async function getOpticsQuestSnapshot(schoolYear: string, className: string): Promise<OpticsQuestSnapshot> {
+  await ensureSchema();
+  const sql = getSql();
+  const [settings, rows] = await Promise.all([
+    listActivitySettings(),
+    sql`
+      SELECT student_number, status, answers, submitted_at, created_at
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'optics-quest' AND class_name = ${className}
+    `,
+  ]);
+  const setting = settings.find((item) => item.key === "optics-game");
+  const sharedStart = setting?.opticsGameStartedAt ? new Date(setting.opticsGameStartedAt).getTime() : null;
+
+  const players: OpticsQuestPlayer[] = rows.flatMap((row) => {
+    const data = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
+    const groupName = typeof data.groupName === "string" && groupNames.includes(data.groupName as (typeof groupNames)[number]) ? data.groupName : "";
+    if (!groupName) return [];
+    const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
+    const clearedIds = new Set(Array.isArray(data.clearedQuestionIds) ? data.clearedQuestionIds.filter((item): item is string => typeof item === "string") : []);
+    const attempts = data.attemptCounts && typeof data.attemptCounts === "object" && !Array.isArray(data.attemptCounts) ? data.attemptCounts as Record<string, unknown> : {};
+    const finished = row.status === "submitted";
+    const submittedTime = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+    const startTime = sharedStart ?? (row.created_at ? new Date(String(row.created_at)).getTime() : null);
+    return [{
+      studentNumber: Number(row.student_number),
+      groupName,
+      progress: Math.min(OPTICS_QUEST_STATION_COUNT, clearedIds.size),
+      finished,
+      energy: Math.min(OPTICS_QUEST_MAX_ENERGY, calculateOpticsEnergy(questionIds, clearedIds, attempts)),
+      elapsedSeconds: finished && submittedTime !== null && startTime !== null ? Math.max(0, Math.round((submittedTime - startTime) / 1000)) : null,
+    }];
+  }).sort((left, right) => left.studentNumber - right.studentNumber);
+
+  const groups: OpticsQuestGroup[] = groupNames.map((groupName) => {
+    const members = players.filter((player) => player.groupName === groupName);
+    const finishedCount = members.filter((player) => player.finished).length;
+    const completionRate = members.length ? finishedCount / members.length : 0;
+    return {
+      groupName,
+      participantCount: members.length,
+      finishedCount,
+      completionRate,
+      averageEnergy: members.length ? Math.round(members.reduce((sum, player) => sum + player.energy, 0) / members.length * 10) / 10 : 0,
+      eligible: members.length > 0 && completionRate >= 0.75,
+      rank: null,
+    };
+  });
+  const ranked = groups.filter((group) => group.eligible).sort((left, right) => right.averageEnergy - left.averageEnergy || right.completionRate - left.completionRate || left.groupName.localeCompare(right.groupName));
+  const rankMap = new Map(ranked.map((group, index) => [group.groupName, index + 1]));
+  groups.forEach((group) => { group.rank = rankMap.get(group.groupName) ?? null; });
+
+  return {
+    round: setting?.opticsGameRound ?? 1,
+    isOpen: setting?.isOpen ?? false,
+    isRunning: setting?.opticsGameRunning ?? false,
+    startedAt: setting?.opticsGameStartedAt ?? null,
+    readyCount: players.length,
+    finishedCount: players.filter((player) => player.finished).length,
+    players,
+    groups,
   };
 }
 

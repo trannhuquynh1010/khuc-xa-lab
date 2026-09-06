@@ -3,7 +3,7 @@
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { advanceOhmRaceRound, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
+import { advanceOhmRaceRound, advanceOpticsGameRound, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setOpticsGameRunning, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
 import { isPracticeKey } from "@/lib/practice-attempt-types";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
@@ -69,6 +69,11 @@ export async function toggleOhmRaceRunning(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setOhmRaceRunning(formData.get("nextRunning") === "true");
+}
+
+export async function toggleOpticsGameRunning(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+  await setOpticsGameRunning(formData.get("nextRunning") === "true");
 }
 
 export async function toggleResistivity(formData: FormData) {
@@ -139,6 +144,7 @@ export async function resetPracticeAttempts(formData: FormData) {
 
   await resetPracticeClass(schoolYear, practiceKey, className);
   if (practiceKey === "ohm-race") await advanceOhmRaceRound();
+  if (practiceKey === "optics-quest") await advanceOpticsGameRound();
   revalidatePath("/giao-vien");
 }
 

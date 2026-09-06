@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { activityDefinitions, isActivityKey, type ActivityKey } from "@/lib/activities";
 import LabForm from "./LabForm";
 import OhmLabForm from "./OhmLabForm";
@@ -8,7 +9,9 @@ import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
 import PrismColorLabForm from "./PrismColorLabForm";
 import PhysicsBrand from "./PhysicsBrand";
 
-type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; ohmRaceOpen: boolean; ohmRaceRunning: boolean; ohmRaceRound: number; ohmRaceStartedAt: string | null; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; updatedAt: string };
+const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: () => <div className="waiting-card"><span className="loading-dot" /><h2>Đang tải Photon Quest…</h2></div> });
+
+type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; ohmRaceOpen: boolean; ohmRaceRunning: boolean; ohmRaceRound: number; ohmRaceStartedAt: string | null; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; opticsGameRunning: boolean; opticsGameRound: number; opticsGameStartedAt: string | null; updatedAt: string };
 
 export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
@@ -62,6 +65,7 @@ export default function StudentWorkspace() {
   const ohmRaceStartedAt = ohmSetting?.ohmRaceStartedAt ?? null;
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
   const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
+  const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
   const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
@@ -69,7 +73,9 @@ export default function StudentWorkspace() {
       ? ["R", "Ω", "ρ"]
       : visibleActiveKey === "prism-colors"
         ? ["△", "λ", "n"]
-        : ["i", "r", "n"];
+        : visibleActiveKey === "optics-game"
+          ? ["✦", "λ", "n"]
+          : ["i", "r", "n"];
 
   return (
     <>
@@ -111,6 +117,7 @@ export default function StudentWorkspace() {
           <div hidden={visibleActiveKey !== "ohm"}><OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /></div>
           <div hidden={visibleActiveKey !== "resistance-factors"}><ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /></div>
           <div hidden={visibleActiveKey !== "prism-colors"}><PrismColorLabForm showColorActivity={prismColorOpen} /></div>
+          {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} /></div> : null}
         </>
       )}
     </>

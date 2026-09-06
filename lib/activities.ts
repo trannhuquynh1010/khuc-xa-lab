@@ -27,6 +27,13 @@ export const activityDefinitions = [
     label: "Lăng kính và màu sắc của vật",
     description: "Dựng tia tán sắc và dự đoán màu quan sát.",
   },
+  {
+    key: "optics-game",
+    symbol: "✦",
+    shortLabel: "Photon Quest",
+    label: "Photon Quest · Hải đăng ánh sáng",
+    description: "Cuộc đua cá nhân qua 6 trạm quang học.",
+  },
 ] as const;
 
 export type ActivityKey = (typeof activityDefinitions)[number]["key"];
