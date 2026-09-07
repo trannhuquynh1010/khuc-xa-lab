@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Hãy vượt qua đủ 6 trạm trước khi về đích." }, { status: 400 });
     }
     if (body.mode === "submit" && body.practiceKey === "optics-quest" && evaluation.correctCount < evaluation.totalItems) {
-      return NextResponse.json({ error: "Hãy vượt qua đủ 6 trạm trước khi hoàn tất." }, { status: 400 });
+      return NextResponse.json({ error: "Hãy hoàn thành đủ 12 câu ở 6 trạm trước khi kết thúc." }, { status: 400 });
     }
     const input = { practiceKey: body.practiceKey, className: body.className, studentNumber: body.studentNumber, answers: body.answers };
     if (body.mode === "submit" && body.practiceKey === "refraction-application") {

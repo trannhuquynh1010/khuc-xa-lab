@@ -9,7 +9,7 @@ import {
 import { scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 import { getPracticeBonusPoint, type PracticeKey } from "@/lib/practice-attempt-types";
 import { createEmptyOhmRaceAnswers, getOhmRaceQuestion, isOhmRaceAnswerCorrect, OHM_RACE_STATION_COUNT } from "@/lib/ohm-race";
-import { createEmptyOpticsQuestAnswers, getOpticsQuestQuestion, isOpticsQuestAnswerCorrect, OPTICS_QUEST_STATION_COUNT } from "@/lib/optics-quest";
+import { createEmptyOpticsQuestAnswers, getOpticsQuestQuestion, isOpticsQuestAnswerCorrect, OPTICS_QUEST_QUESTION_COUNT, OPTICS_QUEST_QUESTIONS_PER_STATION } from "@/lib/optics-quest";
 
 type ScoreResult = { completedCount: number; correctCount: number; totalItems: number; bonusPoint: number };
 
@@ -110,10 +110,10 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
     const questionIds = Array.isArray(answers.questionIds) ? answers.questionIds.filter((item): item is string => typeof item === "string") : [];
     const responses = record(answers.responses);
     const clearedIds = new Set(Array.isArray(answers.clearedQuestionIds) ? answers.clearedQuestionIds.filter((item): item is string => typeof item === "string") : []);
-    const questions = questionIds.length === OPTICS_QUEST_STATION_COUNT ? questionIds.map(getOpticsQuestQuestion) : [];
-    const valid = questions.length === OPTICS_QUEST_STATION_COUNT && questions.every((question, index) => question?.station === index + 1);
+    const questions = questionIds.length === OPTICS_QUEST_QUESTION_COUNT ? questionIds.map(getOpticsQuestQuestion) : [];
+    const valid = questions.length === OPTICS_QUEST_QUESTION_COUNT && questions.every((question, index) => question?.station === Math.floor(index / OPTICS_QUEST_QUESTIONS_PER_STATION) + 1);
     const correctCount = valid ? questions.filter((question) => question && clearedIds.has(question.id) && typeof responses[question.id] === "string" && isOpticsQuestAnswerCorrect(question, String(responses[question.id]))).length : 0;
-    return { completedCount: correctCount, correctCount, totalItems: OPTICS_QUEST_STATION_COUNT, bonusPoint: 0 };
+    return { completedCount: correctCount, correctCount, totalItems: OPTICS_QUEST_QUESTION_COUNT, bonusPoint: 0 };
   }
 
   const controls = record(answers.controls);

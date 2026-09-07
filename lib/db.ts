@@ -13,7 +13,7 @@ import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import type { PracticeAttemptStatus, PracticeKey, TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
-import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_STATION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
+import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
 
 export type Measurement = {
   sequence: number;
@@ -1001,7 +1001,7 @@ export async function getOpticsQuestSnapshot(schoolYear: string, className: stri
     return [{
       studentNumber: Number(row.student_number),
       groupName,
-      progress: Math.min(OPTICS_QUEST_STATION_COUNT, clearedIds.size),
+      progress: Math.min(OPTICS_QUEST_QUESTION_COUNT, clearedIds.size),
       finished,
       energy: Math.min(OPTICS_QUEST_MAX_ENERGY, calculateOpticsEnergy(questionIds, clearedIds, attempts)),
       elapsedSeconds: finished && submittedTime !== null && startTime !== null ? Math.max(0, Math.round((submittedTime - startTime) / 1000)) : null,

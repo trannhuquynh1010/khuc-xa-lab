@@ -8,6 +8,8 @@ import {
   getOpticsQuestQuestions,
   isOpticsQuestAnswerCorrect,
   OPTICS_QUEST_MAX_ENERGY,
+  OPTICS_QUEST_QUESTION_COUNT,
+  OPTICS_QUEST_QUESTIONS_PER_STATION,
   OPTICS_QUEST_STATION_COUNT,
   type OpticsQuestAnswers,
   type OpticsQuestQuestion,
@@ -84,7 +86,9 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
   const currentQuestion = questions.find((question) => !clearedSet.has(question.id));
   const currentResponse = currentQuestion ? responses[currentQuestion.id] ?? "" : "";
   const energy = calculateOpticsEnergy(questionIds, clearedSet, attemptCounts);
-  const finished = questions.length === OPTICS_QUEST_STATION_COUNT && progress === OPTICS_QUEST_STATION_COUNT;
+  const finished = questions.length === OPTICS_QUEST_QUESTION_COUNT && progress === OPTICS_QUEST_QUESTION_COUNT;
+  const activeStationIndex = Math.min(OPTICS_QUEST_STATION_COUNT - 1, Math.floor(progress / OPTICS_QUEST_QUESTIONS_PER_STATION));
+  const questionInStation = progress % OPTICS_QUEST_QUESTIONS_PER_STATION + 1;
   const ownPlayer = snapshot?.players.find((player) => player.studentNumber === Number(attempt.studentNumber));
 
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
   const identityLocked = progress > 0 || attempt.locked;
   return (
     <div className="optics-quest-game">
-      <div className="quest-hero"><div><p className="eyebrow">VÒNG {round} · ĐUA CÁ NHÂN</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>Vượt 6 trạm. Đúng ngay lần đầu nhận 3 năng lượng.</p></div><div className="quest-energy"><span>NĂNG LƯỢNG</span><strong>{energy}/{OPTICS_QUEST_MAX_ENERGY}</strong><small>{startedAt ? formatTime(elapsedSeconds) : "--:--"}</small></div></div>
+      <div className="quest-hero"><div><p className="eyebrow">VÒNG {round} · ĐUA CÁ NHÂN</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>6 trạm · mỗi trạm 2 câu. Đúng ngay lần đầu nhận 3 năng lượng.</p></div><div className="quest-energy"><span>NĂNG LƯỢNG</span><strong>{energy}/{OPTICS_QUEST_MAX_ENERGY}</strong><small>{startedAt ? formatTime(elapsedSeconds) : "--:--"}</small></div></div>
 
       <fieldset className="quest-identity" disabled={identityLocked}>
         <legend className="sr-only">Thông tin người chơi</legend>
@@ -127,9 +131,13 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
         <label>Nhóm<select value={groupName} onChange={(event) => setGroupName(event.target.value)}><option value="">Chọn nhóm</option>{groupNames.map((name) => <option key={name}>{name}</option>)}</select></label>
       </fieldset>
 
-      <div className="quest-map" aria-label={`Đã vượt ${progress}/6 trạm`}>
-        {Array.from({ length: 6 }, (_, index) => <div key={index} className={index < progress ? "done" : index === progress ? "current" : "locked"}><b>{index < progress ? "✓" : stationIcons[index]}</b><span>{index + 1}</span></div>)}
-        <i style={{ width: `${progress / 6 * 100}%` }} />
+      <div className="quest-map" aria-label={`Đã hoàn thành ${progress}/${OPTICS_QUEST_QUESTION_COUNT} câu`}>
+        {Array.from({ length: OPTICS_QUEST_STATION_COUNT }, (_, index) => {
+          const done = progress >= (index + 1) * OPTICS_QUEST_QUESTIONS_PER_STATION;
+          const state = done ? "done" : index === activeStationIndex ? "current" : "locked";
+          return <div key={index} className={state}><b>{done ? "✓" : stationIcons[index]}</b><span>{index + 1}</span></div>;
+        })}
+        <i style={{ width: `${progress / OPTICS_QUEST_QUESTION_COUNT * 100}%` }} />
       </div>
 
       {!attempt.identityReady || !groupName ? <div className="quest-lobby"><span>✦</span><div><h3>Chọn lớp, STT và nhóm</h3><p>Mỗi học sinh làm cá nhân; điểm nhóm là trung bình của các thành viên.</p></div></div>
@@ -137,14 +145,14 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
       : attempt.locked ? <div className="quest-finish"><span>✦</span><div><p className="eyebrow">ĐÃ HOÀN THÀNH</p><h3>{attempt.className} · STT {formatStudentNumber(Number(attempt.studentNumber))} · {groupName}</h3><p>Đã đóng góp {ownPlayer?.energy ?? energy}/{OPTICS_QUEST_MAX_ENERGY} năng lượng cho nhóm.</p></div></div>
       : !running ? <div className="quest-lobby ready"><span>⌁</span><div><p className="eyebrow">ĐÃ VÀO TRẠM</p><h3>Chờ giáo viên bắt đầu</h3><p>{attempt.className} · STT {formatStudentNumber(Number(attempt.studentNumber))} · {groupName}</p></div></div>
       : countdown > 0 ? <div className="race-countdown"><p>HẢI ĐĂNG KHỞI ĐỘNG SAU</p><strong>{countdown}</strong><span>Sẵn sàng!</span></div>
-      : finished ? <div className="quest-final"><div><span>✦</span><p className="eyebrow">6/6 TRẠM</p><h3>Hải đăng đã sáng!</h3><p>Năng lượng cá nhân: {energy}/{OPTICS_QUEST_MAX_ENERGY}</p></div><button type="button" className="primary-button" disabled={attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang ghi nhận…" : "Hoàn tất →"}</button></div>
+      : finished ? <div className="quest-final"><div><span>✦</span><p className="eyebrow">12/12 CÂU · 6/6 TRẠM</p><h3>Hải đăng đã sáng!</h3><p>Năng lượng cá nhân: {energy}/{OPTICS_QUEST_MAX_ENERGY}</p></div><button type="button" className="primary-button" disabled={attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang ghi nhận…" : "Hoàn tất →"}</button></div>
       : currentQuestion ? <fieldset className="quest-question" disabled={attempt.submitting}>
           <legend className="sr-only">Trạm {currentQuestion.station}</legend>
-          <div className="quest-question-head"><span>{stationIcons[currentQuestion.station - 1]}</span><div><p className="eyebrow">TRẠM {currentQuestion.station} · {currentQuestion.stationLabel}</p><h3>{currentQuestion.title}</h3></div></div>
+          <div className="quest-question-head"><span>{stationIcons[currentQuestion.station - 1]}</span><div><p className="eyebrow">TRẠM {currentQuestion.station} · CÂU {questionInStation}/2 · {currentQuestion.stationLabel}</p><h3>{currentQuestion.title}</h3></div></div>
           <div className="quest-question-grid"><OpticsVisual question={currentQuestion} beamHidden={beamHidden}/><div className="quest-answer"><p>{currentQuestion.prompt}</p>{currentQuestion.kind === "choice" ? <div className="quest-choices">{currentQuestion.choices?.map((choice, index) => <button key={choice.value} type="button" className={currentResponse === choice.value ? "selected" : ""} aria-pressed={currentResponse === choice.value} onClick={() => updateResponse(choice.value)}><b>{String.fromCharCode(65 + index)}</b><span>{choice.label}</span></button>)}</div> : <label>Đáp án<div><input inputMode="decimal" value={currentResponse} onChange={(event) => updateResponse(event.target.value)} placeholder="Nhập số"/><span>{currentQuestion.unit}</span></div></label>}</div></div>
           <div className="quest-actions"><p className={feedback.type} aria-live="polite">{feedback.text}</p><button type="button" className="primary-button" onClick={checkAnswer}>Kiểm tra →</button></div>
         </fieldset> : null}
-      <div className="quest-sync"><span>{attempt.saving ? "Đang đồng bộ…" : draftStatus}</span><strong>{progress}/6 trạm</strong></div>
+      <div className="quest-sync"><span>{attempt.saving ? "Đang đồng bộ…" : draftStatus}</span><strong>{progress}/{OPTICS_QUEST_QUESTION_COUNT} câu · {Math.floor(progress / 2)}/6 trạm</strong></div>
       {attempt.message && !attempt.locked ? <p className={`form-message ${attempt.messageType}`}>{attempt.message}</p> : null}
     </div>
   );

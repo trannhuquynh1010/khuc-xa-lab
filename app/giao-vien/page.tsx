@@ -218,7 +218,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       {selectedKey === "optics-game" && (
         <>
           <section className="activity-control-panel construction-control-panel optics-game-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">✦</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.opticsGameRound}</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>Cá nhân vượt 6 trạm · điểm nhóm là trung bình · đủ 75% mới xếp hạng.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">✦</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.opticsGameRound}</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>12 câu/6 trạm · điểm nhóm là trung bình · đủ 75% mới xếp hạng.</p></div></div>
             <div className="activity-control-actions">
               <span className={`status-badge ${currentSetting.opticsGameRunning ? "open" : "closed"}`}>{currentSetting.opticsGameRunning ? "● Đang chơi" : currentSetting.isOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
               {currentSetting.isOpen ? <form action={toggleOpticsGameRunning}><input type="hidden" name="nextRunning" value={String(!currentSetting.opticsGameRunning)} /><TeacherToggleSubmitButton isOpen={currentSetting.opticsGameRunning} openLabel="Bắt đầu" closeLabel="Tạm dừng" /></form> : null}
