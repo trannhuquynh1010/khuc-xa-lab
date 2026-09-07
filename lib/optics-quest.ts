@@ -57,6 +57,20 @@ export const OPTICS_QUEST_STATION_COUNT = 6;
 export const OPTICS_QUEST_QUESTIONS_PER_STATION = 2;
 export const OPTICS_QUEST_QUESTION_COUNT = OPTICS_QUEST_STATION_COUNT * OPTICS_QUEST_QUESTIONS_PER_STATION;
 export const OPTICS_QUEST_MAX_ENERGY = OPTICS_QUEST_QUESTION_COUNT * 3;
+export const OPTICS_QUEST_GROUP_COLORS: Record<string, string> = {
+  "Nhóm 1": "#ff6b6b",
+  "Nhóm 2": "#ff9f43",
+  "Nhóm 3": "#f6d74b",
+  "Nhóm 4": "#9fe870",
+  "Nhóm 5": "#4fd1c5",
+  "Nhóm 6": "#60a5fa",
+  "Nhóm 7": "#a78bfa",
+  "Nhóm 8": "#f472b6",
+};
+
+export function getOpticsQuestGroupColor(groupName: string) {
+  return OPTICS_QUEST_GROUP_COLORS[groupName] ?? "#c4ff5c";
+}
 
 const stations: OpticsQuestQuestion[][] = [
   [

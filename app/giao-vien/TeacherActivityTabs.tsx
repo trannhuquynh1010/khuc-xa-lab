@@ -30,6 +30,7 @@ export default function TeacherActivityTabs({ items, selectedKey, selectedClass,
         return (
           <Link
             key={activity.key}
+            data-activity={activity.key}
             className={visibleKey === activity.key ? "active" : ""}
             href={href}
             onClick={(event) => {

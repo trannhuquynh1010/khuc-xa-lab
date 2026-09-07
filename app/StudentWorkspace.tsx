@@ -110,7 +110,7 @@ export default function StudentWorkspace() {
         <>
           <nav className="activity-tabs" role="tablist" aria-label="Công cụ thí nghiệm đang mở">
             {activityDefinitions.filter((activity) => openKeys.includes(activity.key)).map((activity) => (
-              <button key={activity.key} type="button" role="tab" aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
+              <button key={activity.key} type="button" role="tab" data-activity={activity.key} aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
             ))}
           </nav>
           <div hidden={visibleActiveKey !== "refraction"}><LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /></div>

@@ -81,10 +81,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .activity-tabs button:hover { transform: translateY(-2px); box-shadow: 3px 3px 0 var(--ink); }
 .activity-tabs button.active { background: var(--ink); color: #fff; box-shadow: 4px 4px 0 var(--purple); }
 .activity-symbol { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: .9rem; font-weight: 900; }
-.activity-tabs button:nth-child(2) .activity-symbol { background: var(--purple); }
-.activity-tabs button:nth-child(3) .activity-symbol { background: var(--orange); }
-.activity-tabs button:nth-child(4) .activity-symbol { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
-.activity-tabs button:nth-child(5) .activity-symbol { color: #171717; background: var(--lime); }
+.activity-tabs [data-activity="prism-colors"] .activity-symbol { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
+.activity-tabs [data-activity="optics-game"] .activity-symbol { color: #171717; background: var(--lime); }
+.activity-tabs [data-activity="ohm"] .activity-symbol { background: var(--purple); }
+.activity-tabs [data-activity="resistance-factors"] .activity-symbol { background: var(--orange); }
 
 .lab-card { display: grid; min-width: 0; gap: 15px; background: transparent; }
 .lab-card > section, .submit-row { min-width: 0; padding: 24px 28px; border: 1.5px solid var(--ink); border-radius: 24px; background: var(--paper); }
@@ -651,10 +651,10 @@ footer a { text-decoration: none; }
 .teacher-tabs a.active { background: var(--ink); color: #fff; box-shadow: 4px 4px 0 var(--purple); }
 .teacher-tab-label { display: flex; align-items: center; gap: 9px; }
 .teacher-tab-label b { display: grid; place-items: center; width: 37px; height: 37px; flex: 0 0 37px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: .76rem; }
-.teacher-tabs a:nth-child(2) .teacher-tab-label b { background: var(--purple); }
-.teacher-tabs a:nth-child(3) .teacher-tab-label b { background: var(--orange); }
-.teacher-tabs a:nth-child(4) .teacher-tab-label b { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
-.teacher-tabs a:nth-child(5) .teacher-tab-label b { color: #171717; background: var(--lime); }
+.teacher-tabs [data-activity="prism-colors"] .teacher-tab-label b { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
+.teacher-tabs [data-activity="optics-game"] .teacher-tab-label b { color: #171717; background: var(--lime); }
+.teacher-tabs [data-activity="ohm"] .teacher-tab-label b { background: var(--purple); }
+.teacher-tabs [data-activity="resistance-factors"] .teacher-tab-label b { background: var(--orange); }
 .teacher-tabs small { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 900; white-space: nowrap; }
 .teacher-tabs small::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #aaa49a; }
 .teacher-tabs small.open { color: var(--success); }
@@ -887,13 +887,15 @@ details .table-scroll { margin-top: 12px; }
 .presentation-shell .ohm-result-layout .single-chart.teacher-chart-grid { margin: 0; }
 
 .quest-shell { overflow: hidden; border: 1.5px solid var(--ink); border-radius: 24px; background: #f5f2ea; box-shadow: 6px 6px 0 var(--ink); }
-.optics-quest-game { min-width: 0; }
+.optics-quest-game { min-width: 0; --quest-group-color: var(--lime); }
 .quest-hero { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 25px 28px; color: #fff; background: radial-gradient(circle at 78% 15%, rgba(196,255,92,.2), transparent 27%), linear-gradient(125deg, #12102b, #322366 62%, #51358f); }
 .quest-hero h2 { margin: 2px 0 5px; font-size: clamp(1.65rem, 3vw, 2.6rem); }
 .quest-hero p { margin: 0; color: #e7e2ff; }
+.quest-team-badge { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; padding: 5px 10px; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; color: #fff; background: rgba(10,8,30,.42); font-size: .72rem; font-weight: 900; }
+.quest-team-badge i, .quest-table-group i { width: 11px; height: 11px; border-radius: 50%; background: var(--quest-group-color); box-shadow: 0 0 0 3px rgba(255,255,255,.16); }
 .quest-energy { display: grid; min-width: 142px; padding: 13px 18px; border: 1px solid rgba(255,255,255,.35); border-radius: 17px; background: rgba(10,8,30,.48); text-align: center; }
 .quest-energy span { font-size: .7rem; font-weight: 900; letter-spacing: .13em; }
-.quest-energy strong { color: var(--lime); font-size: 2rem; line-height: 1.15; }
+.quest-energy strong { color: var(--quest-group-color); font-size: 2rem; line-height: 1.15; }
 .quest-energy small { font-variant-numeric: tabular-nums; color: #fff; }
 .quest-identity { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .32fr); gap: 12px; margin: 0; padding: 16px 24px; border: 0; border-bottom: 1px solid var(--soft-line); background: #fff; }
 .quest-identity .practice-student-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -905,7 +907,7 @@ details .table-scroll { margin-top: 12px; }
 .quest-map > div { position: relative; z-index: 2; display: grid; justify-items: center; gap: 5px; }
 .quest-map b { display: grid; place-items: center; width: 54px; height: 54px; border: 3px solid #d5d0c8; border-radius: 50%; color: #77716a; background: #fff; font-size: 1.3rem; }
 .quest-map .done b { color: var(--ink); border-color: var(--lime); background: var(--lime); }
-.quest-map .current b { color: #fff; border-color: var(--purple); background: var(--purple); box-shadow: 0 0 0 7px rgba(104,75,255,.12); }
+.quest-map .current b { color: var(--ink); border-color: var(--quest-group-color); background: var(--quest-group-color); box-shadow: 0 0 0 7px rgba(104,75,255,.12); }
 .quest-map span { font-size: .76rem; font-weight: 900; }
 .quest-lobby, .quest-finish, .quest-final { display: flex; align-items: center; gap: 18px; margin: 18px 24px 24px; padding: 24px; border: 1.5px solid var(--ink); border-radius: 20px; background: #fff; }
 .quest-lobby > span, .quest-finish > span, .quest-final > div > span { display: grid; place-items: center; width: 60px; height: 60px; flex: 0 0 60px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: 1.8rem; }
@@ -914,9 +916,9 @@ details .table-scroll { margin-top: 12px; }
 .quest-final { justify-content: space-between; background: #edffd2; }
 .quest-final > div { position: relative; padding-left: 78px; }
 .quest-final > div > span { position: absolute; left: 0; top: 0; }
-.quest-question { margin: 0 24px 24px; padding: 22px; border: 1.5px solid var(--ink); border-radius: 22px; background: #fff; box-shadow: 4px 4px 0 var(--purple); }
+.quest-question { margin: 0 24px 24px; padding: 22px; border: 1.5px solid var(--ink); border-radius: 22px; background: #fff; box-shadow: 4px 4px 0 var(--quest-group-color); }
 .quest-question-head { display: flex; align-items: center; gap: 14px; margin-bottom: 15px; }
-.quest-question-head > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 15px; color: #fff; background: var(--purple); font-size: 1.5rem; }
+.quest-question-head > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 15px; color: var(--ink); background: var(--quest-group-color); font-size: 1.5rem; }
 .quest-question-head h3 { margin: 2px 0 0; font-size: 1.45rem; }
 .quest-question-grid { display: grid; grid-template-columns: minmax(330px, .9fr) minmax(360px, 1.1fr); gap: 20px; align-items: stretch; }
 .quest-visual { width: 100%; min-height: 260px; border-radius: 18px; background: linear-gradient(160deg, #17142c, #28214d); }
@@ -960,33 +962,35 @@ details .table-scroll { margin-top: 12px; }
 .quest-dashboard-status b { color: var(--lime); }
 .quest-dashboard-status .running { color: var(--lime); }
 .quest-podium { display: flex; justify-content: center; gap: 10px; margin: 18px 0; }
-.quest-podium > div { display: grid; min-width: 140px; padding: 12px; border-radius: 15px; color: var(--ink); background: #fff; text-align: center; }
-.quest-podium .place-1 { order: 2; background: var(--lime); transform: translateY(-6px); }
+.quest-podium > div { display: grid; min-width: 140px; padding: 12px; border: 3px solid var(--quest-group-color); border-radius: 15px; color: var(--ink); background: var(--quest-group-color); text-align: center; }
+.quest-podium .place-1 { order: 2; transform: translateY(-6px); box-shadow: 0 0 0 4px rgba(255,255,255,.16); }
 .quest-podium .place-2 { order: 1; }
 .quest-podium .place-3 { order: 3; }
 .quest-podium span { font-size: 1.3rem; font-weight: 900; }
 .quest-no-rank { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 72px; margin: 16px 0; border: 1px dashed #514b73; border-radius: 15px; color: #bbb5d4; }
 .quest-no-rank span { color: var(--lime); font-size: 1.8rem; }
 .quest-group-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.quest-group-card { padding: 13px; border: 1px solid #484269; border-radius: 16px; background: #211d3b; }
-.quest-group-card.eligible { border-color: var(--lime); }
+.quest-group-card { padding: 13px; border: 1px solid var(--quest-group-color); border-radius: 16px; background: #211d3b; box-shadow: inset 4px 0 0 var(--quest-group-color); }
+.quest-group-card.eligible { box-shadow: inset 4px 0 0 var(--quest-group-color), 0 0 0 2px var(--quest-group-color); }
 .quest-group-card header { display: flex; justify-content: space-between; align-items: center; }
 .quest-group-card header > div { display: flex; align-items: center; gap: 8px; }
-.quest-group-card header span { display: grid; place-items: center; min-width: 30px; height: 30px; border-radius: 8px; color: var(--ink); background: var(--lime); font-size: .75rem; font-weight: 900; }
-.quest-group-card header > b { color: var(--lime); font-size: 1.35rem; }
+.quest-group-card header span { display: grid; place-items: center; min-width: 30px; height: 30px; border-radius: 8px; color: var(--ink); background: var(--quest-group-color); font-size: .75rem; font-weight: 900; }
+.quest-group-card header > b { color: var(--quest-group-color); font-size: 1.35rem; }
 .quest-group-card header small { font-size: .7rem; }
 .quest-group-progress { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
 .quest-group-progress i { flex: 1; height: 6px; overflow: hidden; border-radius: 10px; background: #393451; }
-.quest-group-progress i span { display: block; height: 100%; background: var(--lime); }
+.quest-group-progress i span { display: block; height: 100%; background: var(--quest-group-color); }
 .quest-group-progress small { white-space: nowrap; color: #bdb7d1; }
 .quest-member-dots { display: flex; gap: 4px; flex-wrap: wrap; min-height: 25px; }
 .quest-member-dots span { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; color: #aaa4bd; background: #393451; font-size: .66rem; font-weight: 900; }
-.quest-member-dots span.playing { color: #fff; background: var(--purple); }
-.quest-member-dots span.finished { color: var(--ink); background: var(--lime); }
+.quest-member-dots span.playing, .quest-member-dots span.finished { color: var(--ink); background: var(--quest-group-color); }
+.quest-member-dots span.finished { box-shadow: 0 0 0 2px #fff; }
 .quest-player-details { margin-top: 14px; border: 1px solid #484269; border-radius: 14px; }
 .quest-player-details summary { padding: 12px 14px; cursor: pointer; font-weight: 800; }
 .quest-player-details table { width: 100%; border-collapse: collapse; }
 .quest-player-details th, .quest-player-details td { padding: 9px; border-top: 1px solid #393451; text-align: left; }
+.quest-table-group { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.quest-table-group i { display: inline-block; box-shadow: none; }
 .optics-quest-dashboard.presentation { margin-top: 0; padding: 26px; }
 .optics-quest-dashboard.presentation .quest-group-card { min-height: 150px; }
 .quest-presentation-header { background: linear-gradient(125deg, #17142c, #3f2a75); }

@@ -7,20 +7,6 @@ export const activityDefinitions = [
     description: "Đo i, r và kiểm tra định luật khúc xạ.",
   },
   {
-    key: "ohm",
-    symbol: "I–U",
-    shortLabel: "Sự phụ thuộc của I vào U",
-    label: "Sự phụ thuộc của cường độ dòng điện vào hiệu điện thế",
-    description: "Đo U, I và quan sát mối liên hệ.",
-  },
-  {
-    key: "resistance-factors",
-    symbol: "Ω",
-    shortLabel: "Yếu tố của R",
-    label: "Các yếu tố ảnh hưởng đến điện trở",
-    description: "Khảo sát chất liệu, chiều dài và tiết diện.",
-  },
-  {
     key: "prism-colors",
     symbol: "△",
     shortLabel: "Lăng kính & màu sắc",
@@ -33,6 +19,20 @@ export const activityDefinitions = [
     shortLabel: "Photon Quest",
     label: "Photon Quest · Hải đăng ánh sáng",
     description: "Cuộc đua cá nhân qua 6 trạm quang học.",
+  },
+  {
+    key: "ohm",
+    symbol: "I–U",
+    shortLabel: "Sự phụ thuộc của I vào U",
+    label: "Sự phụ thuộc của cường độ dòng điện vào hiệu điện thế",
+    description: "Đo U, I và quan sát mối liên hệ.",
+  },
+  {
+    key: "resistance-factors",
+    symbol: "Ω",
+    shortLabel: "Yếu tố của R",
+    label: "Các yếu tố ảnh hưởng đến điện trở",
+    description: "Khảo sát chất liệu, chiều dài và tiết diện.",
   },
 ] as const;
 

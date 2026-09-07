@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatStudentNumber, groupNames } from "@/lib/classes";
 import {
   calculateOpticsEnergy,
+  getOpticsQuestGroupColor,
   getOpticsQuestQuestion,
   getOpticsQuestQuestions,
   isOpticsQuestAnswerCorrect,
@@ -99,6 +100,7 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
     .filter((question) => question.station === index + 1))
     .filter((stationQuestions) => stationQuestions.length === OPTICS_QUEST_QUESTIONS_PER_STATION && stationQuestions.every((question) => clearedSet.has(question.id))).length;
   const skippedCount = pendingQuestions.filter((question) => deferredSet.has(question.id)).length;
+  const groupColorStyle = { "--quest-group-color": getOpticsQuestGroupColor(groupName) } as CSSProperties;
   const ownPlayer = snapshot?.players.find((player) => player.studentNumber === Number(attempt.studentNumber));
 
   useEffect(() => {
@@ -143,8 +145,8 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
 
   const identityLocked = progress > 0 || deferredQuestionIds.length > 0 || attempt.locked;
   return (
-    <div className="optics-quest-game">
-      <div className="quest-hero"><div><p className="eyebrow">VÒNG {round} · ĐUA CÁ NHÂN</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>6 trạm · mỗi trạm 2 câu. Đúng ngay lần đầu nhận 3 năng lượng.</p></div><div className="quest-energy"><span>NĂNG LƯỢNG</span><strong>{energy}/{OPTICS_QUEST_MAX_ENERGY}</strong><small>{startedAt ? formatTime(elapsedSeconds) : "--:--"}</small></div></div>
+    <div className="optics-quest-game" style={groupColorStyle}>
+      <div className="quest-hero"><div><p className="eyebrow">VÒNG {round} · ĐUA CÁ NHÂN</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>6 trạm · mỗi trạm 2 câu. Đúng ngay lần đầu nhận 3 năng lượng.</p>{groupName ? <span className="quest-team-badge"><i />{groupName}</span> : null}</div><div className="quest-energy"><span>NĂNG LƯỢNG</span><strong>{energy}/{OPTICS_QUEST_MAX_ENERGY}</strong><small>{startedAt ? formatTime(elapsedSeconds) : "--:--"}</small></div></div>
 
       <fieldset className="quest-identity" disabled={identityLocked}>
         <legend className="sr-only">Thông tin người chơi</legend>
