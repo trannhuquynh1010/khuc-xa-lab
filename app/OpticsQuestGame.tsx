@@ -48,6 +48,7 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
   const [questionIds, setQuestionIds] = useState<string[]>([]);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [clearedQuestionIds, setClearedQuestionIds] = useState<string[]>([]);
+  const [deferredQuestionIds, setDeferredQuestionIds] = useState<string[]>([]);
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState<{ type: "idle" | "correct" | "incorrect"; text: string }>({ type: "idle", text: "" });
   const [beamHidden, setBeamHidden] = useState(false);
@@ -55,7 +56,7 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
   const [countdown, setCountdown] = useState(0);
   const [snapshot, setSnapshot] = useState<OpticsQuestSnapshot | null>(null);
 
-  const answers = useMemo<OpticsQuestAnswers>(() => ({ round, groupName, questionIds, responses, clearedQuestionIds, attemptCounts }), [round, groupName, questionIds, responses, clearedQuestionIds, attemptCounts]);
+  const answers = useMemo<OpticsQuestAnswers>(() => ({ round, groupName, questionIds, responses, clearedQuestionIds, deferredQuestionIds, attemptCounts }), [round, groupName, questionIds, responses, clearedQuestionIds, deferredQuestionIds, attemptCounts]);
   const attempt = usePracticeAttempt("optics-quest", answers, clearedQuestionIds.length);
   const identityKey = `${round}:${attempt.className || "none"}:${attempt.studentNumber || "none"}`;
   const localDraftKey = deviceDraftKey(`optics-quest:${identityKey}`);
@@ -63,7 +64,7 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setQuestionIds(attempt.identityReady ? getOpticsQuestQuestions(Number(attempt.studentNumber), round).map((question) => question.id) : []);
-      setResponses({}); setClearedQuestionIds([]); setAttemptCounts({}); setFeedback({ type: "idle", text: "" }); setBeamHidden(false);
+      setResponses({}); setClearedQuestionIds([]); setDeferredQuestionIds([]); setAttemptCounts({}); setFeedback({ type: "idle", text: "" }); setBeamHidden(false);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [attempt.identityReady, attempt.studentNumber, identityKey, round]);
@@ -77,18 +78,27 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
     if (typeof value.groupName === "string" && groupNames.includes(value.groupName as (typeof groupNames)[number])) setGroupName(value.groupName);
     if (isDraftRecord(value.responses)) setResponses(Object.fromEntries(Object.entries(value.responses).filter((entry): entry is [string, string] => typeof entry[1] === "string")));
     if (Array.isArray(value.clearedQuestionIds)) setClearedQuestionIds(value.clearedQuestionIds.filter((item): item is string => typeof item === "string" && expected.includes(item)));
+    if (Array.isArray(value.deferredQuestionIds)) setDeferredQuestionIds(value.deferredQuestionIds.filter((item): item is string => typeof item === "string" && expected.includes(item)));
     if (isDraftRecord(value.attemptCounts)) setAttemptCounts(Object.fromEntries(Object.entries(value.attemptCounts).map(([key, count]) => [key, Math.max(0, Math.trunc(Number(count) || 0))])));
   });
 
   const questions = useMemo(() => questionIds.map(getOpticsQuestQuestion).filter((question): question is OpticsQuestQuestion => Boolean(question)), [questionIds]);
   const clearedSet = useMemo(() => new Set(clearedQuestionIds), [clearedQuestionIds]);
   const progress = questions.filter((question) => clearedSet.has(question.id) && isOpticsQuestAnswerCorrect(question, responses[question.id] ?? "")).length;
-  const currentQuestion = questions.find((question) => !clearedSet.has(question.id));
+  const pendingQuestions = questions.filter((question) => !clearedSet.has(question.id));
+  const deferredSet = new Set(deferredQuestionIds);
+  const currentQuestion = pendingQuestions.find((question) => !deferredSet.has(question.id))
+    ?? deferredQuestionIds.map(getOpticsQuestQuestion).find((question): question is OpticsQuestQuestion => question !== undefined && !clearedSet.has(question.id));
   const currentResponse = currentQuestion ? responses[currentQuestion.id] ?? "" : "";
   const energy = calculateOpticsEnergy(questionIds, clearedSet, attemptCounts);
   const finished = questions.length === OPTICS_QUEST_QUESTION_COUNT && progress === OPTICS_QUEST_QUESTION_COUNT;
-  const activeStationIndex = Math.min(OPTICS_QUEST_STATION_COUNT - 1, Math.floor(progress / OPTICS_QUEST_QUESTIONS_PER_STATION));
-  const questionInStation = progress % OPTICS_QUEST_QUESTIONS_PER_STATION + 1;
+  const activeStationIndex = currentQuestion ? currentQuestion.station - 1 : OPTICS_QUEST_STATION_COUNT - 1;
+  const currentQuestionIndex = currentQuestion ? questions.findIndex((question) => question.id === currentQuestion.id) : 0;
+  const questionInStation = currentQuestionIndex % OPTICS_QUEST_QUESTIONS_PER_STATION + 1;
+  const completedStations = Array.from({ length: OPTICS_QUEST_STATION_COUNT }, (_, index) => questions
+    .filter((question) => question.station === index + 1))
+    .filter((stationQuestions) => stationQuestions.length === OPTICS_QUEST_QUESTIONS_PER_STATION && stationQuestions.every((question) => clearedSet.has(question.id))).length;
+  const skippedCount = pendingQuestions.filter((question) => deferredSet.has(question.id)).length;
   const ownPlayer = snapshot?.players.find((player) => player.studentNumber === Number(attempt.studentNumber));
 
   useEffect(() => {
@@ -117,10 +127,21 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
     if (!isOpticsQuestAnswerCorrect(currentQuestion, currentResponse)) { setBeamHidden(true); setFeedback({ type: "incorrect", text: "Chưa đúng. Tia sáng đã tắt — hãy suy luận lại." }); return; }
     setBeamHidden(false);
     setClearedQuestionIds((current) => [...current, currentQuestion.id]);
+    setDeferredQuestionIds((current) => current.filter((id) => id !== currentQuestion.id));
     setFeedback({ type: "correct", text: currentQuestion.explanation });
   }
 
-  const identityLocked = progress > 0 || attempt.locked;
+  function skipQuestion() {
+    if (!currentQuestion || pendingQuestions.length <= 1) {
+      setFeedback({ type: "idle", text: "Đây là câu cuối chưa hoàn thành." });
+      return;
+    }
+    setDeferredQuestionIds((current) => [...current.filter((id) => id !== currentQuestion.id), currentQuestion.id]);
+    setBeamHidden(false);
+    setFeedback({ type: "idle", text: "Đã chuyển câu trước xuống cuối. Em có thể quay lại làm sau." });
+  }
+
+  const identityLocked = progress > 0 || deferredQuestionIds.length > 0 || attempt.locked;
   return (
     <div className="optics-quest-game">
       <div className="quest-hero"><div><p className="eyebrow">VÒNG {round} · ĐUA CÁ NHÂN</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>6 trạm · mỗi trạm 2 câu. Đúng ngay lần đầu nhận 3 năng lượng.</p></div><div className="quest-energy"><span>NĂNG LƯỢNG</span><strong>{energy}/{OPTICS_QUEST_MAX_ENERGY}</strong><small>{startedAt ? formatTime(elapsedSeconds) : "--:--"}</small></div></div>
@@ -133,7 +154,8 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
 
       <div className="quest-map" aria-label={`Đã hoàn thành ${progress}/${OPTICS_QUEST_QUESTION_COUNT} câu`}>
         {Array.from({ length: OPTICS_QUEST_STATION_COUNT }, (_, index) => {
-          const done = progress >= (index + 1) * OPTICS_QUEST_QUESTIONS_PER_STATION;
+          const stationQuestions = questions.filter((question) => question.station === index + 1);
+          const done = stationQuestions.length === OPTICS_QUEST_QUESTIONS_PER_STATION && stationQuestions.every((question) => clearedSet.has(question.id));
           const state = done ? "done" : index === activeStationIndex ? "current" : "locked";
           return <div key={index} className={state}><b>{done ? "✓" : stationIcons[index]}</b><span>{index + 1}</span></div>;
         })}
@@ -150,9 +172,9 @@ export default function OpticsQuestGame({ round, running, startedAt }: { round: 
           <legend className="sr-only">Trạm {currentQuestion.station}</legend>
           <div className="quest-question-head"><span>{stationIcons[currentQuestion.station - 1]}</span><div><p className="eyebrow">TRẠM {currentQuestion.station} · CÂU {questionInStation}/2 · {currentQuestion.stationLabel}</p><h3>{currentQuestion.title}</h3></div></div>
           <div className="quest-question-grid"><OpticsVisual question={currentQuestion} beamHidden={beamHidden}/><div className="quest-answer"><p>{currentQuestion.prompt}</p>{currentQuestion.kind === "choice" ? <div className="quest-choices">{currentQuestion.choices?.map((choice, index) => <button key={choice.value} type="button" className={currentResponse === choice.value ? "selected" : ""} aria-pressed={currentResponse === choice.value} onClick={() => updateResponse(choice.value)}><b>{String.fromCharCode(65 + index)}</b><span>{choice.label}</span></button>)}</div> : <label>Đáp án<div><input inputMode="decimal" value={currentResponse} onChange={(event) => updateResponse(event.target.value)} placeholder="Nhập số"/><span>{currentQuestion.unit}</span></div></label>}</div></div>
-          <div className="quest-actions"><p className={feedback.type} aria-live="polite">{feedback.text}</p><button type="button" className="primary-button" onClick={checkAnswer}>Kiểm tra →</button></div>
+          <div className="quest-actions"><p className={feedback.type} aria-live="polite">{feedback.text || (skippedCount ? `${skippedCount} câu đã bỏ qua sẽ xuất hiện lại sau.` : "")}</p><div className="quest-action-buttons"><button type="button" className="secondary-button" disabled={pendingQuestions.length <= 1} onClick={skipQuestion}>Bỏ qua</button><button type="button" className="primary-button" onClick={checkAnswer}>Kiểm tra →</button></div></div>
         </fieldset> : null}
-      <div className="quest-sync"><span>{attempt.saving ? "Đang đồng bộ…" : draftStatus}</span><strong>{progress}/{OPTICS_QUEST_QUESTION_COUNT} câu · {Math.floor(progress / 2)}/6 trạm</strong></div>
+      <div className="quest-sync"><span>{attempt.saving ? "Đang đồng bộ…" : draftStatus}</span><strong>{progress}/{OPTICS_QUEST_QUESTION_COUNT} câu · {completedStations}/6 trạm{skippedCount ? ` · bỏ qua ${skippedCount}` : ""}</strong></div>
       {attempt.message && !attempt.locked ? <p className={`form-message ${attempt.messageType}`}>{attempt.message}</p> : null}
     </div>
   );

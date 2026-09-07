@@ -946,6 +946,8 @@ details .table-scroll { margin-top: 12px; }
 .quest-actions p { margin: 0; font-weight: 750; }
 .quest-actions p.incorrect { color: #b42318; }
 .quest-actions p.correct { color: #237a3b; }
+.quest-action-buttons { display: flex; gap: 10px; flex: 0 0 auto; }
+.quest-action-buttons button:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
 .quest-sync { display: flex; justify-content: space-between; padding: 12px 24px; border-top: 1px solid var(--soft-line); background: #fff; font-size: .82rem; }
 .quest-sync strong { color: var(--purple); }
 .optics-game-control-panel { background: #f0ebff; }
@@ -1156,6 +1158,7 @@ details .table-scroll { margin-top: 12px; }
   .race-class-grid, .ohm-race-dashboard.presentation .race-class-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .ohm-race-dashboard.presentation { padding: 15px 10px; }
   .quest-hero, .quest-dashboard-head, .quest-actions, .quest-final { align-items: stretch; flex-direction: column; }
+  .quest-action-buttons button { flex: 1; }
   .quest-energy { width: 100%; }
   .quest-identity, .quest-identity .practice-student-row { grid-template-columns: 1fr; }
   .quest-map { overflow-x: auto; grid-template-columns: repeat(6, 68px); margin-inline: 12px; padding-bottom: 6px; }
