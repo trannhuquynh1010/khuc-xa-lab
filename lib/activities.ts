@@ -25,7 +25,7 @@ export const activityDefinitions = [
     symbol: "◎",
     shortLabel: "Ôn tập Quang học",
     label: "Ôn tập Quang học cá nhân hóa",
-    description: "12 câu thích ứng về khúc xạ, phản xạ toàn phần, lăng kính và màu sắc.",
+    description: "20 câu thích ứng về khúc xạ, phản xạ toàn phần, lăng kính và màu sắc.",
   },
   {
     key: "ohm",

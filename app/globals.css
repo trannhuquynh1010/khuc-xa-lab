@@ -1046,7 +1046,7 @@ details .table-scroll { margin-top: 12px; }
 .difficulty-chip.level-1 { box-shadow: inset 4px 0 0 var(--adaptive-blue); }
 .difficulty-chip.level-2 { box-shadow: inset 4px 0 0 var(--adaptive-green); }
 .difficulty-chip.level-3 { box-shadow: inset 4px 0 0 var(--adaptive-purple); }
-.adaptive-step-strip { display: grid; grid-template-columns: repeat(12, minmax(34px, 1fr)); gap: 7px; padding: 14px 22px 0; }
+.adaptive-step-strip { display: grid; grid-template-columns: repeat(20, minmax(34px, 1fr)); gap: 7px; padding: 14px 22px 0; overflow-x: auto; }
 .adaptive-step-strip button { min-width: 34px; height: 36px; border: 1.2px solid var(--soft-line); border-radius: 10px; background: #f4f1ea; font-size: .72rem; font-weight: 900; cursor: pointer; }
 .adaptive-step-strip button:disabled { color: #aaa49a; cursor: default; }
 .adaptive-step-strip button.done { color: var(--ink); border-color: var(--ink); background: #dfffa8; }
@@ -1112,7 +1112,7 @@ details .table-scroll { margin-top: 12px; }
   .prism-guide-layout, .color-challenge-layout { grid-template-columns: 1fr; }
   .resistivity-materials { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .race-class-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-  .adaptive-step-strip { overflow-x: auto; grid-template-columns: repeat(12, 42px); }
+  .adaptive-step-strip { grid-template-columns: repeat(20, 42px); }
 }
 
 @media (max-width: 820px) {

@@ -1,4 +1,4 @@
-export const OPTICS_REVIEW_QUESTION_COUNT = 12;
+export const OPTICS_REVIEW_QUESTION_COUNT = 20;
 
 export type OpticsReviewTopic = "refraction" | "tir" | "prism" | "color";
 export type OpticsReviewDifficulty = 1 | 2 | 3;
@@ -433,6 +433,261 @@ export const opticsReviewQuestions: readonly OpticsReviewQuestion[] = [
       { value: "emit", label: "Vật đang tự phát ra ánh sáng xanh lục mạnh" },
     ],
     answers: ["green-reflect", "red-poor", "need-source"], explanation: "Hai quan sát cho thấy bề mặt chọn lọc màu phản xạ và màu nguồn quyết định phần ánh sáng có thể tới mắt.",
+  },
+
+  {
+    id: "r1-normal-perpendicular", topic: "refraction", difficulty: 1, kind: "true-false",
+    prompt: "Pháp tuyến tại điểm tới vuông góc với mặt phân cách giữa hai môi trường.",
+    choices: trueFalseChoices, answers: ["true"], explanation: "Pháp tuyến là đường thẳng vuông góc với mặt phân cách tại đúng điểm tia sáng tới.",
+  },
+  {
+    id: "r1-normal-incidence", topic: "refraction", difficulty: 1, kind: "single",
+    prompt: "Tia sáng truyền từ không khí vào nước theo phương vuông góc với mặt nước. Cặp góc tới i và góc khúc xạ r là gì?",
+    choices: [
+      { value: "zero", label: "i = 0° và r = 0°" },
+      { value: "ninety", label: "i = 90° và r = 90°" },
+      { value: "mixed", label: "i = 0° và r = 90°" },
+      { value: "unknown", label: "Không thể xác định" },
+    ],
+    answers: ["zero"], explanation: "Tia đi theo pháp tuyến nên không đổi hướng; cả hai góc đo với pháp tuyến đều bằng 0°.",
+  },
+  {
+    id: "r2-ratio-calculate", topic: "refraction", difficulty: 2, kind: "single",
+    context: "Trong một lần đo, sin i = 0,60 và sin r = 0,45.",
+    prompt: "Tỉ số sin i / sin r gần bằng bao nhiêu?",
+    choices: [
+      { value: "1.33", label: "1,33" },
+      { value: "0.75", label: "0,75" },
+      { value: "1.05", label: "1,05" },
+      { value: "2.25", label: "2,25" },
+    ],
+    answers: ["1.33"], explanation: "0,60 : 0,45 ≈ 1,33.",
+  },
+  {
+    id: "r2-water-air-properties", topic: "refraction", difficulty: 2, kind: "multiple",
+    prompt: "Tia sáng truyền xiên từ nước ra không khí và chưa xảy ra phản xạ toàn phần. Chọn các nhận định đúng.",
+    choices: [
+      { value: "faster", label: "Ánh sáng truyền nhanh hơn trong không khí" },
+      { value: "away", label: "Tia khúc xạ lệch xa pháp tuyến" },
+      { value: "frequency", label: "Tần số ánh sáng không đổi" },
+      { value: "r-less", label: "Góc khúc xạ nhỏ hơn góc tới" },
+    ],
+    answers: ["faster", "away", "frequency"], explanation: "Sang môi trường chiết quang kém hơn, ánh sáng nhanh hơn và tia lệch xa pháp tuyến; tần số vẫn do nguồn quyết định.",
+  },
+  {
+    id: "r3-graph-slopes", topic: "refraction", difficulty: 3, kind: "single",
+    context: "Với tia đi từ không khí, đồ thị y = sin i theo x = sin r của môi trường A có hệ số góc 1,33; của B có hệ số góc 1,52.",
+    prompt: "Kết luận nào phù hợp nhất?",
+    choices: [
+      { value: "b-higher", label: "B có chiết suất lớn hơn A" },
+      { value: "a-higher", label: "A có chiết suất lớn hơn B" },
+      { value: "same", label: "Hai môi trường có cùng chiết suất" },
+      { value: "no-link", label: "Hệ số góc không liên quan đến chiết suất" },
+    ],
+    answers: ["b-higher"], explanation: "Khi tia đi từ không khí, hệ số góc sin i / sin r gần bằng chiết suất của môi trường khúc xạ.",
+  },
+  {
+    id: "r3-parallel-slab", topic: "refraction", difficulty: 3, kind: "multiple",
+    context: "Một tia sáng đi xiên từ không khí qua một bản kính có hai mặt song song rồi trở lại không khí.",
+    prompt: "Chọn các nhận định đúng về tia ló cuối cùng.",
+    choices: [
+      { value: "parallel", label: "Tia ló song song với tia tới" },
+      { value: "shift", label: "Tia ló có thể bị dịch ngang so với tia tới" },
+      { value: "frequency", label: "Tần số ánh sáng không đổi trong cả quá trình" },
+      { value: "toward", label: "Tia ló cuối cùng luôn gần pháp tuyến hơn tia tới" },
+    ],
+    answers: ["parallel", "shift", "frequency"], explanation: "Hai mặt song song làm độ lệch góc ở mặt ra bù lại mặt vào; tia ló song song nhưng có thể bị dịch ngang.",
+  },
+
+  {
+    id: "t1-air-glass-impossible", topic: "tir", difficulty: 1, kind: "true-false",
+    prompt: "Tia sáng truyền từ không khí vào thủy tinh không thể xảy ra phản xạ toàn phần tại mặt phân cách đó.",
+    choices: trueFalseChoices, answers: ["true"], explanation: "Phản xạ toàn phần chỉ có thể xảy ra khi tia đi từ môi trường chiết quang hơn sang môi trường kém chiết quang hơn.",
+  },
+  {
+    id: "t1-less-than-critical", topic: "tir", difficulty: 1, kind: "single",
+    prompt: "Tia đi từ thủy tinh ra không khí với góc tới nhỏ hơn góc giới hạn. Hiện tượng nào phù hợp?",
+    choices: [
+      { value: "refract", label: "Vẫn có tia khúc xạ truyền ra ngoài" },
+      { value: "tir", label: "Chỉ có phản xạ toàn phần" },
+      { value: "stop", label: "Tia sáng dừng tại mặt phân cách" },
+      { value: "absorb", label: "Toàn bộ ánh sáng bị hấp thụ" },
+    ],
+    answers: ["refract"], explanation: "Khi i chưa vượt góc giới hạn, điều kiện phản xạ toàn phần chưa được thỏa mãn.",
+  },
+  {
+    id: "t2-critical-160", topic: "tir", difficulty: 2, kind: "single",
+    context: "Tia sáng đi từ môi trường có n₁ = 1,60 ra không khí có n₂ = 1,00.",
+    prompt: "Sin của góc giới hạn bằng bao nhiêu?",
+    choices: [
+      { value: "0.625", label: "0,625" },
+      { value: "1.60", label: "1,60" },
+      { value: "0.60", label: "0,60" },
+      { value: "2.60", label: "2,60" },
+    ],
+    answers: ["0.625"], explanation: "sin i giới hạn = n₂/n₁ = 1,00/1,60 = 0,625.",
+  },
+  {
+    id: "t2-mirror-compare", topic: "tir", difficulty: 2, kind: "multiple",
+    prompt: "Chọn các đặc điểm đúng của phản xạ toàn phần so với phản xạ trên gương thường.",
+    choices: [
+      { value: "transparent", label: "Có thể xảy ra tại mặt phân cách của hai môi trường trong suốt" },
+      { value: "no-coating", label: "Không cần lớp kim loại phản xạ" },
+      { value: "no-transmitted", label: "Khi đủ điều kiện, không còn tia khúc xạ truyền sang môi trường kia" },
+      { value: "any-direction", label: "Xảy ra với mọi chiều truyền và mọi góc tới" },
+    ],
+    answers: ["transparent", "no-coating", "no-transmitted"], explanation: "Phản xạ toàn phần là hiện tượng tại mặt phân cách trong suốt, có điều kiện xác định và lí tưởng không có tia truyền qua.",
+  },
+  {
+    id: "t3-threshold-test", topic: "tir", difficulty: 3, kind: "single",
+    context: "Tia đi từ môi trường n₁ = 1,50 sang n₂ = 1,20. Tại một thời điểm, sin i = 0,85.",
+    prompt: "Hiện tượng nào xảy ra tại mặt phân cách?",
+    choices: [
+      { value: "tir", label: "Phản xạ toàn phần vì 0,85 > 1,20/1,50" },
+      { value: "refract", label: "Có tia khúc xạ vì 0,85 < 1,20/1,50" },
+      { value: "critical", label: "Tia khúc xạ đi sát mặt phân cách" },
+      { value: "unknown", label: "Không thể kết luận từ các dữ kiện" },
+    ],
+    answers: ["tir"], explanation: "Sin góc giới hạn = 1,20/1,50 = 0,80; sin i = 0,85 lớn hơn nên i vượt góc giới hạn.",
+  },
+  {
+    id: "t3-fiber-design", topic: "tir", difficulty: 3, kind: "multiple",
+    prompt: "Một sợi quang muốn giữ ánh sáng trong lõi bằng phản xạ toàn phần cần những điều kiện thiết kế nào?",
+    choices: [
+      { value: "core-index", label: "Chiết suất lõi lớn hơn chiết suất lớp vỏ" },
+      { value: "angle", label: "Tia trong lõi tới mặt lõi–vỏ với góc đủ lớn" },
+      { value: "transparent", label: "Lõi và vỏ cho ánh sáng truyền qua với hao phí nhỏ" },
+      { value: "coat-higher", label: "Chiết suất lớp vỏ phải lớn hơn chiết suất lõi" },
+    ],
+    answers: ["core-index", "angle", "transparent"], explanation: "Lõi chiết quang hơn vỏ và góc tới vượt giới hạn giúp ánh sáng phản xạ toàn phần liên tiếp trong lõi.",
+  },
+
+  {
+    id: "p1-white-components", topic: "prism", difficulty: 1, kind: "true-false",
+    prompt: "Ánh sáng trắng là hỗn hợp của nhiều ánh sáng màu khác nhau.",
+    choices: trueFalseChoices, answers: ["true"], explanation: "Lăng kính làm các thành phần màu lệch khác nhau và bộc lộ dải màu vốn có trong ánh sáng trắng.",
+  },
+  {
+    id: "p1-not-create-color", topic: "prism", difficulty: 1, kind: "single",
+    prompt: "Nhận định nào đúng nhất về vai trò của lăng kính khi tán sắc ánh sáng trắng?",
+    choices: [
+      { value: "separate", label: "Lăng kính tách các thành phần màu có sẵn trong ánh sáng trắng" },
+      { value: "create", label: "Lăng kính tự tạo ra các màu mới" },
+      { value: "paint", label: "Màu xuất hiện do lớp sơn bên trong lăng kính" },
+      { value: "screen", label: "Màn hứng phát ra dải màu" },
+    ],
+    answers: ["separate"], explanation: "Tán sắc là sự phân tách các thành phần màu do chúng bị khúc xạ khác nhau.",
+  },
+  {
+    id: "p2-speed-calculate", topic: "prism", difficulty: 2, kind: "single",
+    context: "Tốc độ ánh sáng trong chân không c = 3,0 × 10⁸ m/s. Một loại thủy tinh có chiết suất n = 1,50.",
+    prompt: "Tốc độ ánh sáng trong thủy tinh gần bằng bao nhiêu?",
+    choices: [
+      { value: "2e8", label: "2,0 × 10⁸ m/s" },
+      { value: "3e8", label: "3,0 × 10⁸ m/s" },
+      { value: "4.5e8", label: "4,5 × 10⁸ m/s" },
+      { value: "0.5e8", label: "0,5 × 10⁸ m/s" },
+    ],
+    answers: ["2e8"], explanation: "v = c/n = 3,0 × 10⁸ : 1,50 = 2,0 × 10⁸ m/s.",
+  },
+  {
+    id: "p2-red-violet-relations", topic: "prism", difficulty: 2, kind: "multiple",
+    context: "Trong cùng một lăng kính, chiết suất đối với tia tím lớn hơn đối với tia đỏ.",
+    prompt: "Chọn các hệ quả đúng.",
+    choices: [
+      { value: "violet-slower", label: "Tia tím truyền chậm hơn tia đỏ" },
+      { value: "violet-more", label: "Tia tím thường lệch nhiều hơn tia đỏ" },
+      { value: "red-faster", label: "Tia đỏ truyền nhanh hơn tia tím" },
+      { value: "same", label: "Hai tia có cùng tốc độ và độ lệch" },
+    ],
+    answers: ["violet-slower", "violet-more", "red-faster"], explanation: "Vì v = c/n, chiết suất lớn hơn làm tia tím chậm hơn và bị khúc xạ mạnh hơn.",
+  },
+  {
+    id: "p3-material-choice", topic: "prism", difficulty: 3, kind: "single",
+    context: "Hai lăng kính có cùng hình dạng. Với A: n đỏ = 1,50, n tím = 1,53. Với B: n đỏ = 1,61, n tím = 1,62.",
+    prompt: "Muốn dải màu tách rộng hơn, nên chọn lăng kính nào?",
+    choices: [
+      { value: "a", label: "A, vì độ chênh chiết suất giữa tím và đỏ lớn hơn" },
+      { value: "b", label: "B, vì chiết suất trung bình lớn hơn" },
+      { value: "same", label: "Hai lăng kính cho dải rộng bằng nhau" },
+      { value: "none", label: "Không lăng kính nào tán sắc" },
+    ],
+    answers: ["a"], explanation: "A có n tím − n đỏ = 0,03, lớn hơn 0,01 của B nên phân tách hai màu mạnh hơn.",
+  },
+  {
+    id: "p3-experiment-design", topic: "prism", difficulty: 3, kind: "multiple",
+    prompt: "Chọn các thao tác phù hợp để quan sát và so sánh độ tán sắc của hai lăng kính.",
+    choices: [
+      { value: "narrow", label: "Dùng chùm sáng trắng hẹp" },
+      { value: "screen", label: "Hứng dải màu trên màn và đo khoảng cách giữa đỏ–tím" },
+      { value: "control", label: "Giữ cùng góc tới và khoảng cách tới màn" },
+      { value: "many-vars", label: "Đồng thời đổi nguồn, góc tới và vị trí màn cho mỗi lăng kính" },
+    ],
+    answers: ["narrow", "screen", "control"], explanation: "Chùm hẹp, phép đo trên màn và kiểm soát các điều kiện giúp so sánh riêng ảnh hưởng của vật liệu lăng kính.",
+  },
+
+  {
+    id: "c1-needs-light", topic: "color", difficulty: 1, kind: "true-false",
+    prompt: "Muốn nhìn thấy một vật không tự phát sáng, phải có ánh sáng từ vật truyền đến mắt.",
+    choices: trueFalseChoices, answers: ["true"], explanation: "Mắt chỉ nhận biết vật khi nhận được ánh sáng do vật phản xạ hoặc truyền tới.",
+  },
+  {
+    id: "c1-green-white", topic: "color", difficulty: 1, kind: "single",
+    prompt: "Dưới ánh sáng trắng, một chiếc lá trông xanh lục chủ yếu vì sao?",
+    choices: [
+      { value: "reflect-green", label: "Lá phản xạ tốt ánh sáng xanh lục tới mắt" },
+      { value: "emit", label: "Lá tự phát ra ánh sáng xanh lục" },
+      { value: "eye", label: "Mắt biến mọi ánh sáng thành xanh lục" },
+      { value: "no-light", label: "Không có ánh sáng từ lá tới mắt" },
+    ],
+    answers: ["reflect-green"], explanation: "Ánh sáng trắng có thành phần xanh lục và bề mặt lá phản xạ thành phần này tốt hơn tới mắt.",
+  },
+  {
+    id: "c2-magenta-green", topic: "color", difficulty: 2, kind: "single",
+    context: "Trong mô hình đơn giản, bề mặt màu đỏ tía phản xạ tốt ánh sáng đỏ và lam nhưng hấp thụ phần lớn ánh sáng lục.",
+    prompt: "Bề mặt này thường trông thế nào dưới nguồn xanh lục đơn sắc?",
+    choices: [
+      { value: "dark", label: "Rất tối hoặc gần đen" },
+      { value: "magenta", label: "Đỏ tía sáng" },
+      { value: "green", label: "Xanh lục sáng" },
+      { value: "white", label: "Trắng" },
+    ],
+    answers: ["dark"], explanation: "Nguồn chỉ cung cấp ánh sáng lục nhưng bề mặt hấp thụ phần lớn thành phần này nên rất ít ánh sáng tới mắt.",
+  },
+  {
+    id: "c2-color-filters", topic: "color", difficulty: 2, kind: "multiple",
+    prompt: "Chọn các nhận định đúng về kính lọc màu lí tưởng.",
+    choices: [
+      { value: "transmit", label: "Cho ánh sáng gần màu của kính truyền qua tốt" },
+      { value: "absorb", label: "Hấp thụ phần lớn các màu khác" },
+      { value: "overlap", label: "Hai kính lọc khác màu chồng lên nhau có thể làm chùm ló rất tối" },
+      { value: "create", label: "Tự tạo ra màu mới không có trong chùm tới" },
+    ],
+    answers: ["transmit", "absorb", "overlap"], explanation: "Kính lọc chọn lọc thành phần ánh sáng truyền qua; nó không tự sinh ra màu còn thiếu.",
+  },
+  {
+    id: "c3-red-blue-additive", topic: "color", difficulty: 3, kind: "single",
+    context: "Một đèn đỏ và một đèn xanh lam cùng chiếu lên vùng giống nhau của màn trắng.",
+    prompt: "Nếu hai chùm có độ sáng phù hợp, vùng chồng nhau thường được nhìn thấy có màu gì?",
+    choices: [
+      { value: "magenta", label: "Đỏ tía" },
+      { value: "yellow", label: "Vàng" },
+      { value: "green", label: "Xanh lục" },
+      { value: "black", label: "Đen" },
+    ],
+    answers: ["magenta"], explanation: "Trong phép cộng ánh sáng, đỏ kết hợp với xanh lam tạo cảm giác màu đỏ tía.",
+  },
+  {
+    id: "c3-observation-chain", topic: "color", difficulty: 3, kind: "multiple",
+    context: "Một áo xanh lam được đặt trên sân khấu và lần lượt chiếu bằng đèn trắng rồi đèn đỏ đơn sắc.",
+    prompt: "Chọn các suy luận hợp lí.",
+    choices: [
+      { value: "white-blue", label: "Dưới đèn trắng, áo có thể phản xạ xanh lam tốt nên trông xanh" },
+      { value: "red-dark", label: "Dưới đèn đỏ, áo có thể trông rất tối nếu phản xạ đỏ kém" },
+      { value: "source-surface", label: "Màu quan sát phụ thuộc cả nguồn chiếu và bề mặt áo" },
+      { value: "always-blue", label: "Áo chắc chắn luôn xanh như nhau dưới mọi nguồn" },
+    ],
+    answers: ["white-blue", "red-dark", "source-surface"], explanation: "Ánh sáng tới mắt là phần nguồn cung cấp được bề mặt phản xạ; thay nguồn có thể làm màu quan sát thay đổi mạnh.",
   },
 ] as const;
 

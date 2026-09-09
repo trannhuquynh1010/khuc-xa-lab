@@ -148,8 +148,8 @@ export default function OpticsReviewPractice() {
           <div><p className="eyebrow">BÀI TẬP CÁ NHÂN HÓA</p><h2>Ôn tập: Khúc xạ, Phản xạ toàn phần, Lăng kính &amp; Màu sắc</h2><p>Hệ thống tự điều chỉnh độ khó theo từng câu trả lời.</p></div>
         </div>
         <div className="optics-review-overview" aria-label="Cấu trúc bài ôn tập">
-          <div><strong>36</strong><span>câu trong ngân hàng</span></div>
-          <div><strong>12</strong><span>câu cho mỗi học sinh</span></div>
+          <div><strong>60</strong><span>câu trong ngân hàng</span></div>
+          <div><strong>{OPTICS_REVIEW_QUESTION_COUNT}</strong><span>câu cho mỗi học sinh</span></div>
           <div><strong>3</strong><span>mức độ thích ứng</span></div>
         </div>
         <PracticeIdentityFields practiceKey="optics-review" className={attempt.className} studentNumber={attempt.studentNumber} onClassChange={(value) => { attempt.setClassName(value); resetPractice(); }} onStudentNumberChange={(value) => { attempt.setStudentNumber(value); resetPractice(); }} />
@@ -212,7 +212,7 @@ export default function OpticsReviewPractice() {
 
       {finished ? <section className="adaptive-finish">
         <span aria-hidden="true">✦</span>
-        <div><p className="eyebrow">HOÀN THÀNH LỘ TRÌNH</p><h3>{correctCount}/12 câu chính xác</h3><p>Bài làm đã sẵn sàng để gửi cho giáo viên.</p></div>
+        <div><p className="eyebrow">HOÀN THÀNH LỘ TRÌNH</p><h3>{correctCount}/{OPTICS_REVIEW_QUESTION_COUNT} câu chính xác</h3><p>Bài làm đã sẵn sàng để gửi cho giáo viên.</p></div>
         <button type="button" className="primary-button" disabled={!attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang nộp…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
       </section> : null}
 

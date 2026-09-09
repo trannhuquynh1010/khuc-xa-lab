@@ -243,7 +243,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       {selectedKey === "optics-review" && (
         <>
           <section className="class-progress-panel optics-review-teacher-overview">
-            <div className="class-progress-header"><div><p className="eyebrow">LỘ TRÌNH THÍCH ỨNG</p><h2>{selectedClass} · 12 câu cá nhân hóa</h2><p>Mỗi học sinh khởi động ở mức Vận dụng; hệ thống tự nâng hoặc hạ độ khó theo kết quả.</p></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
+            <div className="class-progress-header"><div><p className="eyebrow">LỘ TRÌNH THÍCH ỨNG</p><h2>{selectedClass} · 20 câu cá nhân hóa</h2><p>Mỗi học sinh khởi động ở mức Vận dụng; hệ thống tự nâng hoặc hạ độ khó theo kết quả.</p></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
             <div className="adaptive-level-guide"><div className="level-1"><b>1</b><span><strong>Nền tảng</strong><small>Nhận biết và củng cố khái niệm</small></span></div><div className="level-2"><b>2</b><span><strong>Vận dụng</strong><small>Xử lí dữ kiện và tình huống</small></span></div><div className="level-3"><b>3</b><span><strong>Thử thách</strong><small>Suy luận nhiều bước và thiết kế thí nghiệm</small></span></div></div>
           </section>
           {opticsReviewSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={opticsReviewSummaryPromise} practiceKey="optics-review" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
