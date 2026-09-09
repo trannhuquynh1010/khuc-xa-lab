@@ -911,13 +911,22 @@ export async function getPracticeAttemptStatus(practiceKey: PracticeKey, classNa
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT status, forced, released_at, completed_count, correct_count, total_items, bonus_point
+    SELECT status, forced, released_at, completed_count, correct_count, total_items, bonus_point, answers
     FROM practice_attempts
     WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
       AND class_name = ${className} AND student_number = ${studentNumber}
     LIMIT 1
   `;
-  return rowToPracticeStatus(rows[0] as Record<string, unknown> | undefined);
+  const row = rows[0] as Record<string, unknown> | undefined;
+  if (!row || practiceKey !== "optics-review") return rowToPracticeStatus(row);
+  const evaluation = scorePracticeAttempt(practiceKey, row.answers);
+  return rowToPracticeStatus({
+    ...row,
+    completed_count: evaluation.completedCount,
+    correct_count: evaluation.correctCount,
+    total_items: evaluation.totalItems,
+    bonus_point: evaluation.bonusPoint,
+  });
 }
 
 export async function getOhmRaceSnapshot(schoolYear: string, className: string): Promise<OhmRaceSnapshot> {
@@ -1050,20 +1059,23 @@ const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, prac
       AND class_name = ${className} AND status = 'submitted'
     ORDER BY student_number ASC
   `;
-  return rows.map((row) => ({
-    id: String(row.id),
-    className: String(row.class_name),
-    studentNumber: Number(row.student_number),
-    completedCount: Number(row.completed_count),
-    correctCount: Number(row.correct_count),
-    totalItems: Number(row.total_items),
-    bonusPoint: Number(row.bonus_point),
-    forced: Boolean(row.forced),
-    releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
-    submittedAt: row.submitted_at === null ? null : new Date(String(row.submitted_at)).toISOString(),
-    masteryLevel: practiceKey === "optics-review" ? getOpticsReviewMasteryLabel(row.answers) : null,
-  }));
-}, ["practice-attempts-v2"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
+  return rows.map((row) => {
+    const currentEvaluation = practiceKey === "optics-review" ? scorePracticeAttempt(practiceKey, row.answers) : null;
+    return {
+      id: String(row.id),
+      className: String(row.class_name),
+      studentNumber: Number(row.student_number),
+      completedCount: currentEvaluation?.completedCount ?? Number(row.completed_count),
+      correctCount: currentEvaluation?.correctCount ?? Number(row.correct_count),
+      totalItems: currentEvaluation?.totalItems ?? Number(row.total_items),
+      bonusPoint: currentEvaluation?.bonusPoint ?? Number(row.bonus_point),
+      forced: Boolean(row.forced),
+      releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
+      submittedAt: row.submitted_at === null ? null : new Date(String(row.submitted_at)).toISOString(),
+      masteryLevel: practiceKey === "optics-review" ? getOpticsReviewMasteryLabel(row.answers) : null,
+    };
+  });
+}, ["practice-attempts-v3"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
 
 export async function listPracticeAttempts(schoolYear: string, practiceKey: PracticeKey, className: string) {
   return getCachedPracticeAttempts(schoolYear, practiceKey, className);

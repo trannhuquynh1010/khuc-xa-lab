@@ -122,10 +122,11 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
     const questionIds = Array.isArray(answers.questionIds) ? answers.questionIds.filter((item): item is string => typeof item === "string") : [];
     const responses = record(answers.responses);
     const checkedIds = new Set(Array.isArray(answers.checkedQuestionIds) ? answers.checkedQuestionIds.filter((item): item is string => typeof item === "string") : []);
-    const questions = questionIds.length === OPTICS_REVIEW_QUESTION_COUNT && new Set(questionIds).size === OPTICS_REVIEW_QUESTION_COUNT
+    const validQuestionList = questionIds.length <= OPTICS_REVIEW_QUESTION_COUNT && new Set(questionIds).size === questionIds.length;
+    const questions = validQuestionList
       ? questionIds.map(getOpticsReviewQuestion)
       : [];
-    const valid = questions.length === OPTICS_REVIEW_QUESTION_COUNT && questions.every(Boolean);
+    const valid = questions.length === questionIds.length && questions.every(Boolean);
     const completedCount = valid ? questions.filter((question) => question && checkedIds.has(question.id) && isOpticsReviewResponseAnswered(responses[question.id])).length : 0;
     const correctCount = valid ? questions.filter((question) => question && checkedIds.has(question.id) && isOpticsReviewAnswerCorrect(question, responses[question.id])).length : 0;
     return finish(completedCount, correctCount, OPTICS_REVIEW_QUESTION_COUNT);
