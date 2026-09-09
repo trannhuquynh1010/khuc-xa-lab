@@ -32,7 +32,7 @@ export const activityDefinitions = [
     symbol: ")(",
     shortLabel: "Thấu kính & Tạo ảnh",
     label: "Thấu kính và sự tạo ảnh",
-    description: "Giải thích đường truyền và tự dựng các tia sáng đặc biệt.",
+    description: "Giải thích từ từng lần khúc xạ đến tác dụng hội tụ.",
   },
   {
     key: "ohm",

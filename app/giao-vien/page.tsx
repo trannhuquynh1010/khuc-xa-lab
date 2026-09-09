@@ -104,11 +104,11 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       {selectedKey === "lenses" ? (
         <section className="class-progress-panel lens-teacher-overview">
           <div className="class-progress-header">
-            <div><p className="eyebrow">LỘ TRÌNH TƯƠNG TÁC</p><h2>6 chặng giải mã thấu kính</h2><p>Pháp tuyến → lăng kính nhỏ → làm mượt mặt cong → tiêu điểm → ba tia đặc biệt → thấu kính phân kỳ.</p></div>
+            <div><p className="eyebrow">LỘ TRÌNH TƯƠNG TÁC</p><h2>4 chặng giải mã thấu kính hội tụ</h2><p>Điểm tới và pháp tuyến → các phần nhỏ như lăng kính → làm mượt mặt cong → giải thích sự hình thành tiêu điểm.</p></div>
             <span className="mastery-chip">Không thu dữ liệu lớp</span>
           </div>
           <div className="lens-teacher-stage-list">
-            {["Pháp tuyến", "Lăng kính nhỏ", "Làm mượt", "Tiêu điểm", "Ba tia đặc biệt", "Phân kỳ"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
+            {["Một mặt cong", "Các mảnh nhỏ", "Làm mượt", "Tạo tiêu điểm"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
           </div>
         </section>
       ) : null}

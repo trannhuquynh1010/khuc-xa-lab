@@ -40,7 +40,7 @@ export default async function PresentationPage({ params, searchParams }: { param
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <ResistanceFactorsResults submissions={submissions} />;
   } else {
-    groupLabel = "Mô hình tương tác · 6 chặng";
+    groupLabel = "Mô hình tương tác · 4 chặng";
     latestResult = <LensPathExplorer presentation />;
   }
 

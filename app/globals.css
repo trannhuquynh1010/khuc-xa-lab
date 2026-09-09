@@ -1110,7 +1110,7 @@ details .table-scroll { margin-top: 12px; }
 .lens-hero-mark i { height: 2px; background: repeating-linear-gradient(90deg, #fff 0 9px, transparent 9px 16px); }
 .lens-hero-mark span, .lens-hero-mark b { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.45); border-radius: 50%; background: rgba(5,23,40,.55); font-size: .82rem; }
 
-.lens-stage-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 8px; border: 1.5px solid var(--ink); border-radius: 20px; background: var(--paper); }
+.lens-stage-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px; border: 1.5px solid var(--ink); border-radius: 20px; background: var(--paper); }
 .lens-stage-nav button { display: flex; min-width: 0; gap: 8px; align-items: center; min-height: 54px; padding: 8px 10px; border: 1.2px solid #c8c1b5; border-radius: 13px; color: var(--ink); background: #fff; font-weight: 850; cursor: pointer; }
 .lens-stage-nav button:hover:not(:disabled) { border-color: var(--ink); background: var(--lens-sky); }
 .lens-stage-nav button.active { color: #fff; border-color: var(--lens-blue-dark); background: var(--lens-blue-dark); box-shadow: 2px 2px 0 #8edfff; }
@@ -1135,17 +1135,29 @@ details .table-scroll { margin-top: 12px; }
 .lens-glass-field { fill: rgba(142,223,255,.24); }
 .lens-normal { stroke: var(--purple); stroke-width: 2; stroke-dasharray: 8 7; }
 .lens-ray { fill: none; stroke: #ff6647; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 1px rgba(161,49,24,.15)); animation: lens-ray-in .38s ease both; }
-.lens-ray.incoming { stroke: #f0a500; }
+.lens-ray.incoming, .lens-ray.inside, .lens-ray.refracted { stroke: #ef523d; }
+.lens-ray.inside { stroke-width: 3.5; }
 .lens-ray.outer { stroke-width: 5; }
+.lens-ray.inner { stroke-width: 4; }
+.lens-ray.center { stroke-width: 3.5; }
 .lens-ray.ray-one { stroke: #e64b32; }
 .lens-ray.ray-two { stroke: #1677b8; }
 .lens-ray.ray-three { stroke: #7b5be7; }
 .lens-hit, .lens-focus, .lens-point { fill: var(--ink); stroke: #fff; stroke-width: 2; }
+.lens-contact { fill: #fff; stroke: var(--lens-blue-dark); stroke-width: 2; }
 .lens-focus.virtual { fill: #fff; stroke: var(--lens-blue-dark); stroke-width: 3; }
 .lens-label { font-size: 15px !important; font-weight: 900 !important; }
 .lens-segment { fill: rgba(142,223,255,.22); stroke: var(--lens-blue); stroke-width: 1.5; }
+.lens-morph-shape { stroke-linejoin: round; transition: points .22s ease; }
 .lens-stepped { fill: rgba(142,223,255,.38); stroke: var(--lens-blue-dark); stroke-width: 4; stroke-linejoin: round; }
 .lens-percent { fill: var(--lens-blue-dark) !important; font-weight: 900 !important; }
+.lens-tangent { stroke: #667783; stroke-width: 2.2; stroke-dasharray: 7 6; }
+.lens-angle { fill: none; stroke: var(--purple); stroke-width: 3; }
+.lens-angle.refracted { stroke: var(--lens-blue); }
+.lens-angle-label { fill: var(--purple) !important; font-size: 18px !important; font-style: italic; font-weight: 950 !important; }
+.lens-deviation-label { fill: var(--lens-blue-dark) !important; font-size: 14px !important; font-weight: 900 !important; }
+.lens-base-arrow { fill: none; stroke: var(--purple); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.lens-local-normal { stroke: var(--purple); stroke-width: 2; stroke-dasharray: 7 6; opacity: .7; }
 .lens-object, .lens-object-head { fill: none; stroke: #ef8b00; stroke-width: 6; stroke-linecap: round; }
 .lens-image, .lens-image-head { fill: none; stroke: var(--purple); stroke-width: 6; stroke-linecap: round; }
 .lens-extension { stroke: var(--lens-blue); stroke-width: 2.5; stroke-dasharray: 8 7; }
@@ -1184,6 +1196,12 @@ details .table-scroll { margin-top: 12px; }
 .lens-feedback > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #fff; background: var(--success); font-weight: 950; }
 .lens-feedback.incorrect > span { background: var(--danger); }
 .lens-feedback p { margin: 2px 0 0; font-size: .77rem; line-height: 1.5; }
+.lens-reason-chain { display: grid; gap: 7px; margin-top: 10px; }
+.lens-reason-chain > div { display: grid; grid-template-columns: 27px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 9px; border: 1px solid #c8dce8; border-radius: 10px; background: #f5fbff; }
+.lens-reason-chain > div > b { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; color: #fff; background: var(--lens-blue); font-size: .67rem; }
+.lens-reason-chain span { display: grid; gap: 2px; }
+.lens-reason-chain strong { font-size: .72rem; }
+.lens-reason-chain small { color: #526877; font-size: .66rem; line-height: 1.4; }
 .lens-stage-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 20px; }
 .lens-stage-actions button { width: auto; }
 .lens-stage-actions button:disabled { opacity: .4; cursor: not-allowed; }
@@ -1199,7 +1217,7 @@ details .table-scroll { margin-top: 12px; }
 .lens-explorer.presentation .lens-learning-layout { grid-template-columns: minmax(0, 1.4fr) minmax(390px, .6fr); }
 .lens-teacher-overview { background: var(--lens-sky); }
 .lens-teacher-overview .class-progress-header p:last-child { max-width: 850px; margin: 4px 0 0; color: var(--muted); font-size: .78rem; }
-.lens-teacher-stage-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 15px; }
+.lens-teacher-stage-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 15px; }
 .lens-teacher-stage-list span { display: flex; gap: 7px; align-items: center; min-height: 42px; padding: 7px 9px; border: 1.2px solid var(--ink); border-radius: 11px; background: #fff; font-size: .72rem; font-weight: 850; }
 .lens-teacher-stage-list b { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 25px; border-radius: 50%; color: #fff; background: var(--lens-blue); font-size: .66rem; }
 
@@ -1222,7 +1240,7 @@ details .table-scroll { margin-top: 12px; }
   .adaptive-step-strip { grid-template-columns: repeat(20, 42px); }
   .lens-learning-layout, .lens-explorer.presentation .lens-learning-layout { grid-template-columns: 1fr; }
   .lens-visual-panel { min-height: 440px; }
-  .lens-stage-nav { overflow-x: auto; grid-template-columns: repeat(6, 150px); }
+  .lens-stage-nav { overflow-x: auto; grid-template-columns: repeat(4, 170px); }
   .lens-teacher-stage-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
@@ -1405,11 +1423,12 @@ details .table-scroll { margin-top: 12px; }
   .lens-explorer-hero h2 { max-width: calc(100% - 42px); font-size: 1.75rem; }
   .lens-explorer-hero p:last-child { max-width: calc(100% - 28px); font-size: .75rem; }
   .lens-hero-mark { position: absolute; right: -105px; min-width: 220px; opacity: .25; }
-  .lens-stage-nav { border-radius: 16px; }
+  .lens-stage-nav { overflow: visible; grid-template-columns: repeat(2, minmax(0, 1fr)); border-radius: 16px; }
   .lens-stage-nav button { min-height: 48px; }
   .lens-visual-panel { min-height: 330px; padding: 48px 7px 8px; border-radius: 18px; }
   .lens-visual-label small { display: none; }
-  .lens-diagram text { font-size: 13px; }
+  .lens-diagram text { font-size: 18px; }
+  .lens-diagram .lens-label, .lens-diagram .lens-deviation-label { font-size: 18px !important; }
   .lens-mission-panel { padding: 18px 13px; border-radius: 18px; }
   .lens-stage-kicker { align-items: flex-start; flex-direction: column; }
   .lens-match-grid label { grid-template-columns: 1fr; }
