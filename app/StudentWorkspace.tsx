@@ -13,6 +13,7 @@ const LabForm = dynamic(() => import("./LabForm"), { loading: ActivityToolLoadin
 const PrismColorLabForm = dynamic(() => import("./PrismColorLabForm"), { loading: ActivityToolLoading });
 const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: ActivityToolLoading });
 const OpticsReviewPractice = dynamic(() => import("./OpticsReviewPractice"), { loading: ActivityToolLoading });
+const LensPathExplorer = dynamic(() => import("./LensPathExplorer"), { loading: ActivityToolLoading });
 const OhmLabForm = dynamic(() => import("./OhmLabForm"), { loading: ActivityToolLoading });
 const ResistanceFactorsLabForm = dynamic(() => import("./ResistanceFactorsLabForm"), { loading: ActivityToolLoading });
 
@@ -72,7 +73,7 @@ export default function StudentWorkspace() {
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
   const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
   const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
-  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === null ? "optics" : "electricity";
+  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
     : visibleActiveKey === "resistance-factors"
@@ -83,6 +84,8 @@ export default function StudentWorkspace() {
           ? ["✦", "λ", "n"]
           : visibleActiveKey === "optics-review"
             ? ["◎", "↘", "△"]
+            : visibleActiveKey === "lenses"
+              ? ["O", "F", "F′"]
           : ["i", "r", "n"];
 
   useEffect(() => {
@@ -129,6 +132,7 @@ export default function StudentWorkspace() {
           {visibleActiveKey === "prism-colors" ? <PrismColorLabForm showColorActivity={prismColorOpen} /> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} /></div> : null}
           {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
+          {visibleActiveKey === "lenses" ? <LensPathExplorer /> : null}
           {visibleActiveKey === "ohm" ? <OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /> : null}
           {visibleActiveKey === "resistance-factors" ? <ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /> : null}
         </>

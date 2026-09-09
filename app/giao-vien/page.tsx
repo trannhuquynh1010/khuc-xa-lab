@@ -41,7 +41,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" || selectedKey === "lenses" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
   const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
     ? getRefractionQuizClassSummary(selectedYear, selectedClass)
     : null;
@@ -100,6 +100,18 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
           {selectedKey !== "optics-game" && selectedKey !== "optics-review" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
         </div>
       </section>
+
+      {selectedKey === "lenses" ? (
+        <section className="class-progress-panel lens-teacher-overview">
+          <div className="class-progress-header">
+            <div><p className="eyebrow">LỘ TRÌNH TƯƠNG TÁC</p><h2>6 chặng giải mã thấu kính</h2><p>Pháp tuyến → lăng kính nhỏ → làm mượt mặt cong → tiêu điểm → ba tia đặc biệt → thấu kính phân kỳ.</p></div>
+            <span className="mastery-chip">Không thu dữ liệu lớp</span>
+          </div>
+          <div className="lens-teacher-stage-list">
+            {["Pháp tuyến", "Lăng kính nhỏ", "Làm mượt", "Tiêu điểm", "Ba tia đặc biệt", "Phân kỳ"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
+          </div>
+        </section>
+      ) : null}
 
       {selectedKey === "refraction" && (
         <>

@@ -8,6 +8,7 @@ import { listExperimentSubmissions, listSubmissions } from "@/lib/db";
 import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "../../TeacherResults";
 import PresentationToolbar from "../PresentationToolbar";
 import PhysicsBrand from "../../../PhysicsBrand";
+import LensPathExplorer from "../../../LensPathExplorer";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,13 @@ export default async function PresentationPage({ params, searchParams }: { param
     const submissions = await listExperimentSubmissions("prism-colors", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <PrismColorResults submissions={submissions} />;
-  } else {
+  } else if (activity === "resistance-factors") {
     const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <ResistanceFactorsResults submissions={submissions} />;
+  } else {
+    groupLabel = "Mô hình tương tác · 6 chặng";
+    latestResult = <LensPathExplorer presentation />;
   }
 
   return (

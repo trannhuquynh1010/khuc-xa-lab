@@ -28,6 +28,13 @@ export const activityDefinitions = [
     description: "20 câu thích ứng về khúc xạ, phản xạ toàn phần, lăng kính và màu sắc.",
   },
   {
+    key: "lenses",
+    symbol: ")(",
+    shortLabel: "Thấu kính & Tạo ảnh",
+    label: "Thấu kính và sự tạo ảnh",
+    description: "Giải thích đường truyền và tự dựng các tia sáng đặc biệt.",
+  },
+  {
     key: "ohm",
     symbol: "I–U",
     shortLabel: "Sự phụ thuộc của I vào U",

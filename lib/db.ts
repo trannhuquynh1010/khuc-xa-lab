@@ -483,7 +483,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v4"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v5"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
