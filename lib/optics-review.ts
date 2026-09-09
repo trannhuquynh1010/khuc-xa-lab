@@ -540,12 +540,12 @@ export const opticsReviewQuestions: readonly OpticsReviewQuestion[] = [
     context: "Tia đi từ môi trường n₁ = 1,50 sang n₂ = 1,20. Tại một thời điểm, sin i = 0,85.",
     prompt: "Hiện tượng nào xảy ra tại mặt phân cách?",
     choices: [
-      { value: "tir", label: "Phản xạ toàn phần vì 0,85 > 1,20/1,50" },
-      { value: "refract", label: "Có tia khúc xạ vì 0,85 < 1,20/1,50" },
+      { value: "tir", label: "Phản xạ toàn phần" },
+      { value: "refract", label: "Có tia khúc xạ truyền sang môi trường 2" },
       { value: "critical", label: "Tia khúc xạ đi sát mặt phân cách" },
       { value: "unknown", label: "Không thể kết luận từ các dữ kiện" },
     ],
-    answers: ["tir"], explanation: "Sin góc giới hạn = 1,20/1,50 = 0,80; sin i = 0,85 lớn hơn nên i vượt góc giới hạn.",
+    answers: ["tir"], explanation: "Góc tới đã vượt góc giới hạn nên xảy ra phản xạ toàn phần.",
   },
   {
     id: "t3-fiber-design", topic: "tir", difficulty: 3, kind: "multiple",
