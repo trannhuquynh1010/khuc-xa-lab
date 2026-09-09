@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { ActivityKey } from "@/lib/activities";
 
 type TeacherTabItem = {
@@ -21,7 +21,12 @@ export default function TeacherActivityTabs({ items, selectedKey, selectedClass,
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pendingKey, setPendingKey] = useState<ActivityKey | null>(null);
+  const activeTabRef = useRef<HTMLAnchorElement | null>(null);
   const visibleKey = isPending && pendingKey ? pendingKey : selectedKey;
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [visibleKey]);
 
   return (
     <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm" aria-busy={isPending}>
@@ -30,6 +35,7 @@ export default function TeacherActivityTabs({ items, selectedKey, selectedClass,
         return (
           <Link
             key={activity.key}
+            ref={visibleKey === activity.key ? activeTabRef : undefined}
             data-activity={activity.key}
             className={visibleKey === activity.key ? "active" : ""}
             href={href}

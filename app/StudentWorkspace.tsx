@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { activityDefinitions, isActivityKey, type ActivityKey } from "@/lib/activities";
 import PhysicsBrand from "./PhysicsBrand";
@@ -22,6 +22,7 @@ export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
   const [activeKey, setActiveKey] = useState<ActivityKey | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
 
   const loadActivities = useCallback(async () => {
     try {
@@ -84,6 +85,10 @@ export default function StudentWorkspace() {
             ? ["◎", "↘", "△"]
           : ["i", "r", "n"];
 
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [visibleActiveKey]);
+
   return (
     <>
       <header className="hero workspace-hero">
@@ -117,7 +122,7 @@ export default function StudentWorkspace() {
         <>
           <nav className="activity-tabs" role="tablist" aria-label="Công cụ thí nghiệm đang mở">
             {activityDefinitions.filter((activity) => openKeys.includes(activity.key)).map((activity) => (
-              <button key={activity.key} type="button" role="tab" data-activity={activity.key} aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
+              <button key={activity.key} ref={visibleActiveKey === activity.key ? activeTabRef : undefined} type="button" role="tab" data-activity={activity.key} aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
             ))}
           </nav>
           {visibleActiveKey === "refraction" ? <LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /> : null}
