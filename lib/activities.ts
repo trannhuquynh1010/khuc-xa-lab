@@ -21,6 +21,13 @@ export const activityDefinitions = [
     description: "Cuộc đua cá nhân qua 6 trạm quang học.",
   },
   {
+    key: "optics-review",
+    symbol: "◎",
+    shortLabel: "Ôn tập Quang học",
+    label: "Ôn tập Quang học cá nhân hóa",
+    description: "12 câu thích ứng về khúc xạ, phản xạ toàn phần, lăng kính và màu sắc.",
+  },
+  {
     key: "ohm",
     symbol: "I–U",
     shortLabel: "Sự phụ thuộc của I vào U",

@@ -15,6 +15,7 @@ import PhysicsBrand from "../PhysicsBrand";
 import OhmRaceDashboard from "./OhmRaceDashboard";
 import ResetPracticeButton from "./ResetPracticeButton";
 import OpticsQuestDashboard from "./OpticsQuestDashboard";
+import TeacherClassFilter from "./TeacherClassFilter";
 
 export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string; year?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
@@ -40,7 +41,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const activityDataPromise = selectedKey === "optics-game" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
   const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
     ? getRefractionQuizClassSummary(selectedYear, selectedClass)
     : null;
@@ -53,6 +54,9 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const resistanceFactorsPracticeSummaryPromise = selectedKey === "resistance-factors"
     ? getPracticeAttemptSummary(selectedYear, "resistance-factors-practice", selectedClass)
     : null;
+  const opticsReviewSummaryPromise = selectedKey === "optics-review"
+    ? getPracticeAttemptSummary(selectedYear, "optics-review", selectedClass)
+    : null;
   const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
   const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
@@ -60,7 +64,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   return (
     <main className="teacher-shell">
       <header className="teacher-header">
-        <div><PhysicsBrand /><p className="eyebrow">GIÁO VIÊN</p><h1>Bảng điều khiển</h1></div>
+        <div className="teacher-header-copy"><PhysicsBrand /><p className="eyebrow">GIÁO VIÊN</p><h1>Bảng điều khiển</h1><p className="teacher-context"><strong>{selectedYear}</strong><span>{selectedClass}</span><span>{definition.shortLabel}</span></p></div>
         <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}&year=${selectedYear}`}>↻ Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Thoát</button></form></div>
       </header>
 
@@ -72,8 +76,14 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       />
 
       <section className="academic-year-panel">
-        <div><p className="eyebrow">NĂM HỌC</p><h2>{selectedYear}</h2></div>
-        <div className="academic-year-actions"><TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} /><ResetYearButton schoolYear={selectedYear} /></div>
+        <div><p className="eyebrow">DỮ LIỆU LỚP HỌC</p><h2>Năm học {selectedYear}</h2></div>
+        <div className="academic-year-actions">
+          <TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} />
+          <details className="teacher-danger-menu">
+            <summary>Quản lý dữ liệu</summary>
+            <div><ResetYearButton schoolYear={selectedYear} /></div>
+          </details>
+        </div>
       </section>
 
       {activityDataPromise ? <Suspense fallback={<TeacherDataSkeleton />}><TeacherClassProgress dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} /></Suspense> : null}
@@ -87,7 +97,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
             <TeacherToggleSubmitButton isOpen={currentSetting.isOpen} openLabel="Mở bài" closeLabel="Đóng bài" />
           </form>
-          {selectedKey !== "optics-game" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
+          {selectedKey !== "optics-game" && selectedKey !== "optics-review" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
         </div>
       </section>
 
@@ -227,6 +237,16 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             </div>
           </section>
           <OpticsQuestDashboard className={selectedClass} schoolYear={selectedYear} />
+        </>
+      )}
+
+      {selectedKey === "optics-review" && (
+        <>
+          <section className="class-progress-panel optics-review-teacher-overview">
+            <div className="class-progress-header"><div><p className="eyebrow">LỘ TRÌNH THÍCH ỨNG</p><h2>{selectedClass} · 12 câu cá nhân hóa</h2><p>Mỗi học sinh khởi động ở mức Vận dụng; hệ thống tự nâng hoặc hạ độ khó theo kết quả.</p></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
+            <div className="adaptive-level-guide"><div className="level-1"><b>1</b><span><strong>Nền tảng</strong><small>Nhận biết và củng cố khái niệm</small></span></div><div className="level-2"><b>2</b><span><strong>Vận dụng</strong><small>Xử lí dữ kiện và tình huống</small></span></div><div className="level-3"><b>3</b><span><strong>Thử thách</strong><small>Suy luận nhiều bước và thiết kế thí nghiệm</small></span></div></div>
+          </section>
+          {opticsReviewSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={opticsReviewSummaryPromise} practiceKey="optics-review" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
         </>
       )}
 

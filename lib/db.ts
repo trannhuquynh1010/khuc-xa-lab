@@ -12,6 +12,7 @@ import type { TeamAssignments } from "@/lib/team";
 import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import type { PracticeAttemptStatus, PracticeKey, TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
+import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
 
@@ -482,7 +483,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v3"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v4"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
@@ -1043,7 +1044,7 @@ const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, prac
   const sql = getSql();
   const rows = await sql`
     SELECT id, class_name, student_number, completed_count, correct_count, total_items, bonus_point,
-      forced, released_at, submitted_at
+      forced, released_at, submitted_at, answers
     FROM practice_attempts
     WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
       AND class_name = ${className} AND status = 'submitted'
@@ -1060,8 +1061,9 @@ const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, prac
     forced: Boolean(row.forced),
     releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
     submittedAt: row.submitted_at === null ? null : new Date(String(row.submitted_at)).toISOString(),
+    masteryLevel: practiceKey === "optics-review" ? getOpticsReviewMasteryLabel(row.answers) : null,
   }));
-}, ["practice-attempts-v1"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
+}, ["practice-attempts-v2"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
 
 export async function listPracticeAttempts(schoolYear: string, practiceKey: PracticeKey, className: string) {
   return getCachedPracticeAttempts(schoolYear, practiceKey, className);

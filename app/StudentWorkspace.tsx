@@ -3,13 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { activityDefinitions, isActivityKey, type ActivityKey } from "@/lib/activities";
-import LabForm from "./LabForm";
-import OhmLabForm from "./OhmLabForm";
-import ResistanceFactorsLabForm from "./ResistanceFactorsLabForm";
-import PrismColorLabForm from "./PrismColorLabForm";
 import PhysicsBrand from "./PhysicsBrand";
 
-const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: () => <div className="waiting-card"><span className="loading-dot" /><h2>Đang tải Photon Quest…</h2></div> });
+function ActivityToolLoading() {
+  return <div className="waiting-card tool-loading-card"><span className="loading-dot" /><div><h2>Đang mở hoạt động</h2><p>Chỉ mất một chút thời gian.</p></div></div>;
+}
+
+const LabForm = dynamic(() => import("./LabForm"), { loading: ActivityToolLoading });
+const PrismColorLabForm = dynamic(() => import("./PrismColorLabForm"), { loading: ActivityToolLoading });
+const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: ActivityToolLoading });
+const OpticsReviewPractice = dynamic(() => import("./OpticsReviewPractice"), { loading: ActivityToolLoading });
+const OhmLabForm = dynamic(() => import("./OhmLabForm"), { loading: ActivityToolLoading });
+const ResistanceFactorsLabForm = dynamic(() => import("./ResistanceFactorsLabForm"), { loading: ActivityToolLoading });
 
 type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; ohmRaceOpen: boolean; ohmRaceRunning: boolean; ohmRaceRound: number; ohmRaceStartedAt: string | null; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; opticsGameRunning: boolean; opticsGameRound: number; opticsGameStartedAt: string | null; updatedAt: string };
 
@@ -66,7 +71,7 @@ export default function StudentWorkspace() {
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
   const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
   const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
-  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === null ? "optics" : "electricity";
+  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
     : visibleActiveKey === "resistance-factors"
@@ -75,6 +80,8 @@ export default function StudentWorkspace() {
         ? ["△", "λ", "n"]
         : visibleActiveKey === "optics-game"
           ? ["✦", "λ", "n"]
+          : visibleActiveKey === "optics-review"
+            ? ["◎", "↘", "△"]
           : ["i", "r", "n"];
 
   return (
@@ -90,18 +97,18 @@ export default function StudentWorkspace() {
             </div>
           </div>
           <p className="eyebrow">THÍ NGHIỆM TRỰC TUYẾN</p>
-          <h1>{activeDefinition?.label ?? "Phòng thí nghiệm"}</h1>
-          <p>{activeDefinition?.description ?? "Chờ giáo viên mở bài."}</p>
+          <h1>{activities === null ? "Physics Lab" : activeDefinition?.label ?? "Phòng thí nghiệm"}</h1>
+          <p>{activities === null ? "Đang kết nối lớp học…" : activeDefinition?.description ?? "Chờ giáo viên mở bài."}</p>
         </div>
         <div className={`physics-hero-art ${heroTheme}`} aria-hidden="true">
           {heroSymbols.map((symbol) => <span key={symbol}>{symbol}</span>)}
           <i />
         </div>
-        <span className="live-indicator"><i /> Trực tuyến</span>
+        <span className={`live-indicator ${activities === null ? "connecting" : loadError ? "offline" : ""}`} aria-live="polite"><i /> {activities === null ? "Đang kết nối" : loadError ? "Mất kết nối" : "Trực tuyến"}</span>
       </header>
 
       {activities === null && !loadError ? (
-        <div className="waiting-card"><span className="loading-dot" /><h2>Đang tải…</h2></div>
+        <div className="waiting-card workspace-loading-card"><span className="loading-dot" /><div><h2>Đang chuẩn bị lớp học</h2><p>Hệ thống đang kiểm tra hoạt động giáo viên đã mở.</p></div></div>
       ) : loadError && activities === null ? (
         <div className="waiting-card"><h2>Mất kết nối</h2><button type="button" className="secondary-button" onClick={loadActivities}>Thử lại</button></div>
       ) : !openKeys.length ? (
@@ -113,11 +120,12 @@ export default function StudentWorkspace() {
               <button key={activity.key} type="button" role="tab" data-activity={activity.key} aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
             ))}
           </nav>
-          <div hidden={visibleActiveKey !== "refraction"}><LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /></div>
-          <div hidden={visibleActiveKey !== "ohm"}><OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /></div>
-          <div hidden={visibleActiveKey !== "resistance-factors"}><ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /></div>
-          <div hidden={visibleActiveKey !== "prism-colors"}><PrismColorLabForm showColorActivity={prismColorOpen} /></div>
+          {visibleActiveKey === "refraction" ? <LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /> : null}
+          {visibleActiveKey === "prism-colors" ? <PrismColorLabForm showColorActivity={prismColorOpen} /> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} /></div> : null}
+          {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
+          {visibleActiveKey === "ohm" ? <OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /> : null}
+          {visibleActiveKey === "resistance-factors" ? <ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /> : null}
         </>
       )}
     </>

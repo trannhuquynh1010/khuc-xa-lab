@@ -7,6 +7,7 @@ export const practiceDefinitions = [
   { key: "ohm-race", activityKey: "ohm", label: "Đường đua Điện học", totalItems: 6 },
   { key: "resistance-factors-practice", activityKey: "resistance-factors", label: "Mật mã điện trở", totalItems: 12 },
   { key: "optics-quest", activityKey: "optics-game", label: "Photon Quest", totalItems: 12 },
+  { key: "optics-review", activityKey: "optics-review", label: "Ôn tập Quang học", totalItems: 12 },
 ] as const satisfies ReadonlyArray<{ key: string; activityKey: ActivityKey; label: string; totalItems: number }>;
 
 export type PracticeKey = (typeof practiceDefinitions)[number]["key"];
@@ -46,4 +47,5 @@ export type TeacherPracticeAttempt = {
   forced: boolean;
   releasedAt: string | null;
   submittedAt: string | null;
+  masteryLevel: string | null;
 };

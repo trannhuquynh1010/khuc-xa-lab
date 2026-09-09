@@ -24,7 +24,7 @@ export default function TeacherActivityTabs({ items, selectedKey, selectedClass,
   const visibleKey = isPending && pendingKey ? pendingKey : selectedKey;
 
   return (
-    <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm">
+    <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm" aria-busy={isPending}>
       {items.map((activity) => {
         const href = `/giao-vien?tab=${activity.key}&class=${selectedClass}&year=${selectedYear}`;
         return (
@@ -41,7 +41,8 @@ export default function TeacherActivityTabs({ items, selectedKey, selectedClass,
                 router.push(href);
               });
             }}
-            aria-current={selectedKey === activity.key ? "page" : undefined}
+            aria-current={visibleKey === activity.key ? "page" : undefined}
+            aria-label={`${activity.shortLabel} · ${activity.isOpen ? "đang mở" : "đang đóng"}`}
           >
             <span className="teacher-tab-label"><b aria-hidden="true">{activity.symbol}</b>{activity.shortLabel}</span>
             <small className={activity.isOpen ? "open" : "closed"}>{isPending && pendingKey === activity.key ? "Đang tải…" : activity.isOpen ? "Mở" : "Đóng"}</small>
