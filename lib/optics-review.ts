@@ -100,10 +100,9 @@ export const opticsReviewQuestions: readonly OpticsReviewQuestion[] = [
     choices: [
       { value: "slower", label: "Tốc độ truyền ánh sáng giảm" },
       { value: "r-less-i", label: "Góc khúc xạ nhỏ hơn góc tới" },
-      { value: "frequency", label: "Tần số ánh sáng không đổi" },
       { value: "faster", label: "Tốc độ truyền ánh sáng tăng" },
     ],
-    answers: ["slower", "r-less-i", "frequency"], explanation: "Sang môi trường chiết quang hơn, ánh sáng chậm hơn, lệch gần pháp tuyến; tần số do nguồn quyết định nên không đổi.",
+    answers: ["slower", "r-less-i"], explanation: "Khi đi vào thủy tinh, ánh sáng truyền chậm hơn và tia khúc xạ lệch gần pháp tuyến nên góc khúc xạ nhỏ hơn góc tới.",
   },
   {
     id: "r3-compare-media", topic: "refraction", difficulty: 3, kind: "single",
@@ -145,9 +144,9 @@ export const opticsReviewQuestions: readonly OpticsReviewQuestion[] = [
     id: "t1-conditions", topic: "tir", difficulty: 1, kind: "multiple",
     prompt: "Phản xạ toàn phần xảy ra khi đồng thời có những điều kiện nào?",
     choices: [
-      { value: "dense-thin", label: "Tia đi từ môi trường chiết quang hơn sang kém hơn" },
+      { value: "dense-thin", label: "Tia đi từ môi trường có chiết suất lớn hơn sang môi trường có chiết suất nhỏ hơn" },
       { value: "large-angle", label: "Góc tới lớn hơn góc giới hạn" },
-      { value: "thin-dense", label: "Tia đi từ môi trường kém hơn sang chiết quang hơn" },
+      { value: "thin-dense", label: "Tia đi từ môi trường có chiết suất nhỏ hơn sang môi trường có chiết suất lớn hơn" },
       { value: "any-angle", label: "Góc tới có thể có giá trị bất kỳ" },
     ],
     answers: ["dense-thin", "large-angle"], explanation: "Cả chiều truyền và điều kiện i > i giới hạn đều bắt buộc.",
@@ -469,10 +468,9 @@ export const opticsReviewQuestions: readonly OpticsReviewQuestion[] = [
     choices: [
       { value: "faster", label: "Ánh sáng truyền nhanh hơn trong không khí" },
       { value: "away", label: "Tia khúc xạ lệch xa pháp tuyến" },
-      { value: "frequency", label: "Tần số ánh sáng không đổi" },
       { value: "r-less", label: "Góc khúc xạ nhỏ hơn góc tới" },
     ],
-    answers: ["faster", "away", "frequency"], explanation: "Sang môi trường chiết quang kém hơn, ánh sáng nhanh hơn và tia lệch xa pháp tuyến; tần số vẫn do nguồn quyết định.",
+    answers: ["faster", "away"], explanation: "Khi đi từ nước ra không khí, ánh sáng truyền nhanh hơn và tia khúc xạ lệch xa pháp tuyến nên góc khúc xạ lớn hơn góc tới.",
   },
   {
     id: "r3-graph-slopes", topic: "refraction", difficulty: 3, kind: "single",
@@ -493,10 +491,9 @@ export const opticsReviewQuestions: readonly OpticsReviewQuestion[] = [
     choices: [
       { value: "parallel", label: "Tia ló song song với tia tới" },
       { value: "shift", label: "Tia ló có thể bị dịch ngang so với tia tới" },
-      { value: "frequency", label: "Tần số ánh sáng không đổi trong cả quá trình" },
       { value: "toward", label: "Tia ló cuối cùng luôn gần pháp tuyến hơn tia tới" },
     ],
-    answers: ["parallel", "shift", "frequency"], explanation: "Hai mặt song song làm độ lệch góc ở mặt ra bù lại mặt vào; tia ló song song nhưng có thể bị dịch ngang.",
+    answers: ["parallel", "shift"], explanation: "Hai mặt song song làm độ lệch góc ở mặt ra bù lại mặt vào; tia ló song song với tia tới nhưng có thể bị dịch ngang.",
   },
 
   {
