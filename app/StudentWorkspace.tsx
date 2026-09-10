@@ -23,7 +23,7 @@ export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
   const [activeKey, setActiveKey] = useState<ActivityKey | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+  const activityMenuRef = useRef<HTMLDetailsElement | null>(null);
 
   const loadActivities = useCallback(async () => {
     try {
@@ -57,6 +57,7 @@ export default function StudentWorkspace() {
   const openKeys = useMemo(() => activityDefinitions
     .filter((definition) => activities?.some((activity) => activity.key === definition.key && activity.isOpen))
     .map((definition) => definition.key), [activities]);
+  const openActivities = useMemo(() => activityDefinitions.filter((definition) => openKeys.includes(definition.key)), [openKeys]);
 
   const visibleActiveKey = activeKey && openKeys.includes(activeKey) ? activeKey : openKeys[0] ?? null;
   const activeDefinition = visibleActiveKey ? activityDefinitions.find((activity) => activity.key === visibleActiveKey) : null;
@@ -87,10 +88,6 @@ export default function StudentWorkspace() {
             : visibleActiveKey === "lenses"
               ? ["O", "F", "F′"]
           : ["i", "r", "n"];
-
-  useEffect(() => {
-    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [visibleActiveKey]);
 
   return (
     <>
@@ -123,11 +120,40 @@ export default function StudentWorkspace() {
         <div className="waiting-card"><span className="lock-symbol">⌁</span><h2>Đang chờ giáo viên</h2></div>
       ) : (
         <>
-          <nav className="activity-tabs" role="tablist" aria-label="Công cụ thí nghiệm đang mở">
-            {activityDefinitions.filter((activity) => openKeys.includes(activity.key)).map((activity) => (
-              <button key={activity.key} ref={visibleActiveKey === activity.key ? activeTabRef : undefined} type="button" role="tab" data-activity={activity.key} aria-selected={visibleActiveKey === activity.key} className={visibleActiveKey === activity.key ? "active" : ""} onClick={() => setActiveKey(activity.key)}><span className="activity-symbol" aria-hidden="true">{activity.symbol}</span><span>{activity.shortLabel}</span></button>
-            ))}
-          </nav>
+          <details ref={activityMenuRef} className="activity-menu student-activity-menu">
+            <summary aria-label={`Bài đang chọn: ${activeDefinition?.shortLabel}. Bấm để đổi bài học.`}>
+              <span className="activity-menu-current" data-activity={visibleActiveKey ?? undefined}>
+                <span className="activity-symbol" aria-hidden="true">{activeDefinition?.symbol}</span>
+                <span><small>BÀI ĐANG HỌC</small><strong>{activeDefinition?.shortLabel}</strong></span>
+              </span>
+              <span className="activity-menu-count">{openActivities.length} bài đang mở</span>
+              <span className="activity-menu-chevron" aria-hidden="true">⌄</span>
+            </summary>
+
+            <nav className="activity-menu-panel student-activity-menu-panel" role="tablist" aria-label="Chọn bài học đang mở">
+              <div className="activity-menu-panel-head"><span>CHỌN BÀI HỌC</span><small>{openActivities.length} bài đang mở</small></div>
+              <div className="activity-menu-grid">
+                {openActivities.map((activity) => (
+                  <button
+                    key={activity.key}
+                    type="button"
+                    role="tab"
+                    data-activity={activity.key}
+                    aria-selected={visibleActiveKey === activity.key}
+                    className={`activity-menu-item ${visibleActiveKey === activity.key ? "active" : ""}`}
+                    onClick={() => {
+                      setActiveKey(activity.key);
+                      activityMenuRef.current?.removeAttribute("open");
+                    }}
+                  >
+                    <span className="activity-symbol" aria-hidden="true">{activity.symbol}</span>
+                    <span className="activity-menu-item-copy"><strong>{activity.shortLabel}</strong><small>Nhấn để mở bài</small></span>
+                    <span className="activity-menu-check" aria-hidden="true">{visibleActiveKey === activity.key ? "✓" : ""}</span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+          </details>
           {visibleActiveKey === "refraction" ? <LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /> : null}
           {visibleActiveKey === "prism-colors" ? <PrismColorLabForm showColorActivity={prismColorOpen} /> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} /></div> : null}
