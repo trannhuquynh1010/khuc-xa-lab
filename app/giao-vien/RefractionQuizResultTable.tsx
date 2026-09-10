@@ -50,12 +50,15 @@ export default function RefractionQuizResultTable({ submissions }: { submissions
       {visibleSubmissions.length > 0 ? (
         <div className="table-scroll">
           <table className="quiz-results-table">
-            <thead><tr><th>STT</th><th>Điểm cộng</th><th>Số ý đúng</th><th>Trạng thái điểm</th><th>Lần nộp</th></tr></thead>
+            <thead><tr><th>STT</th><th>Tình trạng khi thu</th><th>Hoàn thành</th><th>Điểm cộng</th><th>Số ý đúng</th><th>Cách thu</th><th>Trạng thái điểm</th><th>Lần nộp</th></tr></thead>
             <tbody>{visibleSubmissions.map((submission) => (
-              <tr key={submission.id}>
+              <tr key={submission.id} className={`attempt-row-${submission.completionState}`}>
                 <th scope="row">{formatStudentNumber(submission.studentNumber!)}</th>
+                <td><span className={`attempt-state-chip ${submission.completionState}`}>{submission.completionState === "no-data" ? "Chưa làm" : submission.completionState === "partial" ? "Đang làm dở" : "Hoàn thành"}</span></td>
+                <td>{submission.completedCount}/{submission.totalItems}</td>
                 <td><strong className={`quiz-bonus-chip ${submission.bonusPoint ? "earned" : "not-earned"}`}>{submission.bonusPoint ? `+${submission.bonusPoint}` : "—"}</strong></td>
                 <td>{submission.correctCount}/{submission.totalItems}</td>
+                <td>{submission.forced ? "Thu tự động" : "Tự nộp"}</td>
                 <td><span className={`score-release-chip ${submission.releasedAt ? "released" : "pending"}`}>{submission.releasedAt ? "Đã công bố" : "Chưa công bố"}</span></td>
                 <td><time dateTime={submission.createdAt}>{formatDate(submission.createdAt)}</time></td>
               </tr>

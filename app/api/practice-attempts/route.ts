@@ -33,13 +33,16 @@ export async function GET(request: Request) {
     if (!isPracticeKey(practiceKey) || !isAllowedClass(practiceKey, className) || !isStudentNumber(studentNumber)) {
       return NextResponse.json({ error: "Thông tin bài làm chưa hợp lệ." }, { status: 400 });
     }
+    const status = await getPracticeAttemptStatus(practiceKey, className, studentNumber);
+    if (status.submitted) {
+      return NextResponse.json(status, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
     if (practiceKey === "refraction-application") {
       const existingQuiz = await getRefractionQuizSubmissionStatus(className, studentNumber);
       if (existingQuiz.submitted) {
-        return NextResponse.json({ ...existingQuiz, forced: false, completedCount: 16, totalItems: 16 }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+        return NextResponse.json({ ...existingQuiz, forced: false, completedCount: 16, totalItems: 16, completionState: "complete" }, { headers: { "Cache-Control": "no-store, max-age=0" } });
       }
     }
-    const status = await getPracticeAttemptStatus(practiceKey, className, studentNumber);
     return NextResponse.json(status, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     console.error("Practice attempt status error", error);

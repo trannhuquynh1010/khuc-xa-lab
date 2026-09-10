@@ -42,7 +42,13 @@ export default function usePracticeAttempt(practiceKey: PracticeKey, answers: un
     }
     setPhase("submitted");
     setMessageType("success");
-    setMessage(status.forced ? "Giáo viên đã thu bài. Bài làm đã được khóa." : "Bài đã được ghi nhận.");
+    setMessage(status.forced
+      ? status.completionState === "no-data"
+        ? "Giáo viên đã thu bài khi em chưa có câu trả lời. Bài đã được khóa."
+        : status.completionState === "partial"
+          ? `Giáo viên đã thu bài khi em hoàn thành ${status.completedCount}/${status.totalItems} ý. Bài đã được khóa.`
+          : "Giáo viên đã thu bài. Bài làm đã được khóa."
+      : "Bài đã được ghi nhận.");
     setReleasedResult(status.released ? {
       bonusPoint: status.bonusPoint ?? 0,
       correctCount: status.correctCount ?? 0,

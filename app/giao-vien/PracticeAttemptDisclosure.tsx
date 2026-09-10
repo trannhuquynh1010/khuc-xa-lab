@@ -15,6 +15,18 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function progressLabel(attempt: TeacherPracticeAttempt) {
+  if (attempt.completionState === "no-data") return "Chưa làm · không có dữ liệu";
+  if (attempt.completionState === "partial") return `Đang làm dở · ${attempt.completedCount}/${attempt.totalItems}`;
+  return attempt.forced ? `Đã làm đủ · ${attempt.completedCount}/${attempt.totalItems}` : `✓ Đã nộp · ${attempt.completedCount}/${attempt.totalItems}`;
+}
+
+function completionLabel(attempt: TeacherPracticeAttempt) {
+  if (attempt.completionState === "no-data") return "Chưa làm";
+  if (attempt.completionState === "partial") return "Đang làm dở";
+  return "Hoàn thành";
+}
+
 export default function PracticeAttemptDisclosure({ submittedCount, practiceKey, className, schoolYear }: {
   submittedCount: number;
   practiceKey: PracticeKey;
@@ -53,6 +65,9 @@ export default function PracticeAttemptDisclosure({ submittedCount, practiceKey,
   useEffect(() => () => requestRef.current?.abort(), []);
   const attemptsByNumber = useMemo(() => new Map(attempts?.map((attempt) => [attempt.studentNumber, attempt]) ?? []), [attempts]);
   const bonusCount = attempts?.filter((attempt) => attempt.bonusPoint > 0).length ?? 0;
+  const completeCount = attempts?.filter((attempt) => attempt.completionState === "complete").length ?? 0;
+  const partialCount = attempts?.filter((attempt) => attempt.completionState === "partial").length ?? 0;
+  const noDataCount = attempts?.filter((attempt) => attempt.completionState === "no-data").length ?? 0;
   const visibleAttempts = useMemo(() => {
     if (!attempts) return [];
     const rows = view === "bonus-only" ? attempts.filter((attempt) => attempt.bonusPoint > 0) : [...attempts];
@@ -66,24 +81,25 @@ export default function PracticeAttemptDisclosure({ submittedCount, practiceKey,
   return (
     <div className="quiz-data-disclosure">
       <button className="quiz-data-toggle" type="button" aria-expanded={expanded} onPointerEnter={() => void loadAttempts()} onFocus={() => void loadAttempts()} onClick={() => { const next = !expanded; setExpanded(next); if (next) void loadAttempts(); }}>
-        <span><strong>Dữ liệu học sinh</strong><small>{submittedCount}/33 đã thu{attempts ? ` · ${bonusCount} có điểm cộng` : ""}</small></span>
+        <span><strong>Dữ liệu học sinh</strong><small>{submittedCount}/33 đã thu{attempts ? ` · ${completeCount} hoàn thành · ${partialCount} dở dang · ${noDataCount} chưa làm` : ""}</small></span>
         <b>{expanded ? "Thu gọn ↑" : "Xem dữ liệu ↓"}</b>
       </button>
       {expanded ? <div className="quiz-data-content">
         {loading ? <div className="teacher-results-loading"><span className="loading-dot" /> Đang tải dữ liệu…</div> : null}
         {error ? <div className="teacher-results-error"><p>{error}</p><button type="button" className="secondary-button" onClick={() => void loadAttempts(true)}>Thử lại</button></div> : null}
         {attempts ? <>
+          <div className="collection-status-legend" aria-label="Chú thích trạng thái bài làm"><span className="complete">Hoàn thành</span><span className="partial">Đang làm dở</span><span className="no-data">Chưa làm · không có dữ liệu</span></div>
           <div className="student-progress-grid" aria-label={`Tiến độ bài cá nhân lớp ${className}`}>
             {studentNumbers.map((number) => {
               const attempt = attemptsByNumber.get(number);
-              return <div key={number} className={`student-progress-item ${attempt ? "submitted" : "pending"} ${attempt?.forced ? "forced" : ""}`}><strong>{formatStudentNumber(number)}</strong><span>{attempt ? attempt.forced ? `Thu tự động · ${attempt.completedCount}/${attempt.totalItems}` : `✓ ${attempt.completedCount}/${attempt.totalItems}${attempt.masteryLevel ? ` · ${attempt.masteryLevel}` : ""}` : "Chưa nộp"}</span></div>;
+              return <div key={number} className={`student-progress-item ${attempt ? attempt.completionState : "pending"} ${attempt?.forced ? "forced" : ""}`}><strong>{formatStudentNumber(number)}</strong><span>{attempt ? `${progressLabel(attempt)}${attempt.masteryLevel && attempt.completionState !== "no-data" ? ` · ${attempt.masteryLevel}` : ""}` : "Chưa thu bài"}</span></div>;
             })}
           </div>
           <div className="quiz-results-toolbar">
             <p><strong>{bonusCount}</strong> học sinh có điểm cộng</p>
             <label>Hiển thị<select value={view} onChange={(event) => setView(event.target.value as ResultView)}><option value="student-number">Theo STT</option><option value="bonus-first">Điểm cộng trước</option><option value="bonus-only">Chỉ có điểm cộng</option></select></label>
           </div>
-          {visibleAttempts.length ? <div className="table-scroll"><table className="quiz-results-table"><thead><tr><th>STT</th><th>Hoàn thành</th><th>Ý đúng</th>{practiceKey === "optics-review" ? <th>Mức cao nhất</th> : null}<th>Điểm cộng</th><th>Cách thu</th><th>Trạng thái điểm</th><th>Thời gian</th></tr></thead><tbody>{visibleAttempts.map((attempt) => <tr key={attempt.id}><th scope="row">{formatStudentNumber(attempt.studentNumber)}</th><td>{attempt.completedCount}/{attempt.totalItems}</td><td>{attempt.correctCount}/{attempt.totalItems}</td>{practiceKey === "optics-review" ? <td><strong className="mastery-chip">{attempt.masteryLevel}</strong></td> : null}<td><strong className={`quiz-bonus-chip ${attempt.bonusPoint ? "earned" : "not-earned"}`}>{attempt.bonusPoint ? `+${attempt.bonusPoint}` : "—"}</strong></td><td>{attempt.forced ? "Thu tự động" : "Tự nộp"}</td><td><span className={`score-release-chip ${attempt.releasedAt ? "released" : "pending"}`}>{attempt.releasedAt ? "Đã công bố" : "Chưa công bố"}</span></td><td>{formatDate(attempt.submittedAt)}</td></tr>)}</tbody></table></div> : <div className="quiz-filter-empty">Không có học sinh phù hợp bộ lọc.</div>}
+          {visibleAttempts.length ? <div className="table-scroll"><table className="quiz-results-table"><thead><tr><th>STT</th><th>Tình trạng khi thu</th><th>Hoàn thành</th><th>Ý đúng</th>{practiceKey === "optics-review" ? <th>Mức cao nhất</th> : null}<th>Điểm cộng</th><th>Cách thu</th><th>Trạng thái điểm</th><th>Thời gian</th></tr></thead><tbody>{visibleAttempts.map((attempt) => <tr key={attempt.id} className={`attempt-row-${attempt.completionState}`}><th scope="row">{formatStudentNumber(attempt.studentNumber)}</th><td><span className={`attempt-state-chip ${attempt.completionState}`}>{completionLabel(attempt)}</span></td><td>{attempt.completedCount}/{attempt.totalItems}</td><td>{attempt.correctCount}/{attempt.totalItems}</td>{practiceKey === "optics-review" ? <td><strong className="mastery-chip">{attempt.masteryLevel}</strong></td> : null}<td><strong className={`quiz-bonus-chip ${attempt.bonusPoint ? "earned" : "not-earned"}`}>{attempt.bonusPoint ? `+${attempt.bonusPoint}` : "—"}</strong></td><td>{attempt.forced ? "Thu tự động" : "Tự nộp"}</td><td><span className={`score-release-chip ${attempt.releasedAt ? "released" : "pending"}`}>{attempt.releasedAt ? "Đã công bố" : "Chưa công bố"}</span></td><td>{formatDate(attempt.submittedAt)}</td></tr>)}</tbody></table></div> : <div className="quiz-filter-empty">Không có học sinh phù hợp bộ lọc.</div>}
         </> : null}
       </div> : null}
     </div>

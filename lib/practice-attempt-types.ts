@@ -26,6 +26,14 @@ export function getPracticeBonusPoint(correctCount: number, totalItems: number) 
   return 0;
 }
 
+export type PracticeCompletionState = "no-data" | "partial" | "complete";
+
+export function getPracticeCompletionState(completedCount: number, totalItems: number): PracticeCompletionState {
+  if (completedCount <= 0) return "no-data";
+  if (totalItems > 0 && completedCount >= totalItems) return "complete";
+  return "partial";
+}
+
 export type PracticeAttemptStatus = {
   submitted: boolean;
   forced: boolean;
@@ -34,6 +42,7 @@ export type PracticeAttemptStatus = {
   correctCount?: number;
   totalItems: number;
   bonusPoint?: number;
+  completionState: PracticeCompletionState;
 };
 
 export type TeacherPracticeAttempt = {
@@ -48,4 +57,5 @@ export type TeacherPracticeAttempt = {
   releasedAt: string | null;
   submittedAt: string | null;
   masteryLevel: string | null;
+  completionState: PracticeCompletionState;
 };

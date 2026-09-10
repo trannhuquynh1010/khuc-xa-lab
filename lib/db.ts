@@ -11,7 +11,7 @@ import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
 import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
-import type { PracticeAttemptStatus, PracticeKey, TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
+import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
@@ -69,11 +69,17 @@ export type RefractionQuizSubmission = {
   totalItems: number;
   releasedAt: string | null;
   createdAt: string;
+  forced: boolean;
+  completedCount: number;
+  completionState: "no-data" | "partial" | "complete";
 };
 
 export type RefractionQuizClassSummary = {
   submittedCount: number;
   releasedCount: number;
+  completeCount: number;
+  partialCount: number;
+  noDataCount: number;
 };
 
 export type RefractionQuizSubmissionStatus =
@@ -727,21 +733,39 @@ const getCachedRefractionQuizSubmissions = unstable_cache(async (schoolYear: str
   const sql = getSql();
   const rows = className
     ? await sql`
-        SELECT id, school_year, class_name, student_name, student_number, answers, released_at, created_at
-        FROM refraction_quiz_submissions
-        WHERE school_year = ${schoolYear} AND class_name = ${className}
-        ORDER BY created_at DESC
+        SELECT quiz.id, quiz.school_year, quiz.class_name, quiz.student_name, quiz.student_number, quiz.answers,
+          quiz.released_at, quiz.created_at, COALESCE(attempt.forced, FALSE) AS forced,
+          COALESCE(attempt.completed_count, quiz.total_items) AS completed_count,
+          COALESCE(attempt.total_items, quiz.total_items) AS practice_total_items
+        FROM refraction_quiz_submissions quiz
+        LEFT JOIN practice_attempts attempt
+          ON attempt.school_year = quiz.school_year
+          AND attempt.practice_key = 'refraction-application'
+          AND attempt.class_name = quiz.class_name
+          AND attempt.student_number = quiz.student_number
+        WHERE quiz.school_year = ${schoolYear} AND quiz.class_name = ${className}
+        ORDER BY quiz.created_at DESC
         LIMIT ${limit}
       `
     : await sql`
-        SELECT id, school_year, class_name, student_name, student_number, answers, released_at, created_at
-        FROM refraction_quiz_submissions
-        WHERE school_year = ${schoolYear}
-        ORDER BY created_at DESC
+        SELECT quiz.id, quiz.school_year, quiz.class_name, quiz.student_name, quiz.student_number, quiz.answers,
+          quiz.released_at, quiz.created_at, COALESCE(attempt.forced, FALSE) AS forced,
+          COALESCE(attempt.completed_count, quiz.total_items) AS completed_count,
+          COALESCE(attempt.total_items, quiz.total_items) AS practice_total_items
+        FROM refraction_quiz_submissions quiz
+        LEFT JOIN practice_attempts attempt
+          ON attempt.school_year = quiz.school_year
+          AND attempt.practice_key = 'refraction-application'
+          AND attempt.class_name = quiz.class_name
+          AND attempt.student_number = quiz.student_number
+        WHERE quiz.school_year = ${schoolYear}
+        ORDER BY quiz.created_at DESC
         LIMIT ${limit}
       `;
   return rows.map((row) => {
     const evaluation = scoreRefractionQuiz(row.answers as RefractionQuizAnswers);
+    const completedCount = Number(row.completed_count ?? evaluation.totalItems);
+    const totalItems = Number(row.practice_total_items ?? evaluation.totalItems);
     return {
       id: String(row.id),
       schoolYear: String(row.school_year),
@@ -750,12 +774,15 @@ const getCachedRefractionQuizSubmissions = unstable_cache(async (schoolYear: str
       studentNumber: row.student_number === null ? null : Number(row.student_number),
       bonusPoint: evaluation.bonusPoint,
       correctCount: evaluation.correctCount,
-      totalItems: evaluation.totalItems,
+      totalItems,
       releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
       createdAt: new Date(String(row.created_at)).toISOString(),
+      forced: Boolean(row.forced),
+      completedCount,
+      completionState: getPracticeCompletionState(completedCount, totalItems),
     };
   });
-}, ["refraction-quiz-submissions-v1"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+}, ["refraction-quiz-submissions-v2"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
 
 export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 500): Promise<RefractionQuizSubmission[]> {
   return getCachedRefractionQuizSubmissions(schoolYear, className, limit);
@@ -766,25 +793,49 @@ const getCachedRefractionQuizSummaries = unstable_cache(async (schoolYear: strin
   const sql = getSql();
   const rows = await sql`
     SELECT
-      class_name,
-      COUNT(*) FILTER (WHERE student_number IS NOT NULL)::INTEGER AS submitted_count,
-      COUNT(*) FILTER (WHERE student_number IS NOT NULL AND released_at IS NOT NULL)::INTEGER AS released_count
-    FROM refraction_quiz_submissions
-    WHERE school_year = ${schoolYear}
-    GROUP BY class_name
+      quiz.class_name,
+      COUNT(*) FILTER (WHERE quiz.student_number IS NOT NULL)::INTEGER AS submitted_count,
+      COUNT(*) FILTER (WHERE quiz.student_number IS NOT NULL AND quiz.released_at IS NOT NULL)::INTEGER AS released_count,
+      COUNT(*) FILTER (
+        WHERE quiz.student_number IS NOT NULL
+          AND COALESCE(attempt.completed_count, quiz.total_items) >= COALESCE(attempt.total_items, quiz.total_items)
+      )::INTEGER AS complete_count,
+      COUNT(*) FILTER (
+        WHERE quiz.student_number IS NOT NULL
+          AND COALESCE(attempt.completed_count, quiz.total_items) > 0
+          AND COALESCE(attempt.completed_count, quiz.total_items) < COALESCE(attempt.total_items, quiz.total_items)
+      )::INTEGER AS partial_count,
+      COUNT(*) FILTER (
+        WHERE quiz.student_number IS NOT NULL
+          AND COALESCE(attempt.completed_count, quiz.total_items) = 0
+      )::INTEGER AS no_data_count
+    FROM refraction_quiz_submissions quiz
+    LEFT JOIN practice_attempts attempt
+      ON attempt.school_year = quiz.school_year
+      AND attempt.practice_key = 'refraction-application'
+      AND attempt.class_name = quiz.class_name
+      AND attempt.student_number = quiz.student_number
+    WHERE quiz.school_year = ${schoolYear}
+    GROUP BY quiz.class_name
   `;
   return rows.map((row) => ({
     className: String(row.class_name),
     submittedCount: Number(row.submitted_count ?? 0),
     releasedCount: Number(row.released_count ?? 0),
+    completeCount: Number(row.complete_count ?? 0),
+    partialCount: Number(row.partial_count ?? 0),
+    noDataCount: Number(row.no_data_count ?? 0),
   }));
-}, ["refraction-quiz-class-summaries-v1"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+}, ["refraction-quiz-class-summaries-v2"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
 
 export async function getRefractionQuizClassSummary(schoolYear: string, className: string): Promise<RefractionQuizClassSummary> {
   const summary = (await getCachedRefractionQuizSummaries(schoolYear)).find((item) => item.className === className);
   return {
     submittedCount: summary?.submittedCount ?? 0,
     releasedCount: summary?.releasedCount ?? 0,
+    completeCount: summary?.completeCount ?? 0,
+    partialCount: summary?.partialCount ?? 0,
+    noDataCount: summary?.noDataCount ?? 0,
   };
 }
 
@@ -842,15 +893,18 @@ type PracticeAttemptInput = {
 };
 
 function rowToPracticeStatus(row: Record<string, unknown> | undefined): PracticeAttemptStatus {
-  if (!row) return { submitted: false, forced: false, released: false, completedCount: 0, totalItems: 0 };
+  if (!row) return { submitted: false, forced: false, released: false, completedCount: 0, totalItems: 0, completionState: "no-data" };
   const submitted = row.status === "submitted";
   const released = submitted && row.released_at !== null;
+  const completedCount = Number(row.completed_count ?? 0);
+  const totalItems = Number(row.total_items ?? 0);
   return {
     submitted,
     forced: Boolean(row.forced),
     released,
-    completedCount: Number(row.completed_count ?? 0),
-    totalItems: Number(row.total_items ?? 0),
+    completedCount,
+    totalItems,
+    completionState: getPracticeCompletionState(completedCount, totalItems),
     ...(released ? {
       correctCount: Number(row.correct_count ?? 0),
       bonusPoint: Number(row.bonus_point ?? 0),
@@ -1061,21 +1115,24 @@ const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, prac
   `;
   return rows.map((row) => {
     const currentEvaluation = practiceKey === "optics-review" ? scorePracticeAttempt(practiceKey, row.answers) : null;
+    const completedCount = currentEvaluation?.completedCount ?? Number(row.completed_count);
+    const totalItems = currentEvaluation?.totalItems ?? Number(row.total_items);
     return {
       id: String(row.id),
       className: String(row.class_name),
       studentNumber: Number(row.student_number),
-      completedCount: currentEvaluation?.completedCount ?? Number(row.completed_count),
+      completedCount,
       correctCount: currentEvaluation?.correctCount ?? Number(row.correct_count),
-      totalItems: currentEvaluation?.totalItems ?? Number(row.total_items),
+      totalItems,
       bonusPoint: currentEvaluation?.bonusPoint ?? Number(row.bonus_point),
       forced: Boolean(row.forced),
       releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
       submittedAt: row.submitted_at === null ? null : new Date(String(row.submitted_at)).toISOString(),
       masteryLevel: practiceKey === "optics-review" ? getOpticsReviewMasteryLabel(row.answers) : null,
+      completionState: getPracticeCompletionState(completedCount, totalItems),
     };
   });
-}, ["practice-attempts-v3"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
+}, ["practice-attempts-v4"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
 
 export async function listPracticeAttempts(schoolYear: string, practiceKey: PracticeKey, className: string) {
   return getCachedPracticeAttempts(schoolYear, practiceKey, className);
@@ -1087,6 +1144,9 @@ export async function getPracticeAttemptSummary(schoolYear: string, practiceKey:
     submittedCount: attempts.length,
     releasedCount: attempts.filter((attempt) => attempt.releasedAt !== null).length,
     forcedCount: attempts.filter((attempt) => attempt.forced).length,
+    completeCount: attempts.filter((attempt) => attempt.completionState === "complete").length,
+    partialCount: attempts.filter((attempt) => attempt.completionState === "partial").length,
+    noDataCount: attempts.filter((attempt) => attempt.completionState === "no-data").length,
   };
 }
 

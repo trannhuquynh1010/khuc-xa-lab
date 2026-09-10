@@ -41,12 +41,14 @@ export default function RefractionQuizDisclosure({ submittedCount, className, sc
   const rosterSubmissions = useMemo(() => studentNumbers
     .map((number) => submissionsByNumber.get(number))
     .filter((submission): submission is RefractionQuizSubmission => Boolean(submission)), [submissionsByNumber]);
-  const bonusCount = rosterSubmissions.filter((submission) => submission.bonusPoint > 0).length;
+  const completeCount = rosterSubmissions.filter((submission) => submission.completionState === "complete").length;
+  const partialCount = rosterSubmissions.filter((submission) => submission.completionState === "partial").length;
+  const noDataCount = rosterSubmissions.filter((submission) => submission.completionState === "no-data").length;
 
   return (
     <div className="quiz-data-disclosure">
       <button className="quiz-data-toggle" type="button" aria-expanded={expanded} onPointerEnter={() => void loadSubmissions()} onFocus={() => void loadSubmissions()} onClick={() => { const nextExpanded = !expanded; setExpanded(nextExpanded); if (nextExpanded) void loadSubmissions(); }}>
-        <span><strong>Dữ liệu học sinh</strong><small>{submittedCount}/33 đã nộp{submissions ? ` · ${bonusCount} có điểm cộng` : ""}</small></span>
+        <span><strong>Dữ liệu học sinh</strong><small>{submittedCount}/33 đã thu{submissions ? ` · ${completeCount} hoàn thành · ${partialCount} dở dang · ${noDataCount} chưa làm` : ""}</small></span>
         <b>{expanded ? "Thu gọn ↑" : "Xem dữ liệu ↓"}</b>
       </button>
       {expanded && (
@@ -54,10 +56,11 @@ export default function RefractionQuizDisclosure({ submittedCount, className, sc
           {loading ? <div className="teacher-results-loading"><span className="loading-dot" /> Đang tải dữ liệu…</div> : null}
           {error ? <div className="teacher-results-error"><p>{error}</p><button type="button" className="secondary-button" onClick={() => void loadSubmissions()}>Thử lại</button></div> : null}
           {submissions ? <>
+          <div className="collection-status-legend" aria-label="Chú thích trạng thái bài làm"><span className="complete">Hoàn thành</span><span className="partial">Đang làm dở</span><span className="no-data">Chưa làm · không có dữ liệu</span></div>
           <div className="student-progress-grid" aria-label={`Tiến độ nộp bài cá nhân lớp ${className}`}>
             {studentNumbers.map((number) => {
               const submission = submissionsByNumber.get(number);
-              return <div key={number} className={`student-progress-item ${submission ? "submitted" : "pending"}`}><strong>{formatStudentNumber(number)}</strong><span>{submission ? submission.bonusPoint ? `+${submission.bonusPoint} điểm` : "✓ Đã nộp" : "Chưa nộp"}</span></div>;
+              return <div key={number} className={`student-progress-item ${submission ? submission.completionState : "pending"} ${submission?.forced ? "forced" : ""}`}><strong>{formatStudentNumber(number)}</strong><span>{submission ? submission.completionState === "no-data" ? "Chưa làm · không dữ liệu" : submission.completionState === "partial" ? `Đang làm dở · ${submission.completedCount}/${submission.totalItems}` : submission.bonusPoint ? `Hoàn thành · +${submission.bonusPoint}` : "✓ Hoàn thành" : "Chưa thu bài"}</span></div>;
             })}
           </div>
           {rosterSubmissions.length > 0 ? <RefractionQuizResultTable submissions={rosterSubmissions} /> : <div className="quiz-filter-empty">Chưa có học sinh nộp bài.</div>}
