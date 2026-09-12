@@ -5,7 +5,9 @@ import {
   closePrismLiveQuestion,
   createPrismLiveQuestion,
   deletePrismLiveQuestion,
+  getPrismLiveBonusSummary,
   getPrismLiveQuestionResults,
+  gradePrismLiveShortResponse,
   listPrismLiveQuestions,
   startPrismLiveQuestion,
 } from "@/lib/db";
@@ -24,6 +26,7 @@ export async function GET(request: Request) {
   const schoolYear = searchParams.get("schoolYear");
   const className = searchParams.get("className");
   const questionId = searchParams.get("questionId");
+  const includeBonus = searchParams.get("includeBonus") !== "0";
   if (!isSchoolYear(schoolYear) || !isClassName(className) || (questionId !== null && !isUuid(questionId))) {
     return NextResponse.json({ error: "Bộ lọc chưa hợp lệ." }, { status: 400 });
   }
@@ -32,7 +35,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ result, serverNow: new Date().toISOString() }, { headers: { "Cache-Control": "private, no-store" } });
   }
   const questions = await listPrismLiveQuestions(schoolYear, className);
-  return NextResponse.json({ questions, serverNow: new Date().toISOString() }, { headers: { "Cache-Control": "private, no-store" } });
+  const bonusStudents = includeBonus ? await getPrismLiveBonusSummary(schoolYear, className) : undefined;
+  return NextResponse.json({ questions, bonusStudents, serverNow: new Date().toISOString() }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -57,12 +61,27 @@ export async function POST(request: Request) {
         type: body.type,
         prompt: typeof body.prompt === "string" ? body.prompt : "",
         options: body.options.filter((option): option is string => typeof option === "string"),
+        correctAnswer: body.correctAnswer,
         durationSeconds: Number(body.durationSeconds),
       });
       return NextResponse.json({ question });
     }
 
     if (!isUuid(body.questionId)) return NextResponse.json({ error: "Câu hỏi chưa hợp lệ." }, { status: 400 });
+    if (action === "grade") {
+      if (!isUuid(body.runId) || !Number.isInteger(Number(body.studentNumber)) || Number(body.studentNumber) < 1 || Number(body.studentNumber) > 33 || typeof body.isCorrect !== "boolean") {
+        return NextResponse.json({ error: "Dữ liệu chấm bài chưa hợp lệ." }, { status: 400 });
+      }
+      const changed = await gradePrismLiveShortResponse({
+        schoolYear,
+        className,
+        questionId: body.questionId,
+        runId: body.runId,
+        studentNumber: Number(body.studentNumber),
+        isCorrect: body.isCorrect,
+      });
+      return NextResponse.json({ changed });
+    }
     if (action === "start") {
       if (schoolYear !== getCurrentSchoolYear()) return NextResponse.json({ error: "Chỉ có thể chạy câu hỏi trong năm học hiện tại." }, { status: 409 });
       const question = await startPrismLiveQuestion(schoolYear, className, body.questionId);

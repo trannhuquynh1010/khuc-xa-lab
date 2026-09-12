@@ -1,4 +1,4 @@
-export const prismLiveQuestionTypes = ["single", "multiple", "short", "drawing"] as const;
+export const prismLiveQuestionTypes = ["single", "multiple", "matching", "short", "drawing"] as const;
 
 export type PrismLiveQuestionType = (typeof prismLiveQuestionTypes)[number];
 export type PrismLiveQuestionStatus = "draft" | "running" | "closed";
@@ -13,8 +13,14 @@ export type PrismDrawingStroke = {
 export type PrismLiveAnswer =
   | { type: "single"; selected: number | null }
   | { type: "multiple"; selected: number[] }
+  | { type: "matching"; selected: Array<number | null> }
   | { type: "short"; text: string }
   | { type: "drawing"; strokes: PrismDrawingStroke[] };
+
+export type PrismLiveCorrectAnswer =
+  | { type: "single"; selected: number }
+  | { type: "multiple"; selected: number[] }
+  | { type: "matching"; selected: number[] };
 
 export type PrismLiveQuestion = {
   id: string;
@@ -24,6 +30,10 @@ export type PrismLiveQuestion = {
   type: PrismLiveQuestionType;
   prompt: string;
   options: string[];
+  content: { items?: string[]; visualKey?: "prism-path" | "prism-dispersion" };
+  isAutoGraded: boolean;
+  quizSet: string | null;
+  quizOrder: number | null;
   durationSeconds: number;
   status: PrismLiveQuestionStatus;
   startedAt: string | null;
@@ -36,6 +46,7 @@ export type PrismLiveQuestion = {
 export type PrismLiveResponse = {
   studentNumber: number;
   answer: PrismLiveAnswer;
+  isCorrect: boolean | null;
   submittedAt: string | null;
   updatedAt: string;
 };
@@ -43,6 +54,7 @@ export type PrismLiveResponse = {
 export const prismLiveTypeLabels: Record<PrismLiveQuestionType, string> = {
   single: "Chọn 1 đáp án",
   multiple: "Chọn nhiều đáp án",
+  matching: "Ghép tình huống",
   short: "Trả lời ngắn",
   drawing: "Vẽ hình",
 };
@@ -51,9 +63,10 @@ export function isPrismLiveQuestionType(value: unknown): value is PrismLiveQuest
   return typeof value === "string" && prismLiveQuestionTypes.includes(value as PrismLiveQuestionType);
 }
 
-export function emptyPrismLiveAnswer(type: PrismLiveQuestionType): PrismLiveAnswer {
+export function emptyPrismLiveAnswer(type: PrismLiveQuestionType, itemCount = 0): PrismLiveAnswer {
   if (type === "single") return { type, selected: null };
   if (type === "multiple") return { type, selected: [] };
+  if (type === "matching") return { type, selected: Array.from({ length: itemCount }, () => null) };
   if (type === "short") return { type, text: "" };
   return { type, strokes: [] };
 }
@@ -61,6 +74,7 @@ export function emptyPrismLiveAnswer(type: PrismLiveQuestionType): PrismLiveAnsw
 export function hasPrismLiveAnswer(answer: PrismLiveAnswer) {
   if (answer.type === "single") return answer.selected !== null;
   if (answer.type === "multiple") return answer.selected.length > 0;
+  if (answer.type === "matching") return answer.selected.length > 0 && answer.selected.every((selected) => selected !== null);
   if (answer.type === "short") return answer.text.trim().length > 0;
   return answer.strokes.some((stroke) => stroke.points.length > 1);
 }
@@ -74,6 +88,7 @@ export function normalizePrismLiveAnswer(
   value: unknown,
   type: PrismLiveQuestionType,
   optionCount: number,
+  itemCount = 0,
 ): PrismLiveAnswer | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -90,6 +105,13 @@ export function normalizePrismLiveAnswer(
     const selected = [...new Set(record.selected.map(Number))];
     if (selected.some((index) => !Number.isInteger(index) || index < 0 || index >= optionCount)) return null;
     return { type, selected: selected.sort((left, right) => left - right) };
+  }
+
+  if (type === "matching") {
+    if (!Array.isArray(record.selected) || record.selected.length !== itemCount) return null;
+    const selected = record.selected.map((index) => index === null ? null : Number(index));
+    if (selected.some((index) => index !== null && (!Number.isInteger(index) || index < 0 || index >= optionCount))) return null;
+    return { type, selected };
   }
 
   if (type === "short") {
@@ -121,3 +143,11 @@ export function normalizePrismLiveAnswer(
   }
   return { type, strokes };
 }
+
+export type PrismLiveBonusStudent = {
+  studentNumber: number;
+  answeredCount: number;
+  gradedCount: number;
+  correctCount: number;
+  bonusPoint: 0 | 1;
+};

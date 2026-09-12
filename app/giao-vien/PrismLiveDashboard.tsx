@@ -6,12 +6,14 @@ import {
   hasPrismLiveAnswer,
   prismLiveTypeLabels,
   type PrismDrawingStroke,
+  type PrismLiveBonusStudent,
+  type PrismLiveCorrectAnswer,
   type PrismLiveQuestion,
   type PrismLiveQuestionType,
   type PrismLiveResponse,
 } from "@/lib/prism-live";
 
-type QuestionResult = { question: PrismLiveQuestion; responses: PrismLiveResponse[] };
+type QuestionResult = { question: PrismLiveQuestion; responses: PrismLiveResponse[]; correctAnswer: PrismLiveCorrectAnswer | null };
 type MutationAction = "start" | "close" | "delete";
 const durationOptions = [15, 30, 45, 60, 90, 120, 180, 300];
 
@@ -38,7 +40,7 @@ function DrawingPreview({ strokes }: { strokes: PrismDrawingStroke[] }) {
   );
 }
 
-function ChoiceStatistics({ question, responses }: QuestionResult) {
+function ChoiceStatistics({ question, responses, correctAnswer }: QuestionResult) {
   const answeredResponses = responses.filter((response) => hasPrismLiveAnswer(response.answer));
   const counts = question.options.map((_, optionIndex) => answeredResponses.filter((response) => {
     if (response.answer.type === "single") return response.answer.selected === optionIndex;
@@ -46,11 +48,12 @@ function ChoiceStatistics({ question, responses }: QuestionResult) {
     return false;
   }).length);
   const largest = Math.max(1, ...counts);
+  const correctIndices = new Set(correctAnswer?.type === "single" ? [correctAnswer.selected] : correctAnswer?.type === "multiple" ? correctAnswer.selected : []);
   return (
     <div className="prism-live-choice-stats">
       {question.options.map((option, index) => (
-        <div key={`${index}-${option}`} className="prism-live-stat-row">
-          <b>{String.fromCharCode(65 + index)}</b>
+        <div key={`${index}-${option}`} className={`prism-live-stat-row ${correctIndices.has(index) ? "correct-answer" : ""}`}>
+          <b>{correctIndices.has(index) ? "✓" : String.fromCharCode(65 + index)}</b>
           <span className="prism-live-stat-label">{option}</span>
           <span className="prism-live-stat-track"><i style={{ width: `${counts[index] / largest * 100}%` }} /></span>
           <strong>{counts[index]} bạn</strong>
@@ -60,10 +63,9 @@ function ChoiceStatistics({ question, responses }: QuestionResult) {
   );
 }
 
-function ResponseStatistics({ result }: { result: QuestionResult }) {
+function ResponseStatistics({ result, onGrade }: { result: QuestionResult; onGrade: (response: PrismLiveResponse, isCorrect: boolean) => void }) {
   const { question, responses } = result;
   const meaningfulResponses = responses.filter((response) => hasPrismLiveAnswer(response.answer));
-  const respondedNumbers = new Set(meaningfulResponses.map((response) => response.studentNumber));
   return (
     <div className="prism-live-results">
       <div className="prism-live-results-summary">
@@ -72,14 +74,29 @@ function ResponseStatistics({ result }: { result: QuestionResult }) {
       </div>
 
       <div className="prism-live-roster" aria-label="Tiến độ 33 học sinh">
-        {studentNumbers.map((number) => <span key={number} className={respondedNumbers.has(number) ? "answered" : ""} title={`STT ${formatStudentNumber(number)}: ${respondedNumbers.has(number) ? "đã trả lời" : "chưa trả lời"}`}>{formatStudentNumber(number)}</span>)}
+        {studentNumbers.map((number) => {
+          const response = meaningfulResponses.find((item) => item.studentNumber === number);
+          const state = response?.isCorrect === true ? "correct" : response?.isCorrect === false ? "incorrect" : response ? "answered" : "";
+          return <span key={number} className={state} title={`STT ${formatStudentNumber(number)}: ${response?.isCorrect === true ? "đúng" : response?.isCorrect === false ? "chưa đúng" : response ? "chờ chấm" : "chưa trả lời"}`}>{formatStudentNumber(number)}</span>;
+        })}
       </div>
 
-      {question.type === "single" || question.type === "multiple" ? <ChoiceStatistics question={question} responses={responses} /> : null}
+      {question.type === "single" || question.type === "multiple" ? <ChoiceStatistics {...result} /> : null}
+
+      {question.type === "matching" ? (
+        <div className="prism-live-text-responses">
+          {meaningfulResponses.map((response) => response.answer.type === "matching" ? (
+            <article key={response.studentNumber} className={response.isCorrect ? "is-correct" : "is-incorrect"}>
+              <b>STT {formatStudentNumber(response.studentNumber)} · {response.isCorrect ? "Đúng" : "Chưa đúng"}</b>
+              <p>{response.answer.selected.map((selected, index) => `${index + 1} → ${selected === null ? "—" : question.options[selected]}`).join(" · ")}</p>
+            </article>
+          ) : null)}
+        </div>
+      ) : null}
 
       {question.type === "short" ? (
         <div className="prism-live-text-responses">
-          {meaningfulResponses.map((response) => response.answer.type === "short" ? <article key={response.studentNumber}><b>STT {formatStudentNumber(response.studentNumber)}</b><p>{response.answer.text}</p></article> : null)}
+          {meaningfulResponses.map((response) => response.answer.type === "short" ? <article key={response.studentNumber} className={response.isCorrect === true ? "is-correct" : response.isCorrect === false ? "is-incorrect" : ""}><div className="prism-live-response-grade"><b>STT {formatStudentNumber(response.studentNumber)}</b><label><input type="checkbox" checked={response.isCorrect === true} onChange={(event) => onGrade(response, event.target.checked)} /> Đúng</label></div><p>{response.answer.text}</p></article> : null)}
           {!meaningfulResponses.length ? <p className="prism-live-empty-result">Chưa có câu trả lời.</p> : null}
         </div>
       ) : null}
@@ -96,11 +113,14 @@ function ResponseStatistics({ result }: { result: QuestionResult }) {
 
 export default function PrismLiveDashboard({ className, schoolYear, isCurrentYear }: { className: string; schoolYear: string; isCurrentYear: boolean }) {
   const [questions, setQuestions] = useState<PrismLiveQuestion[]>([]);
+  const [bonusStudents, setBonusStudents] = useState<PrismLiveBonusStudent[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [result, setResult] = useState<QuestionResult | null>(null);
   const [type, setType] = useState<PrismLiveQuestionType>("single");
   const [prompt, setPrompt] = useState("");
   const [options, setOptions] = useState(["", "", "", ""]);
+  const [correctSingle, setCorrectSingle] = useState<number | null>(null);
+  const [correctMultiple, setCorrectMultiple] = useState<number[]>([]);
   const [durationSeconds, setDurationSeconds] = useState(60);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -108,14 +128,15 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
   const [now, setNow] = useState(0);
   const [clockOffset, setClockOffset] = useState(0);
 
-  const loadQuestions = useCallback(async (quiet = false) => {
+  const loadQuestions = useCallback(async (quiet = false, includeBonus = !quiet) => {
     if (!quiet) setLoading(true);
     try {
-      const params = new URLSearchParams({ className, schoolYear });
+      const params = new URLSearchParams({ className, schoolYear, includeBonus: includeBonus ? "1" : "0" });
       const response = await fetch(`/api/teacher-prism-live?${params}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Không thể tải câu hỏi.");
       setQuestions(data.questions);
+      if (Array.isArray(data.bonusStudents)) setBonusStudents(data.bonusStudents);
       setClockOffset(new Date(data.serverNow).getTime() - Date.now());
       setNow(Date.now());
       setMessage("");
@@ -178,15 +199,21 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
     setBusy(true);
     setMessage("");
     try {
+      const filledOptions = options.map((option, index) => ({ option: option.trim(), index })).filter((item) => item.option);
+      const mappedSingle = correctSingle === null ? null : filledOptions.findIndex((item) => item.index === correctSingle);
+      const mappedMultiple = correctMultiple.map((selected) => filledOptions.findIndex((item) => item.index === selected)).filter((selected) => selected >= 0);
+      const correctAnswer = type === "single" ? { type, selected: mappedSingle } : type === "multiple" ? { type, selected: mappedMultiple } : null;
       const response = await fetch("/api/teacher-prism-live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", className, schoolYear, type, prompt, options, durationSeconds }),
+        body: JSON.stringify({ action: "create", className, schoolYear, type, prompt, options: filledOptions.map((item) => item.option), correctAnswer, durationSeconds }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Không thể tạo câu hỏi.");
       setPrompt("");
       setOptions(["", "", "", ""]);
+      setCorrectSingle(null);
+      setCorrectMultiple([]);
       setMessage("✓ Đã lưu câu hỏi. Bấm Bắt đầu khi cả lớp sẵn sàng.");
       await loadQuestions(true);
     } catch (error) {
@@ -194,6 +221,30 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
     } finally {
       setBusy(false);
     }
+  }
+
+  async function gradeResponse(responseToGrade: PrismLiveResponse, isCorrect: boolean) {
+    if (!result?.question.runId) return;
+    const response = await fetch("/api/teacher-prism-live", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "grade",
+        className,
+        schoolYear,
+        questionId: result.question.id,
+        runId: result.question.runId,
+        studentNumber: responseToGrade.studentNumber,
+        isCorrect,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error || "Không thể chấm câu trả lời.");
+      return;
+    }
+    setResult((current) => current ? { ...current, responses: current.responses.map((item) => item.studentNumber === responseToGrade.studentNumber ? { ...item, isCorrect } : item) } : current);
+    await loadQuestions(true, true);
   }
 
   async function mutateQuestion(action: MutationAction, question: PrismLiveQuestion) {
@@ -210,7 +261,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
       if (!response.ok) throw new Error(data.error || "Không thể thực hiện thao tác.");
       if (action === "delete" && selectedQuestionId === question.id) setSelectedQuestionId(null);
       if (action === "start") setSelectedQuestionId(question.id);
-      await loadQuestions(true);
+      await loadQuestions(true, true);
       if (action !== "delete" && selectedQuestionId === question.id) await loadResult(question.id, true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không thể thực hiện thao tác.");
@@ -220,6 +271,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
   }
 
   const selectedQuestion = useMemo(() => questions.find((question) => question.id === selectedQuestionId) ?? null, [questions, selectedQuestionId]);
+  const rankedBonusStudents = useMemo(() => [...bonusStudents].sort((left, right) => right.bonusPoint - left.bonusPoint || right.correctCount - left.correctCount || left.studentNumber - right.studentNumber), [bonusStudents]);
 
   return (
     <section className="class-progress-panel prism-live-teacher" aria-labelledby="prism-live-teacher-heading">
@@ -232,13 +284,14 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
         <summary><span>＋ Thêm vào ngân hàng</span><small>Dùng lại cho mọi lớp</small></summary>
         <form onSubmit={createQuestion}>
           <div className="prism-live-creator-grid">
-            <label>Dạng câu hỏi<select value={type} onChange={(event) => setType(event.target.value as PrismLiveQuestionType)}><option value="single">Chọn 1 đáp án</option><option value="multiple">Chọn nhiều đáp án</option><option value="short">Trả lời ngắn</option><option value="drawing">Vẽ hình</option></select></label>
+            <label>Dạng câu hỏi<select value={type} onChange={(event) => { setType(event.target.value as PrismLiveQuestionType); setCorrectSingle(null); setCorrectMultiple([]); }}><option value="single">Chọn 1 đáp án</option><option value="multiple">Chọn nhiều đáp án</option><option value="short">Trả lời ngắn</option><option value="drawing">Vẽ hình</option></select></label>
             <label>Thời gian<select value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))}>{durationOptions.map((seconds) => <option key={seconds} value={seconds}>{seconds < 60 ? `${seconds} giây` : `${seconds / 60} phút`}</option>)}</select></label>
             <label className="prism-live-prompt-field">Nội dung câu hỏi<textarea required maxLength={1000} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Nhập câu hỏi cho cả lớp…" /></label>
           </div>
           {type === "single" || type === "multiple" ? (
             <div className="prism-live-option-editor">
-              {options.map((option, index) => <label key={index}><b>{String.fromCharCode(65 + index)}</b><input value={option} maxLength={180} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`Đáp án ${String.fromCharCode(65 + index)}`} /></label>)}
+              <p>Đáp án đúng được chấm tự động.</p>
+              {options.map((option, index) => <label key={index} className={(type === "single" ? correctSingle === index : correctMultiple.includes(index)) ? "correct-option" : ""}><input className="prism-live-correct-picker" type={type === "single" ? "radio" : "checkbox"} name="correct-answer" checked={type === "single" ? correctSingle === index : correctMultiple.includes(index)} onChange={(event) => type === "single" ? setCorrectSingle(index) : setCorrectMultiple((current) => event.target.checked ? [...current, index].sort() : current.filter((item) => item !== index))} /><b>{String.fromCharCode(65 + index)}</b><input value={option} maxLength={180} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`Đáp án ${String.fromCharCode(65 + index)}`} /></label>)}
             </div>
           ) : null}
           <div className="prism-live-creator-actions"><p>Lưu một lần; câu hỏi chỉ hiện với <strong>{className}</strong> khi cô bấm Bắt đầu.</p><button className="primary-button" type="submit" disabled={busy}>Lưu vào ngân hàng</button></div>
@@ -248,6 +301,11 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
       {message ? <p className="prism-live-teacher-message" role="status">{message}</p> : null}
       {!isCurrentYear ? <p className="prism-live-year-warning">Đang xem năm học cũ. Có thể xem thống kê, nhưng chỉ chạy câu hỏi ở năm học hiện tại.</p> : null}
 
+      <details className="prism-live-bonus-board" open>
+        <summary><span>Điểm cộng · Bộ 5 câu</span><strong>{bonusStudents.filter((student) => student.bonusPoint === 1).length} học sinh +1</strong></summary>
+        {rankedBonusStudents.length ? <div className="prism-live-bonus-list">{rankedBonusStudents.map((student) => <span key={student.studentNumber} className={student.bonusPoint ? "earned" : ""}><b>STT {formatStudentNumber(student.studentNumber)}</b><em>{student.correctCount}/5</em><strong>{student.bonusPoint ? "+1" : student.gradedCount < 5 ? "Chờ chấm" : "—"}</strong></span>)}</div> : <p>Chưa có học sinh làm bộ 5 câu.</p>}
+      </details>
+
       <div className="prism-live-question-list">
         {loading ? <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải câu hỏi…</p></div> : null}
         {!loading && !questions.length ? <div className="prism-live-waiting"><span>?</span><p>Ngân hàng chưa có câu hỏi.</p></div> : null}
@@ -256,18 +314,18 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
           const isSelected = selectedQuestionId === question.id;
           return (
             <article key={question.id} className={`prism-live-teacher-question ${question.status} ${isSelected ? "selected" : ""}`}>
-              <div className="prism-live-teacher-question-index"><span>{String(questions.length - index).padStart(2, "0")}</span></div>
+              <div className="prism-live-teacher-question-index"><span>{question.quizOrder ? `${question.quizOrder}/5` : String(questions.length - index).padStart(2, "0")}</span></div>
               <div className="prism-live-teacher-question-copy">
-                <div><span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : <small>{question.durationSeconds} giây</small>}</div>
+                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ 5 câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : <small>{question.durationSeconds} giây</small>}</div>
                 <h3>{question.prompt}</h3>
                 {question.options.length ? <p>{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p> : null}
               </div>
               <div className="prism-live-teacher-question-actions">
                 <button type="button" className="secondary-button" onClick={() => setSelectedQuestionId(isSelected ? null : question.id)}>{isSelected ? "Thu gọn" : `Thống kê ${question.responseCount}/33`}</button>
                 {question.status === "running" ? <button type="button" className="primary-button stop" disabled={busy} onClick={() => mutateQuestion("close", question)}>Thu ngay</button> : <button type="button" className="primary-button" disabled={busy || !isCurrentYear} onClick={() => mutateQuestion("start", question)}>{question.status === "closed" ? "Chạy lại" : "Bắt đầu"}</button>}
-                {question.status !== "running" ? <button type="button" className="icon-button danger" aria-label="Xóa câu hỏi" disabled={busy} onClick={() => mutateQuestion("delete", question)}>×</button> : null}
+                {question.status !== "running" && !question.quizSet ? <button type="button" className="icon-button danger" aria-label="Xóa câu hỏi" disabled={busy} onClick={() => mutateQuestion("delete", question)}>×</button> : null}
               </div>
-              {isSelected ? <div className="prism-live-result-slot">{result?.question.id === question.id ? <ResponseStatistics result={result} /> : <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải thống kê…</p></div>}</div> : null}
+              {isSelected ? <div className="prism-live-result-slot">{result?.question.id === question.id ? <ResponseStatistics result={result} onGrade={gradeResponse} /> : <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải thống kê…</p></div>}</div> : null}
             </article>
           );
         })}

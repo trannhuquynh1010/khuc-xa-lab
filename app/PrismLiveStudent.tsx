@@ -123,6 +123,28 @@ function formatCountdown(seconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
+function PrismOptionVisual({ kind, index }: { kind: "prism-path" | "prism-dispersion"; index: number }) {
+  const pathRays = [
+    ["18,76 67,62 48,30", "#111827"],
+    ["18,76 67,62 100,69 82,105", "#111827"],
+    ["18,76 67,62 103,58 141,34", "#111827"],
+    ["18,76 67,62 103,68 148,81", "#111827"],
+  ] as const;
+  const dispersionRays = [
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,75", "#7c3aed"], ["103,68 150,87", "#dc2626"]],
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,65", "#dc2626"]],
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,76", "#dc2626"], ["103,68 150,91", "#7c3aed"]],
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,58", "#dc2626"], ["103,68 150,67", "#64748b"]],
+  ] as const;
+  const rays = kind === "prism-path" ? [pathRays[index]] : dispersionRays[index];
+  return (
+    <svg className="prism-live-option-visual" viewBox="0 0 168 116" role="img" aria-label={`Sơ đồ ${String.fromCharCode(65 + index)}`}>
+      <path d="M68 12 L111 103 L38 103 Z" fill="#eff6ff" stroke="#24344d" strokeWidth="3" strokeLinejoin="round" />
+      {rays.map(([points, color], rayIndex) => <polyline key={rayIndex} points={points} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
+    </svg>
+  );
+}
+
 export default function PrismLiveStudent() {
   const [className, setClassName] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
@@ -157,9 +179,10 @@ export default function PrismLiveStudent() {
       setNow(Date.now());
       setSnapshot(result);
       setLoadError(false);
-      if (result.question && loadedQuestionRef.current !== result.question.id) {
-        loadedQuestionRef.current = result.question.id;
-        setAnswer(result.response?.answer ?? emptyPrismLiveAnswer(result.question.type));
+      const questionRunKey = result.question ? `${result.question.id}:${result.question.runId ?? "draft"}` : null;
+      if (result.question && loadedQuestionRef.current !== questionRunKey) {
+        loadedQuestionRef.current = questionRunKey;
+        setAnswer(result.response?.answer ?? emptyPrismLiveAnswer(result.question.type, result.question.content.items?.length ?? 0));
         setHasEdited(false);
         setSaveState(result.response ? "saved" : "idle");
       }
@@ -265,8 +288,8 @@ export default function PrismLiveStudent() {
           <h3>{question.prompt}</h3>
 
           {answer?.type === "single" ? (
-            <div className="prism-live-options single">
-              {question.options.map((option, index) => <button key={`${index}-${option}`} type="button" className={answer.selected === index ? "selected" : ""} onClick={() => updateAnswer({ type: "single", selected: index })} disabled={locked}><b>{String.fromCharCode(65 + index)}</b><span>{option}</span></button>)}
+            <div className={`prism-live-options single ${question.content.visualKey ? "visual-options" : ""}`}>
+              {question.options.map((option, index) => <button key={`${index}-${option}`} type="button" className={answer.selected === index ? "selected" : ""} onClick={() => updateAnswer({ type: "single", selected: index })} disabled={locked}>{question.content.visualKey ? <PrismOptionVisual kind={question.content.visualKey} index={index} /> : null}<b>{String.fromCharCode(65 + index)}</b><span>{option}</span></button>)}
             </div>
           ) : null}
 
@@ -279,9 +302,17 @@ export default function PrismLiveStudent() {
             </div>
           ) : null}
 
+          {answer?.type === "matching" ? (
+            <div className="prism-live-matching">
+              {(question.content.items ?? []).map((item, index) => <label key={`${index}-${item}`}><span><b>{index + 1}</b>{item}</span><select value={answer.selected[index] ?? ""} disabled={locked} onChange={(event) => { const selected = answer.selected.slice(); selected[index] = event.target.value === "" ? null : Number(event.target.value); updateAnswer({ type: "matching", selected }); }}><option value="">Chọn màu</option>{question.options.map((option, optionIndex) => <option key={optionIndex} value={optionIndex}>{option}</option>)}</select></label>)}
+            </div>
+          ) : null}
+
           {answer?.type === "short" ? <label className="prism-live-short-answer">Câu trả lời<textarea value={answer.text} maxLength={800} disabled={locked} onChange={(event) => updateAnswer({ type: "short", text: event.target.value })} placeholder="Nhập câu trả lời của em…" /><small>{shortAnswerLength}/800</small></label> : null}
 
           {answer?.type === "drawing" ? <DrawingPad strokes={answer.strokes} disabled={locked} onChange={(strokes) => updateAnswer({ type: "drawing", strokes })} /> : null}
+
+          {locked && snapshot?.response?.isCorrect !== null && snapshot?.response?.isCorrect !== undefined ? <p className={`prism-live-student-result ${snapshot.response.isCorrect ? "correct" : "incorrect"}`}>{snapshot.response.isCorrect ? "✓ Chính xác" : "Chưa chính xác"}</p> : null}
 
           {!locked ? <div className={`prism-live-save-state ${saveState}`} aria-live="polite">{saveState === "saving" ? "Đang lưu…" : saveState === "saved" ? "✓ Đã lưu trên hệ thống" : saveState === "error" ? "Chưa lưu được · đang thử lại" : "Câu trả lời tự lưu cho đến khi hết giờ"}</div> : null}
         </div>

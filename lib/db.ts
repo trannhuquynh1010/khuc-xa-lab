@@ -15,7 +15,7 @@ import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKe
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
-import { normalizePrismLiveAnswer, type PrismLiveAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
+import { normalizePrismLiveAnswer, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
 
 export type Measurement = {
   sequence: number;
@@ -143,6 +143,23 @@ async function initializeSchema() {
       to_regclass('public.prism_live_sessions_year_class_created_idx') IS NOT NULL AND
       to_regclass('public.prism_live_sessions_one_running_per_class_idx') IS NOT NULL AND
       to_regclass('public.prism_live_session_responses_session_student_unique_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_questions_slug_unique_idx') IS NOT NULL AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'correct_answer'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'content'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'quiz_set'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_session_responses' AND column_name = 'is_correct'
+      ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
@@ -457,6 +474,11 @@ async function initializeSchema() {
       question_type VARCHAR(12) NOT NULL,
       prompt VARCHAR(1000) NOT NULL,
       options JSONB NOT NULL DEFAULT '[]'::jsonb,
+      content JSONB NOT NULL DEFAULT '{}'::jsonb,
+      correct_answer JSONB,
+      quiz_set VARCHAR(60),
+      quiz_order SMALLINT,
+      slug VARCHAR(100),
       duration_seconds INTEGER NOT NULL,
       status VARCHAR(10) NOT NULL DEFAULT 'draft',
       started_at TIMESTAMPTZ,
@@ -464,10 +486,24 @@ async function initializeSchema() {
       closed_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT prism_live_questions_type_check CHECK (question_type IN ('single', 'multiple', 'short', 'drawing')),
+      CONSTRAINT prism_live_questions_type_check CHECK (question_type IN ('single', 'multiple', 'matching', 'short', 'drawing')),
       CONSTRAINT prism_live_questions_status_check CHECK (status IN ('draft', 'running', 'closed')),
       CONSTRAINT prism_live_questions_duration_check CHECK (duration_seconds BETWEEN 10 AND 600)
     )
+  `;
+
+  await sql`
+    ALTER TABLE prism_live_questions
+      ADD COLUMN IF NOT EXISTS content JSONB NOT NULL DEFAULT '{}'::jsonb,
+      ADD COLUMN IF NOT EXISTS correct_answer JSONB,
+      ADD COLUMN IF NOT EXISTS quiz_set VARCHAR(60),
+      ADD COLUMN IF NOT EXISTS quiz_order SMALLINT,
+      ADD COLUMN IF NOT EXISTS slug VARCHAR(100)
+  `;
+  await sql`ALTER TABLE prism_live_questions DROP CONSTRAINT IF EXISTS prism_live_questions_type_check`;
+  await sql`
+    ALTER TABLE prism_live_questions
+    ADD CONSTRAINT prism_live_questions_type_check CHECK (question_type IN ('single', 'multiple', 'matching', 'short', 'drawing'))
   `;
 
   await sql`
@@ -476,6 +512,8 @@ async function initializeSchema() {
       question_id UUID NOT NULL REFERENCES prism_live_questions(id) ON DELETE CASCADE,
       student_number SMALLINT NOT NULL,
       answer JSONB NOT NULL,
+      is_correct BOOLEAN,
+      graded_at TIMESTAMPTZ,
       submitted_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -517,11 +555,19 @@ async function initializeSchema() {
       session_id UUID NOT NULL REFERENCES prism_live_sessions(id) ON DELETE CASCADE,
       student_number SMALLINT NOT NULL,
       answer JSONB NOT NULL,
+      is_correct BOOLEAN,
+      graded_at TIMESTAMPTZ,
       submitted_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT prism_live_session_responses_student_check CHECK (student_number BETWEEN 1 AND 33)
     )
+  `;
+
+  await sql`
+    ALTER TABLE prism_live_session_responses
+      ADD COLUMN IF NOT EXISTS is_correct BOOLEAN,
+      ADD COLUMN IF NOT EXISTS graded_at TIMESTAMPTZ
   `;
 
   await sql`
@@ -539,6 +585,93 @@ async function initializeSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS prism_live_session_responses_session_student_unique_idx
     ON prism_live_session_responses (session_id, student_number)
   `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_questions_slug_unique_idx
+    ON prism_live_questions (slug)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS prism_live_questions_quiz_set_order_idx
+    ON prism_live_questions (quiz_set, quiz_order)
+  `;
+
+  const builtInPrismQuestions = [
+    {
+      slug: "prism-color-five-1",
+      type: "matching",
+      prompt: "Ghép mỗi tình huống với màu mà mắt quan sát được.",
+      options: ["Màu xanh", "Màu đỏ", "Màu trắng", "Màu đen"],
+      content: { items: ["Quyển sách màu đỏ đặt ngoài trời", "Cánh cửa màu xanh đặt trong ánh sáng xanh", "Áo trắng đặt trong ánh sáng xanh", "Quả bóng màu xanh đặt trong ánh sáng đỏ"] },
+      correctAnswer: { type: "matching", selected: [1, 0, 0, 3] },
+      durationSeconds: 100,
+    },
+    {
+      slug: "prism-color-five-2",
+      type: "multiple",
+      prompt: "Chọn tất cả nhận định đúng về màu sắc của vật.",
+      options: [
+        "Ta nhìn thấy vật có màu nào thì có ánh sáng màu đó truyền từ vật đến mắt ta.",
+        "Vật màu đen hấp thụ hầu hết ánh sáng màu chiếu vào nó.",
+        "Vật trông có màu đen vì nó phản xạ ánh sáng màu đen đến mắt ta.",
+        "Lá cây trông có màu lục vì phản xạ ánh sáng màu lục nhiều nhất khi được ánh sáng Mặt Trời chiếu vào.",
+        "Tấm lọc màu lục hấp thụ hầu hết ánh sáng màu khác và cho ánh sáng màu lục truyền qua.",
+      ],
+      content: {},
+      correctAnswer: { type: "multiple", selected: [0, 1, 3, 4] },
+      durationSeconds: 100,
+    },
+    {
+      slug: "prism-color-five-3",
+      type: "short",
+      prompt: "Có một tấm kính lọc A màu đỏ và một tấm kính lọc B màu lục. Nhìn tờ giấy trắng qua đồng thời cả hai tấm kính lọc, em thấy tờ giấy màu gì? Giải thích.",
+      options: [],
+      content: {},
+      correctAnswer: null,
+      durationSeconds: 120,
+    },
+    {
+      slug: "prism-color-five-4",
+      type: "single",
+      prompt: "Hình nào mô tả đúng đường truyền của một tia sáng qua lăng kính?",
+      options: ["Hình A", "Hình B", "Hình C", "Hình D"],
+      content: { visualKey: "prism-path" },
+      correctAnswer: { type: "single", selected: 3 },
+      durationSeconds: 75,
+    },
+    {
+      slug: "prism-color-five-5",
+      type: "single",
+      prompt: "Hình nào mô tả đúng sự tán sắc ánh sáng trắng qua lăng kính?",
+      options: ["Hình A", "Hình B", "Hình C", "Hình D"],
+      content: { visualKey: "prism-dispersion" },
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 75,
+    },
+  ] as const;
+  for (const [index, question] of builtInPrismQuestions.entries()) {
+    await sql`
+      INSERT INTO prism_live_questions (
+        id, school_year, class_name, question_type, prompt, options, content, correct_answer,
+        quiz_set, quiz_order, slug, duration_seconds
+      ) VALUES (
+        ${randomUUID()}, '26-27', 'NGAN-HANG', ${question.type}, ${question.prompt},
+        ${JSON.stringify(question.options)}::jsonb, ${JSON.stringify(question.content)}::jsonb,
+        ${question.correctAnswer ? JSON.stringify(question.correctAnswer) : null}::jsonb,
+        'prism-color-five', ${index + 1}, ${question.slug}, ${question.durationSeconds}
+      )
+      ON CONFLICT (slug) DO UPDATE SET
+        question_type = EXCLUDED.question_type,
+        prompt = EXCLUDED.prompt,
+        options = EXCLUDED.options,
+        content = EXCLUDED.content,
+        correct_answer = EXCLUDED.correct_answer,
+        quiz_set = EXCLUDED.quiz_set,
+        quiz_order = EXCLUDED.quiz_order,
+        duration_seconds = EXCLUDED.duration_seconds,
+        updated_at = NOW()
+    `;
+  }
 
   const legacyQuestions = await sql`
     SELECT question.*
@@ -577,7 +710,7 @@ async function initializeSchema() {
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-prism-live-bank-v2"], { revalidate: false });
+}, ["physics-lab-schema-prism-five-v3"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -839,6 +972,10 @@ export async function resetSchoolYearData(schoolYear: string) {
 
 function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion {
   const rawOptions = Array.isArray(row.options) ? row.options : [];
+  const rawContent = row.content && typeof row.content === "object" && !Array.isArray(row.content)
+    ? row.content as Record<string, unknown>
+    : {};
+  const visualKey = rawContent.visualKey === "prism-path" || rawContent.visualKey === "prism-dispersion" ? rawContent.visualKey : undefined;
   return {
     id: String(row.id),
     runId: row.run_id ? String(row.run_id) : null,
@@ -847,6 +984,13 @@ function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion
     type: String(row.question_type) as PrismLiveQuestionType,
     prompt: String(row.prompt),
     options: rawOptions.filter((option): option is string => typeof option === "string"),
+    content: {
+      items: Array.isArray(rawContent.items) ? rawContent.items.filter((item): item is string => typeof item === "string") : undefined,
+      visualKey,
+    },
+    isAutoGraded: Boolean(row.is_auto_graded),
+    quizSet: row.quiz_set ? String(row.quiz_set) : null,
+    quizOrder: row.quiz_order === null || row.quiz_order === undefined ? null : Number(row.quiz_order),
     durationSeconds: Number(row.duration_seconds),
     status: String(row.status) as PrismLiveQuestionStatus,
     startedAt: row.started_at ? new Date(String(row.started_at)).toISOString() : null,
@@ -861,9 +1005,40 @@ function rowToPrismLiveResponse(row: Record<string, unknown>): PrismLiveResponse
   return {
     studentNumber: Number(row.student_number),
     answer: row.answer as PrismLiveAnswer,
+    isCorrect: typeof row.is_correct === "boolean" ? row.is_correct : null,
     submittedAt: row.submitted_at ? new Date(String(row.submitted_at)).toISOString() : null,
     updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
+}
+
+function normalizePrismLiveCorrectAnswer(value: unknown, type: PrismLiveQuestionType, optionCount: number): PrismLiveCorrectAnswer | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (type === "single" && record.type === "single") {
+    const selected = Number(record.selected);
+    return Number.isInteger(selected) && selected >= 0 && selected < optionCount ? { type, selected } : null;
+  }
+  if (type === "multiple" && record.type === "multiple" && Array.isArray(record.selected)) {
+    const selected = [...new Set(record.selected.map(Number))].sort((left, right) => left - right);
+    if (!selected.length || selected.some((index) => !Number.isInteger(index) || index < 0 || index >= optionCount)) return null;
+    return { type, selected };
+  }
+  return null;
+}
+
+function scorePrismLiveAnswer(answer: PrismLiveAnswer, correctAnswer: unknown): boolean | null {
+  if (!correctAnswer || typeof correctAnswer !== "object" || Array.isArray(correctAnswer)) return null;
+  const correct = correctAnswer as Record<string, unknown>;
+  if (answer.type === "single" && correct.type === "single") return answer.selected === Number(correct.selected);
+  if (answer.type === "multiple" && correct.type === "multiple" && Array.isArray(correct.selected)) {
+    const expected = correct.selected.map(Number).sort((left, right) => left - right);
+    return answer.selected.length === expected.length && answer.selected.every((selected, index) => selected === expected[index]);
+  }
+  if (answer.type === "matching" && correct.type === "matching" && Array.isArray(correct.selected)) {
+    const expected = correct.selected.map(Number);
+    return answer.selected.length === expected.length && answer.selected.every((selected, index) => selected === expected[index]);
+  }
+  return null;
 }
 
 async function closeExpiredPrismLiveQuestions() {
@@ -891,6 +1066,7 @@ export async function createPrismLiveQuestion(input: {
   type: PrismLiveQuestionType;
   prompt: string;
   options: string[];
+  correctAnswer: unknown;
   durationSeconds: number;
 }) {
   await ensureSchema();
@@ -905,17 +1081,23 @@ export async function createPrismLiveQuestion(input: {
   }
   if (options.some((option) => option.length > 180)) throw new Error("Mỗi đáp án tối đa 180 ký tự.");
   if (new Set(options.map((option) => option.toLocaleLowerCase("vi"))).size !== options.length) throw new Error("Các đáp án không được trùng nhau.");
+  const correctAnswer = input.type === "single" || input.type === "multiple"
+    ? normalizePrismLiveCorrectAnswer(input.correctAnswer, input.type, options.length)
+    : null;
+  if ((input.type === "single" || input.type === "multiple") && !correctAnswer) throw new Error("Hãy chọn đáp án đúng để hệ thống tự chấm.");
 
   const id = randomUUID();
   const rows = await sql`
     INSERT INTO prism_live_questions (
-      id, school_year, class_name, question_type, prompt, options, duration_seconds
+      id, school_year, class_name, question_type, prompt, options, correct_answer, duration_seconds
     ) VALUES (
       ${id}, ${input.schoolYear}, 'NGAN-HANG', ${input.type}, ${prompt},
       ${JSON.stringify(input.type === "single" || input.type === "multiple" ? options : [])}::jsonb,
+      ${correctAnswer ? JSON.stringify(correctAnswer) : null}::jsonb,
       ${durationSeconds}
     )
-    RETURNING *, NULL::UUID AS run_id, 'draft'::TEXT AS status,
+    RETURNING *, (correct_answer IS NOT NULL) AS is_auto_graded,
+      NULL::UUID AS run_id, 'draft'::TEXT AS status,
       NULL::TIMESTAMPTZ AS started_at, NULL::TIMESTAMPTZ AS deadline_at,
       NULL::TIMESTAMPTZ AS closed_at, 0::INTEGER AS response_count
   `;
@@ -928,7 +1110,8 @@ export async function listPrismLiveQuestions(schoolYear: string, className: stri
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
   const rows = await sql`
-    SELECT question.id, question.question_type, question.prompt, question.options, question.created_at,
+    SELECT question.id, question.question_type, question.prompt, question.options, question.content,
+      question.quiz_set, question.quiz_order, (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
       ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
       COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
       session.id AS run_id, COALESCE(session.status, 'draft') AS status,
@@ -943,7 +1126,7 @@ export async function listPrismLiveQuestions(schoolYear: string, className: stri
       ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
       LIMIT 1
     ) session ON TRUE
-    ORDER BY question.created_at DESC
+    ORDER BY question.quiz_set NULLS LAST, question.quiz_order ASC NULLS LAST, question.created_at DESC
     LIMIT 100
   `;
   return rows.map((row) => rowToPrismLiveQuestion(row as Record<string, unknown>));
@@ -954,7 +1137,9 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
   const questionRows = await sql`
-    SELECT question.id, question.question_type, question.prompt, question.options, question.created_at,
+    SELECT question.id, question.question_type, question.prompt, question.options, question.content,
+      question.quiz_set, question.quiz_order, question.correct_answer,
+      (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
       ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
       COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
       session.id AS run_id, COALESCE(session.status, 'draft') AS status,
@@ -975,7 +1160,7 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
   if (!questionRows[0]) return null;
   const runId = questionRows[0].run_id ? String(questionRows[0].run_id) : null;
   const responseRows = runId ? await sql`
-      SELECT student_number, answer, submitted_at, updated_at
+      SELECT student_number, answer, is_correct, submitted_at, updated_at
       FROM prism_live_session_responses
       WHERE session_id = ${runId}
       ORDER BY student_number ASC
@@ -983,6 +1168,7 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
   return {
     question: rowToPrismLiveQuestion(questionRows[0] as Record<string, unknown>),
     responses: responseRows.map((row) => rowToPrismLiveResponse(row as Record<string, unknown>)),
+    correctAnswer: (questionRows[0].correct_answer ?? null) as PrismLiveCorrectAnswer | null,
   };
 }
 
@@ -1056,13 +1242,15 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
   await ensureSchema();
   const sql = getSql();
   const questionRows = await sql`
-    SELECT question.id, question.question_type, question.prompt, question.options, question.created_at,
+    SELECT question.id, question.question_type, question.prompt, question.options, question.content,
+      question.quiz_set, question.quiz_order, (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
       session.id AS run_id, session.school_year, session.class_name, session.duration_seconds,
       CASE WHEN session.status = 'running' AND session.deadline_at <= NOW() THEN 'closed' ELSE session.status END AS status,
       session.started_at, session.deadline_at, session.closed_at,
       0::INTEGER AS response_count,
       response.student_number AS response_student_number,
       response.answer AS response_answer,
+      response.is_correct AS response_is_correct,
       response.submitted_at AS response_submitted_at,
       response.updated_at AS response_updated_at
     FROM prism_live_sessions session
@@ -1082,6 +1270,7 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
     response: row.response_student_number === null || row.response_student_number === undefined ? null : rowToPrismLiveResponse({
       student_number: row.response_student_number,
       answer: row.response_answer,
+      is_correct: question.status === "running" ? null : row.response_is_correct,
       submitted_at: row.response_submitted_at,
       updated_at: row.response_updated_at,
     }),
@@ -1100,7 +1289,7 @@ export async function savePrismLiveResponse(input: {
   const sql = getSql();
   const schoolYear = getCurrentSchoolYear();
   const questionRows = await sql`
-    SELECT question.question_type, question.options
+    SELECT question.question_type, question.options, question.content, question.correct_answer
     FROM prism_live_sessions session
     JOIN prism_live_questions question ON question.id = session.question_id
     WHERE session.id = ${input.runId} AND question.id = ${input.questionId}
@@ -1112,17 +1301,87 @@ export async function savePrismLiveResponse(input: {
   if (!questionRow) throw new Error("Câu hỏi đã hết giờ hoặc không còn mở.");
   const type = String(questionRow.question_type) as PrismLiveQuestionType;
   const optionCount = Array.isArray(questionRow.options) ? questionRow.options.length : 0;
-  const answer = normalizePrismLiveAnswer(input.answer, type, optionCount);
+  const content = questionRow.content && typeof questionRow.content === "object" && !Array.isArray(questionRow.content)
+    ? questionRow.content as Record<string, unknown>
+    : {};
+  const itemCount = Array.isArray(content.items) ? content.items.length : 0;
+  const answer = normalizePrismLiveAnswer(input.answer, type, optionCount, itemCount);
   if (!answer) throw new Error("Câu trả lời chưa hợp lệ.");
+  const isCorrect = scorePrismLiveAnswer(answer, questionRow.correct_answer);
 
   const rows = await sql`
-    INSERT INTO prism_live_session_responses (id, session_id, student_number, answer, updated_at)
-    VALUES (${randomUUID()}, ${input.runId}, ${input.studentNumber}, ${JSON.stringify(answer)}::jsonb, NOW())
+    INSERT INTO prism_live_session_responses (id, session_id, student_number, answer, is_correct, graded_at, updated_at)
+    VALUES (${randomUUID()}, ${input.runId}, ${input.studentNumber}, ${JSON.stringify(answer)}::jsonb,
+      ${isCorrect}, ${isCorrect === null ? null : new Date().toISOString()}, NOW())
     ON CONFLICT (session_id, student_number)
-    DO UPDATE SET answer = EXCLUDED.answer, submitted_at = NULL, updated_at = NOW()
-    RETURNING student_number, answer, submitted_at, updated_at
+    DO UPDATE SET answer = EXCLUDED.answer, is_correct = EXCLUDED.is_correct, graded_at = EXCLUDED.graded_at,
+      submitted_at = NULL, updated_at = NOW()
+    RETURNING student_number, answer, is_correct, submitted_at, updated_at
   `;
   return rowToPrismLiveResponse(rows[0] as Record<string, unknown>);
+}
+
+export async function gradePrismLiveShortResponse(input: {
+  schoolYear: string;
+  className: string;
+  questionId: string;
+  runId: string;
+  studentNumber: number;
+  isCorrect: boolean;
+}) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_session_responses response
+    SET is_correct = ${input.isCorrect}, graded_at = NOW(), updated_at = NOW()
+    FROM prism_live_sessions session, prism_live_questions question
+    WHERE response.session_id = session.id
+      AND session.question_id = question.id
+      AND question.question_type = 'short'
+      AND question.id = ${input.questionId}
+      AND session.id = ${input.runId}
+      AND session.school_year = ${input.schoolYear}
+      AND session.class_name = ${input.className}
+      AND response.student_number = ${input.studentNumber}
+    RETURNING response.id
+  `;
+  return rows.length > 0;
+}
+
+export async function getPrismLiveBonusSummary(schoolYear: string, className: string): Promise<PrismLiveBonusStudent[]> {
+  await ensureSchema();
+  await closeExpiredPrismLiveQuestions();
+  const sql = getSql();
+  const rows = await sql`
+    WITH quiz_questions AS (
+      SELECT id FROM prism_live_questions WHERE quiz_set = 'prism-color-five'
+    ), latest_sessions AS (
+      SELECT DISTINCT ON (session.question_id) session.id, session.question_id
+      FROM prism_live_sessions session
+      JOIN quiz_questions question ON question.id = session.question_id
+      WHERE session.school_year = ${schoolYear} AND session.class_name = ${className}
+      ORDER BY session.question_id, session.created_at DESC
+    )
+    SELECT response.student_number,
+      COUNT(*)::INTEGER AS answered_count,
+      COUNT(*) FILTER (WHERE response.is_correct IS NOT NULL)::INTEGER AS graded_count,
+      COUNT(*) FILTER (WHERE response.is_correct = TRUE)::INTEGER AS correct_count
+    FROM latest_sessions session
+    JOIN prism_live_session_responses response ON response.session_id = session.id
+    GROUP BY response.student_number
+    ORDER BY response.student_number ASC
+  `;
+  return rows.map((row) => {
+    const gradedCount = Number(row.graded_count);
+    const correctCount = Number(row.correct_count);
+    return {
+      studentNumber: Number(row.student_number),
+      answeredCount: Number(row.answered_count),
+      gradedCount,
+      correctCount,
+      bonusPoint: gradedCount === 5 && correctCount === 5 ? 1 : 0,
+    };
+  });
 }
 
 export async function createRefractionQuizSubmission(input: {
