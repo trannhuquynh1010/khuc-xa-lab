@@ -11,6 +11,7 @@ function ActivityToolLoading() {
 
 const LabForm = dynamic(() => import("./LabForm"), { loading: ActivityToolLoading });
 const PrismColorLabForm = dynamic(() => import("./PrismColorLabForm"), { loading: ActivityToolLoading });
+const PrismLiveStudent = dynamic(() => import("./PrismLiveStudent"), { loading: ActivityToolLoading });
 const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: ActivityToolLoading });
 const OpticsReviewPractice = dynamic(() => import("./OpticsReviewPractice"), { loading: ActivityToolLoading });
 const LensPathExplorer = dynamic(() => import("./LensPathExplorer"), { loading: ActivityToolLoading });
@@ -155,7 +156,7 @@ export default function StudentWorkspace() {
             </nav>
           </details>
           {visibleActiveKey === "refraction" ? <LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /> : null}
-          {visibleActiveKey === "prism-colors" ? <PrismColorLabForm showColorActivity={prismColorOpen} /> : null}
+          {visibleActiveKey === "prism-colors" ? <><PrismColorLabForm showColorActivity={prismColorOpen} /><PrismLiveStudent /></> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} /></div> : null}
           {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
           {visibleActiveKey === "lenses" ? <LensPathExplorer /> : null}

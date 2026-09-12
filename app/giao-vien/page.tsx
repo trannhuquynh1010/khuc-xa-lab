@@ -16,6 +16,7 @@ import OhmRaceDashboard from "./OhmRaceDashboard";
 import ResetPracticeButton from "./ResetPracticeButton";
 import OpticsQuestDashboard from "./OpticsQuestDashboard";
 import TeacherClassFilter from "./TeacherClassFilter";
+import PrismLiveDashboard from "./PrismLiveDashboard";
 
 export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string; year?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
@@ -225,16 +226,19 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       )}
 
       {selectedKey === "prism-colors" && (
-        <section className="activity-control-panel construction-control-panel color-control-panel">
-          <div className="activity-control-title"><span aria-hidden="true">◉</span><div><p className="eyebrow">NỘI DUNG</p><h2>Màu sắc của vật</h2><p>Hiện hoặc ẩn riêng mô phỏng ánh sáng phản xạ vào mắt.</p></div></div>
-          <div className="activity-control-actions">
-            <span className={`status-badge ${currentSetting.colorOpen ? "open" : "closed"}`}>{currentSetting.colorOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-            <form action={togglePrismColor}>
-              <input type="hidden" name="nextOpen" value={String(!currentSetting.colorOpen)} />
-              <TeacherToggleSubmitButton isOpen={currentSetting.colorOpen} openLabel="Mở màu sắc" closeLabel="Đóng màu sắc" />
-            </form>
-          </div>
-        </section>
+        <>
+          <section className="activity-control-panel construction-control-panel color-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">◉</span><div><p className="eyebrow">NỘI DUNG</p><h2>Màu sắc của vật</h2><p>Hiện hoặc ẩn riêng mô phỏng ánh sáng phản xạ vào mắt.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.colorOpen ? "open" : "closed"}`}>{currentSetting.colorOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={togglePrismColor}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.colorOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.colorOpen} openLabel="Mở màu sắc" closeLabel="Đóng màu sắc" />
+              </form>
+            </div>
+          </section>
+          <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} />
+        </>
       )}
 
       {selectedKey === "optics-game" && (
