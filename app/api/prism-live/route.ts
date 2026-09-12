@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   if (!body || body.website) return NextResponse.json({ error: "Dữ liệu chưa hợp lệ." }, { status: 400 });
   const className = body.className;
   const studentNumber = Number(body.studentNumber);
-  if (!isClassName(className) || !isStudentNumber(studentNumber) || !isUuid(body.questionId)) {
+  if (!isClassName(className) || !isStudentNumber(studentNumber) || !isUuid(body.questionId) || !isUuid(body.runId)) {
     return NextResponse.json({ error: "Thông tin học sinh hoặc câu hỏi chưa hợp lệ." }, { status: 400 });
   }
   if (!(await isActivityOpen("prism-colors"))) {
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
   try {
     const response = await savePrismLiveResponse({
       questionId: body.questionId,
+      runId: body.runId,
       className,
       studentNumber,
       answer: body.answer,

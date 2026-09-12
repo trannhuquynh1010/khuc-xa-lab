@@ -193,9 +193,10 @@ export default function PrismLiveStudent() {
     : 0;
   const locked = snapshot?.question?.status !== "running" || remainingSeconds <= 0;
   const activeQuestionId = snapshot?.question?.id ?? null;
+  const activeRunId = snapshot?.question?.runId ?? null;
 
   useEffect(() => {
-    if (!validIdentity || !activeQuestionId || locked || !answer || !hasEdited) return;
+    if (!validIdentity || !activeQuestionId || !activeRunId || locked || !answer || !hasEdited) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setSaveState("saving");
@@ -205,6 +206,7 @@ export default function PrismLiveStudent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             questionId: activeQuestionId,
+            runId: activeRunId,
             className,
             studentNumber: Number(studentNumber),
             answer,
@@ -222,7 +224,7 @@ export default function PrismLiveStudent() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [activeQuestionId, answer, className, hasEdited, locked, studentNumber, validIdentity]);
+  }, [activeQuestionId, activeRunId, answer, className, hasEdited, locked, studentNumber, validIdentity]);
 
   const updateAnswer = useCallback((next: PrismLiveAnswer) => {
     setAnswer(next);

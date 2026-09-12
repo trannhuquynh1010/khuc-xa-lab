@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ changed: await closePrismLiveQuestion(schoolYear, className, body.questionId) });
     }
     if (action === "delete") {
-      const deleted = await deletePrismLiveQuestion(schoolYear, className, body.questionId);
+      const deleted = await deletePrismLiveQuestion(body.questionId);
       if (!deleted) return NextResponse.json({ error: "Hãy dừng câu hỏi trước khi xóa." }, { status: 409 });
       return NextResponse.json({ deleted: true });
     }

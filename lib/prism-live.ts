@@ -18,6 +18,7 @@ export type PrismLiveAnswer =
 
 export type PrismLiveQuestion = {
   id: string;
+  runId: string | null;
   schoolYear: string;
   className: string;
   type: PrismLiveQuestionType;

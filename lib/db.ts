@@ -128,6 +128,8 @@ async function initializeSchema() {
       to_regclass('public.practice_attempts') IS NOT NULL AND
       to_regclass('public.prism_live_questions') IS NOT NULL AND
       to_regclass('public.prism_live_responses') IS NOT NULL AND
+      to_regclass('public.prism_live_sessions') IS NOT NULL AND
+      to_regclass('public.prism_live_session_responses') IS NOT NULL AND
       to_regclass('public.submissions_year_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.refraction_quiz_year_class_number_unique_idx') IS NOT NULL AND
@@ -138,6 +140,9 @@ async function initializeSchema() {
       to_regclass('public.practice_attempts_year_key_class_student_unique_idx') IS NOT NULL AND
       to_regclass('public.prism_live_questions_year_class_created_idx') IS NOT NULL AND
       to_regclass('public.prism_live_responses_question_student_unique_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_sessions_year_class_created_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_sessions_one_running_per_class_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_session_responses_session_student_unique_idx') IS NOT NULL AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
@@ -487,12 +492,92 @@ async function initializeSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS prism_live_responses_question_student_unique_idx
     ON prism_live_responses (question_id, student_number)
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS prism_live_sessions (
+      id UUID PRIMARY KEY,
+      question_id UUID NOT NULL REFERENCES prism_live_questions(id) ON DELETE CASCADE,
+      school_year VARCHAR(5) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      duration_seconds INTEGER NOT NULL,
+      status VARCHAR(10) NOT NULL DEFAULT 'running',
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deadline_at TIMESTAMPTZ NOT NULL,
+      closed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT prism_live_sessions_status_check CHECK (status IN ('running', 'closed')),
+      CONSTRAINT prism_live_sessions_duration_check CHECK (duration_seconds BETWEEN 10 AND 600)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS prism_live_session_responses (
+      id UUID PRIMARY KEY,
+      session_id UUID NOT NULL REFERENCES prism_live_sessions(id) ON DELETE CASCADE,
+      student_number SMALLINT NOT NULL,
+      answer JSONB NOT NULL,
+      submitted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT prism_live_session_responses_student_check CHECK (student_number BETWEEN 1 AND 33)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS prism_live_sessions_year_class_created_idx
+    ON prism_live_sessions (school_year, class_name, created_at DESC)
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_sessions_one_running_per_class_idx
+    ON prism_live_sessions (school_year, class_name)
+    WHERE status = 'running'
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_session_responses_session_student_unique_idx
+    ON prism_live_session_responses (session_id, student_number)
+  `;
+
+  const legacyQuestions = await sql`
+    SELECT question.*
+    FROM prism_live_questions question
+    WHERE question.started_at IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM prism_live_sessions session WHERE session.question_id = question.id)
+  `;
+  for (const question of legacyQuestions) {
+    const sessionId = String(question.id);
+    await sql`
+      INSERT INTO prism_live_sessions (
+        id, question_id, school_year, class_name, duration_seconds, status,
+        started_at, deadline_at, closed_at, created_at, updated_at
+      ) VALUES (
+        ${sessionId}, ${String(question.id)}, ${String(question.school_year)}, ${String(question.class_name)},
+        ${Number(question.duration_seconds)}, 'closed',
+        ${new Date(String(question.started_at)).toISOString()},
+        ${question.deadline_at ? new Date(String(question.deadline_at)).toISOString() : new Date(String(question.started_at)).toISOString()},
+        ${question.closed_at ? new Date(String(question.closed_at)).toISOString() : question.deadline_at ? new Date(String(question.deadline_at)).toISOString() : new Date(String(question.started_at)).toISOString()},
+        ${new Date(String(question.created_at)).toISOString()}, ${new Date(String(question.updated_at)).toISOString()}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await sql`
+      INSERT INTO prism_live_session_responses (
+        id, session_id, student_number, answer, submitted_at, created_at, updated_at
+      )
+      SELECT id, ${sessionId}, student_number, answer, submitted_at, created_at, updated_at
+      FROM prism_live_responses
+      WHERE question_id = ${String(question.id)}
+      ON CONFLICT DO NOTHING
+    `;
+  }
 }
 
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-prism-live-v1"], { revalidate: false });
+}, ["physics-lab-schema-prism-live-bank-v2"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -726,6 +811,8 @@ const getCachedSchoolYears = unstable_cache(async () => {
     SELECT school_year FROM practice_attempts
     UNION
     SELECT school_year FROM prism_live_questions
+    UNION
+    SELECT school_year FROM prism_live_sessions
   `;
   const years = new Set(rows.map((row) => String(row.school_year)));
   years.add(getCurrentSchoolYear());
@@ -743,7 +830,7 @@ export async function resetSchoolYearData(schoolYear: string) {
   await sql`DELETE FROM experiment_submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM refraction_quiz_submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM practice_attempts WHERE school_year = ${schoolYear}`;
-  await sql`DELETE FROM prism_live_questions WHERE school_year = ${schoolYear}`;
+  await sql`DELETE FROM prism_live_sessions WHERE school_year = ${schoolYear}`;
   expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
   expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
   expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
@@ -754,6 +841,7 @@ function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion
   const rawOptions = Array.isArray(row.options) ? row.options : [];
   return {
     id: String(row.id),
+    runId: row.run_id ? String(row.run_id) : null,
     schoolYear: String(row.school_year),
     className: String(row.class_name),
     type: String(row.question_type) as PrismLiveQuestionType,
@@ -781,18 +869,18 @@ function rowToPrismLiveResponse(row: Record<string, unknown>): PrismLiveResponse
 async function closeExpiredPrismLiveQuestions() {
   const sql = getSql();
   const expiredRows = await sql`
-    UPDATE prism_live_questions
+    UPDATE prism_live_sessions
     SET status = 'closed', closed_at = COALESCE(deadline_at, NOW()), updated_at = NOW()
     WHERE status = 'running' AND deadline_at IS NOT NULL AND deadline_at <= NOW()
     RETURNING id
   `;
   if (!expiredRows.length) return;
   await sql`
-    UPDATE prism_live_responses response
-    SET submitted_at = COALESCE(response.submitted_at, question.deadline_at, NOW()), updated_at = NOW()
-    FROM prism_live_questions question
-    WHERE response.question_id = question.id
-      AND question.status = 'closed'
+    UPDATE prism_live_session_responses response
+    SET submitted_at = COALESCE(response.submitted_at, session.deadline_at, NOW()), updated_at = NOW()
+    FROM prism_live_sessions session
+    WHERE response.session_id = session.id
+      AND session.status = 'closed'
       AND response.submitted_at IS NULL
   `;
 }
@@ -823,11 +911,13 @@ export async function createPrismLiveQuestion(input: {
     INSERT INTO prism_live_questions (
       id, school_year, class_name, question_type, prompt, options, duration_seconds
     ) VALUES (
-      ${id}, ${input.schoolYear}, ${input.className}, ${input.type}, ${prompt},
+      ${id}, ${input.schoolYear}, 'NGAN-HANG', ${input.type}, ${prompt},
       ${JSON.stringify(input.type === "single" || input.type === "multiple" ? options : [])}::jsonb,
       ${durationSeconds}
     )
-    RETURNING *, 0::INTEGER AS response_count
+    RETURNING *, NULL::UUID AS run_id, 'draft'::TEXT AS status,
+      NULL::TIMESTAMPTZ AS started_at, NULL::TIMESTAMPTZ AS deadline_at,
+      NULL::TIMESTAMPTZ AS closed_at, 0::INTEGER AS response_count
   `;
   expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
   return rowToPrismLiveQuestion(rows[0] as Record<string, unknown>);
@@ -838,12 +928,23 @@ export async function listPrismLiveQuestions(schoolYear: string, className: stri
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
   const rows = await sql`
-    SELECT question.*,
-      (SELECT COUNT(*)::INTEGER FROM prism_live_responses response WHERE response.question_id = question.id) AS response_count
+    SELECT question.id, question.question_type, question.prompt, question.options, question.created_at,
+      ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
+      COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
+      session.id AS run_id, COALESCE(session.status, 'draft') AS status,
+      session.started_at, session.deadline_at, session.closed_at,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count
     FROM prism_live_questions question
-    WHERE question.school_year = ${schoolYear} AND question.class_name = ${className}
+    LEFT JOIN LATERAL (
+      SELECT current_session.*
+      FROM prism_live_sessions current_session
+      WHERE current_session.question_id = question.id
+        AND current_session.school_year = ${schoolYear} AND current_session.class_name = ${className}
+      ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
+      LIMIT 1
+    ) session ON TRUE
     ORDER BY question.created_at DESC
-    LIMIT 40
+    LIMIT 100
   `;
   return rows.map((row) => rowToPrismLiveQuestion(row as Record<string, unknown>));
 }
@@ -853,19 +954,32 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
   const questionRows = await sql`
-    SELECT question.*,
-      (SELECT COUNT(*)::INTEGER FROM prism_live_responses response WHERE response.question_id = question.id) AS response_count
+    SELECT question.id, question.question_type, question.prompt, question.options, question.created_at,
+      ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
+      COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
+      session.id AS run_id, COALESCE(session.status, 'draft') AS status,
+      session.started_at, session.deadline_at, session.closed_at,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count
     FROM prism_live_questions question
-    WHERE question.id = ${questionId} AND question.school_year = ${schoolYear} AND question.class_name = ${className}
+    LEFT JOIN LATERAL (
+      SELECT current_session.*
+      FROM prism_live_sessions current_session
+      WHERE current_session.question_id = question.id
+        AND current_session.school_year = ${schoolYear} AND current_session.class_name = ${className}
+      ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
+      LIMIT 1
+    ) session ON TRUE
+    WHERE question.id = ${questionId}
     LIMIT 1
   `;
   if (!questionRows[0]) return null;
-  const responseRows = await sql`
-    SELECT student_number, answer, submitted_at, updated_at
-    FROM prism_live_responses
-    WHERE question_id = ${questionId}
-    ORDER BY student_number ASC
-  `;
+  const runId = questionRows[0].run_id ? String(questionRows[0].run_id) : null;
+  const responseRows = runId ? await sql`
+      SELECT student_number, answer, submitted_at, updated_at
+      FROM prism_live_session_responses
+      WHERE session_id = ${runId}
+      ORDER BY student_number ASC
+    ` : [];
   return {
     question: rowToPrismLiveQuestion(questionRows[0] as Record<string, unknown>),
     responses: responseRows.map((row) => rowToPrismLiveResponse(row as Record<string, unknown>)),
@@ -876,53 +990,63 @@ export async function startPrismLiveQuestion(schoolYear: string, className: stri
   await ensureSchema();
   const sql = getSql();
   await closeExpiredPrismLiveQuestions();
-  await sql`
-    UPDATE prism_live_questions
+  const closedSessions = await sql`
+    UPDATE prism_live_sessions
     SET status = 'closed', closed_at = NOW(), updated_at = NOW()
-    WHERE school_year = ${schoolYear} AND class_name = ${className} AND status = 'running' AND id <> ${questionId}
+    WHERE school_year = ${schoolYear} AND class_name = ${className} AND status = 'running'
+    RETURNING id
   `;
-  await sql`
-    UPDATE prism_live_responses response
+  if (closedSessions.length) await sql`
+    UPDATE prism_live_session_responses response
     SET submitted_at = COALESCE(response.submitted_at, NOW()), updated_at = NOW()
-    FROM prism_live_questions question
-    WHERE response.question_id = question.id AND question.school_year = ${schoolYear}
-      AND question.class_name = ${className} AND question.status = 'closed' AND response.submitted_at IS NULL
+    FROM prism_live_sessions session
+    WHERE response.session_id = session.id AND session.school_year = ${schoolYear}
+      AND session.class_name = ${className} AND session.status = 'closed' AND response.submitted_at IS NULL
   `;
-  await sql`DELETE FROM prism_live_responses WHERE question_id = ${questionId}`;
+  const sessionId = randomUUID();
   const rows = await sql`
-    UPDATE prism_live_questions
-    SET status = 'running', started_at = NOW(),
-      deadline_at = NOW() + (duration_seconds * INTERVAL '1 second'),
-      closed_at = NULL, updated_at = NOW()
-    WHERE id = ${questionId} AND school_year = ${schoolYear} AND class_name = ${className}
-    RETURNING *, 0::INTEGER AS response_count
+    INSERT INTO prism_live_sessions (
+      id, question_id, school_year, class_name, duration_seconds, status,
+      started_at, deadline_at, created_at, updated_at
+    )
+    SELECT ${sessionId}, question.id, ${schoolYear}, ${className}, question.duration_seconds, 'running',
+      NOW(), NOW() + (question.duration_seconds * INTERVAL '1 second'), NOW(), NOW()
+    FROM prism_live_questions question
+    WHERE question.id = ${questionId}
+    RETURNING id
   `;
-  return rows[0] ? rowToPrismLiveQuestion(rows[0] as Record<string, unknown>) : null;
+  if (!rows[0]) return null;
+  const result = await getPrismLiveQuestionResults(schoolYear, className, questionId);
+  return result?.question ?? null;
 }
 
 export async function closePrismLiveQuestion(schoolYear: string, className: string, questionId: string) {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    UPDATE prism_live_questions
+    UPDATE prism_live_sessions
     SET status = 'closed', closed_at = NOW(), deadline_at = LEAST(COALESCE(deadline_at, NOW()), NOW()), updated_at = NOW()
-    WHERE id = ${questionId} AND school_year = ${schoolYear} AND class_name = ${className} AND status = 'running'
+    WHERE question_id = ${questionId} AND school_year = ${schoolYear} AND class_name = ${className} AND status = 'running'
     RETURNING id
   `;
-  await sql`
-    UPDATE prism_live_responses
+  if (rows[0]) await sql`
+    UPDATE prism_live_session_responses
     SET submitted_at = COALESCE(submitted_at, NOW()), updated_at = NOW()
-    WHERE question_id = ${questionId} AND submitted_at IS NULL
+    WHERE session_id = ${String(rows[0].id)} AND submitted_at IS NULL
   `;
   return rows.length > 0;
 }
 
-export async function deletePrismLiveQuestion(schoolYear: string, className: string, questionId: string) {
+export async function deletePrismLiveQuestion(questionId: string) {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    DELETE FROM prism_live_questions
-    WHERE id = ${questionId} AND school_year = ${schoolYear} AND class_name = ${className} AND status <> 'running'
+    DELETE FROM prism_live_questions question
+    WHERE question.id = ${questionId}
+      AND NOT EXISTS (
+        SELECT 1 FROM prism_live_sessions session
+        WHERE session.question_id = question.id AND session.status = 'running'
+      )
     RETURNING id
   `;
   return rows.length > 0;
@@ -932,19 +1056,22 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
   await ensureSchema();
   const sql = getSql();
   const questionRows = await sql`
-    SELECT question.*,
-      CASE WHEN question.status = 'running' AND question.deadline_at <= NOW() THEN 'closed' ELSE question.status END AS status,
+    SELECT question.id, question.question_type, question.prompt, question.options, question.created_at,
+      session.id AS run_id, session.school_year, session.class_name, session.duration_seconds,
+      CASE WHEN session.status = 'running' AND session.deadline_at <= NOW() THEN 'closed' ELSE session.status END AS status,
+      session.started_at, session.deadline_at, session.closed_at,
       0::INTEGER AS response_count,
       response.student_number AS response_student_number,
       response.answer AS response_answer,
       response.submitted_at AS response_submitted_at,
       response.updated_at AS response_updated_at
-    FROM prism_live_questions question
-    LEFT JOIN prism_live_responses response
-      ON response.question_id = question.id AND response.student_number = ${studentNumber}
-    WHERE question.school_year = ${schoolYear} AND question.class_name = ${className}
-      AND question.status IN ('running', 'closed') AND question.started_at IS NOT NULL
-    ORDER BY CASE WHEN question.status = 'running' THEN 0 ELSE 1 END, question.started_at DESC
+    FROM prism_live_sessions session
+    JOIN prism_live_questions question ON question.id = session.question_id
+    LEFT JOIN prism_live_session_responses response
+      ON response.session_id = session.id AND response.student_number = ${studentNumber}
+    WHERE session.school_year = ${schoolYear} AND session.class_name = ${className}
+      AND session.status IN ('running', 'closed')
+    ORDER BY CASE WHEN session.status = 'running' THEN 0 ELSE 1 END, session.started_at DESC
     LIMIT 1
   `;
   if (!questionRows[0]) return { question: null, response: null };
@@ -963,6 +1090,7 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
 
 export async function savePrismLiveResponse(input: {
   questionId: string;
+  runId: string;
   className: string;
   studentNumber: number;
   answer: unknown;
@@ -972,10 +1100,12 @@ export async function savePrismLiveResponse(input: {
   const sql = getSql();
   const schoolYear = getCurrentSchoolYear();
   const questionRows = await sql`
-    SELECT question_type, options
-    FROM prism_live_questions
-    WHERE id = ${input.questionId} AND school_year = ${schoolYear} AND class_name = ${input.className}
-      AND status = 'running' AND deadline_at > NOW()
+    SELECT question.question_type, question.options
+    FROM prism_live_sessions session
+    JOIN prism_live_questions question ON question.id = session.question_id
+    WHERE session.id = ${input.runId} AND question.id = ${input.questionId}
+      AND session.school_year = ${schoolYear} AND session.class_name = ${input.className}
+      AND session.status = 'running' AND session.deadline_at > NOW()
     LIMIT 1
   `;
   const questionRow = questionRows[0];
@@ -986,9 +1116,9 @@ export async function savePrismLiveResponse(input: {
   if (!answer) throw new Error("Câu trả lời chưa hợp lệ.");
 
   const rows = await sql`
-    INSERT INTO prism_live_responses (id, question_id, student_number, answer, updated_at)
-    VALUES (${randomUUID()}, ${input.questionId}, ${input.studentNumber}, ${JSON.stringify(answer)}::jsonb, NOW())
-    ON CONFLICT (question_id, student_number)
+    INSERT INTO prism_live_session_responses (id, session_id, student_number, answer, updated_at)
+    VALUES (${randomUUID()}, ${input.runId}, ${input.studentNumber}, ${JSON.stringify(answer)}::jsonb, NOW())
+    ON CONFLICT (session_id, student_number)
     DO UPDATE SET answer = EXCLUDED.answer, submitted_at = NULL, updated_at = NOW()
     RETURNING student_number, answer, submitted_at, updated_at
   `;

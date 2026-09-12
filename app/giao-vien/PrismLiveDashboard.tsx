@@ -197,7 +197,6 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
   }
 
   async function mutateQuestion(action: MutationAction, question: PrismLiveQuestion) {
-    if (action === "start" && question.responseCount > 0 && !window.confirm("Chạy lại sẽ xóa các câu trả lời cũ của câu này. Tiếp tục?")) return;
     if (action === "delete" && !window.confirm("Xóa câu hỏi này và toàn bộ câu trả lời?")) return;
     setBusy(true);
     setMessage("");
@@ -225,12 +224,12 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
   return (
     <section className="class-progress-panel prism-live-teacher" aria-labelledby="prism-live-teacher-heading">
       <div className="class-progress-header prism-live-teacher-head">
-        <div><p className="eyebrow">TƯƠNG TÁC TRỰC TIẾP</p><h2 id="prism-live-teacher-heading">Câu hỏi nhanh · {className}</h2><p>Tạo câu hỏi, đặt thời gian và xem câu trả lời của 33 học sinh theo thời gian thực.</p></div>
+        <div><p className="eyebrow">NGÂN HÀNG DÙNG CHUNG</p><h2 id="prism-live-teacher-heading">Câu hỏi nhanh · {className}</h2><p>Soạn một lần, chạy cho từng lớp; thời gian và kết quả của mỗi lớp được lưu riêng.</p></div>
         <span className={`status-badge ${hasRunningQuestion ? "open" : "closed"}`}>{hasRunningQuestion ? "● Đang có câu hỏi" : "○ Chưa chạy"}</span>
       </div>
 
       <details className="prism-live-creator" open={!questions.length}>
-        <summary><span>＋ Tạo câu hỏi</span><small>4 dạng · tự thu khi hết giờ</small></summary>
+        <summary><span>＋ Thêm vào ngân hàng</span><small>Dùng lại cho mọi lớp</small></summary>
         <form onSubmit={createQuestion}>
           <div className="prism-live-creator-grid">
             <label>Dạng câu hỏi<select value={type} onChange={(event) => setType(event.target.value as PrismLiveQuestionType)}><option value="single">Chọn 1 đáp án</option><option value="multiple">Chọn nhiều đáp án</option><option value="short">Trả lời ngắn</option><option value="drawing">Vẽ hình</option></select></label>
@@ -242,7 +241,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
               {options.map((option, index) => <label key={index}><b>{String.fromCharCode(65 + index)}</b><input value={option} maxLength={180} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`Đáp án ${String.fromCharCode(65 + index)}`} /></label>)}
             </div>
           ) : null}
-          <div className="prism-live-creator-actions"><p>Câu hỏi chỉ hiện với <strong>{className}</strong> sau khi bấm Bắt đầu.</p><button className="primary-button" type="submit" disabled={busy}>Lưu câu hỏi</button></div>
+          <div className="prism-live-creator-actions"><p>Lưu một lần; câu hỏi chỉ hiện với <strong>{className}</strong> khi cô bấm Bắt đầu.</p><button className="primary-button" type="submit" disabled={busy}>Lưu vào ngân hàng</button></div>
         </form>
       </details>
 
@@ -251,7 +250,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
 
       <div className="prism-live-question-list">
         {loading ? <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải câu hỏi…</p></div> : null}
-        {!loading && !questions.length ? <div className="prism-live-waiting"><span>?</span><p>Chưa có câu hỏi cho lớp {className}.</p></div> : null}
+        {!loading && !questions.length ? <div className="prism-live-waiting"><span>?</span><p>Ngân hàng chưa có câu hỏi.</p></div> : null}
         {questions.map((question, index) => {
           const seconds = question.deadlineAt ? (new Date(question.deadlineAt).getTime() - (now + clockOffset)) / 1000 : 0;
           const isSelected = selectedQuestionId === question.id;
