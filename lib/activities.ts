@@ -14,6 +14,13 @@ export const activityDefinitions = [
     description: "Dựng tia tán sắc và dự đoán màu quan sát.",
   },
   {
+    key: "total-internal-reflection",
+    symbol: "↗",
+    shortLabel: "Phản xạ toàn phần",
+    label: "Phản xạ toàn phần",
+    description: "Trả lời từng câu về điều kiện, góc giới hạn và ứng dụng.",
+  },
+  {
     key: "optics-game",
     symbol: "✦",
     shortLabel: "Photon Quest",

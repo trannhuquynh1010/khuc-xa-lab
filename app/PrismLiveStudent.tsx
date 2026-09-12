@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { classNames, formatStudentNumber, studentNumbers } from "@/lib/classes";
+import type { ActivityKey } from "@/lib/activities";
 import {
   emptyPrismLiveAnswer,
   hasPrismLiveAnswer,
@@ -145,7 +146,7 @@ function PrismOptionVisual({ kind, index }: { kind: "prism-path" | "prism-disper
   );
 }
 
-export default function PrismLiveStudent() {
+export default function PrismLiveStudent({ activityKey, title }: { activityKey: ActivityKey; title: string }) {
   const [className, setClassName] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
   const [snapshot, setSnapshot] = useState<StudentSnapshot | null>(null);
@@ -171,7 +172,7 @@ export default function PrismLiveStudent() {
       return;
     }
     try {
-      const params = new URLSearchParams({ className, studentNumber });
+      const params = new URLSearchParams({ className, studentNumber, activityKey });
       const response = await fetch(`/api/prism-live?${params}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Không thể tải câu hỏi.");
       const result = await response.json() as StudentSnapshot;
@@ -189,7 +190,7 @@ export default function PrismLiveStudent() {
     } catch {
       setLoadError(true);
     }
-  }, [className, studentNumber, validIdentity]);
+  }, [activityKey, className, studentNumber, validIdentity]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => {
@@ -230,6 +231,7 @@ export default function PrismLiveStudent() {
           body: JSON.stringify({
             questionId: activeQuestionId,
             runId: activeRunId,
+            activityKey,
             className,
             studentNumber: Number(studentNumber),
             answer,
@@ -247,7 +249,7 @@ export default function PrismLiveStudent() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [activeQuestionId, activeRunId, answer, className, hasEdited, locked, studentNumber, validIdentity]);
+  }, [activeQuestionId, activeRunId, activityKey, answer, className, hasEdited, locked, studentNumber, validIdentity]);
 
   const updateAnswer = useCallback((next: PrismLiveAnswer) => {
     setAnswer(next);
@@ -261,9 +263,9 @@ export default function PrismLiveStudent() {
   const shortAnswerLength = answer?.type === "short" ? answer.text.length : 0;
 
   return (
-    <section className="lab-card prism-live-student" aria-labelledby="prism-live-student-heading">
+    <section className="lab-card prism-live-student" data-live-activity={activityKey} aria-labelledby={`prism-live-student-heading-${activityKey}`}>
       <div className="prism-live-heading">
-        <div><p className="eyebrow">CÂU HỎI TRỰC TIẾP</p><h2 id="prism-live-student-heading">Hỏi nhanh cả lớp</h2></div>
+        <div><p className="eyebrow">CÂU HỎI THEO LƯỢT</p><h2 id={`prism-live-student-heading-${activityKey}`}>{title}</h2></div>
         {question?.status === "running" && remainingSeconds > 0 ? <strong className={`prism-live-timer ${timerTone}`} aria-live="polite">{formatCountdown(remainingSeconds)}</strong> : null}
       </div>
 

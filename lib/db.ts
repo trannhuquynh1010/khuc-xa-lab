@@ -158,6 +158,10 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'activity_key'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'prism_live_session_responses' AND column_name = 'is_correct'
       ) AND
       EXISTS (
@@ -471,6 +475,7 @@ async function initializeSchema() {
       id UUID PRIMARY KEY,
       school_year VARCHAR(5) NOT NULL,
       class_name VARCHAR(30) NOT NULL,
+      activity_key VARCHAR(40) NOT NULL DEFAULT 'prism-colors',
       question_type VARCHAR(12) NOT NULL,
       prompt VARCHAR(1000) NOT NULL,
       options JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -498,14 +503,9 @@ async function initializeSchema() {
       ADD COLUMN IF NOT EXISTS correct_answer JSONB,
       ADD COLUMN IF NOT EXISTS quiz_set VARCHAR(60),
       ADD COLUMN IF NOT EXISTS quiz_order SMALLINT,
-      ADD COLUMN IF NOT EXISTS slug VARCHAR(100)
+      ADD COLUMN IF NOT EXISTS slug VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS activity_key VARCHAR(40) NOT NULL DEFAULT 'prism-colors'
   `;
-  await sql`ALTER TABLE prism_live_questions DROP CONSTRAINT IF EXISTS prism_live_questions_type_check`;
-  await sql`
-    ALTER TABLE prism_live_questions
-    ADD CONSTRAINT prism_live_questions_type_check CHECK (question_type IN ('single', 'multiple', 'matching', 'short', 'drawing'))
-  `;
-
   await sql`
     CREATE TABLE IF NOT EXISTS prism_live_responses (
       id UUID PRIMARY KEY,
@@ -652,10 +652,10 @@ async function initializeSchema() {
   for (const [index, question] of builtInPrismQuestions.entries()) {
     await sql`
       INSERT INTO prism_live_questions (
-        id, school_year, class_name, question_type, prompt, options, content, correct_answer,
+        id, school_year, class_name, activity_key, question_type, prompt, options, content, correct_answer,
         quiz_set, quiz_order, slug, duration_seconds
       ) VALUES (
-        ${randomUUID()}, '26-27', 'NGAN-HANG', ${question.type}, ${question.prompt},
+        ${randomUUID()}, '26-27', 'NGAN-HANG', 'prism-colors', ${question.type}, ${question.prompt},
         ${JSON.stringify(question.options)}::jsonb, ${JSON.stringify(question.content)}::jsonb,
         ${question.correctAnswer ? JSON.stringify(question.correctAnswer) : null}::jsonb,
         'prism-color-five', ${index + 1}, ${question.slug}, ${question.durationSeconds}
@@ -665,6 +665,111 @@ async function initializeSchema() {
         prompt = EXCLUDED.prompt,
         options = EXCLUDED.options,
         content = EXCLUDED.content,
+        correct_answer = EXCLUDED.correct_answer,
+        quiz_set = EXCLUDED.quiz_set,
+        quiz_order = EXCLUDED.quiz_order,
+        duration_seconds = EXCLUDED.duration_seconds,
+        updated_at = NOW()
+    `;
+  }
+
+  const totalReflectionQuestions = [
+    {
+      slug: "tir-live-1",
+      type: "single",
+      prompt: "Điều kiện đầu tiên để có thể xảy ra phản xạ toàn phần là ánh sáng truyền theo hướng nào?",
+      options: ["Từ môi trường có chiết suất nhỏ sang môi trường có chiết suất lớn", "Từ môi trường có chiết suất lớn sang môi trường có chiết suất nhỏ", "Chỉ từ không khí sang nước", "Giữa hai môi trường có cùng chiết suất"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "tir-live-2",
+      type: "single",
+      prompt: "Góc giới hạn phản xạ toàn phần được xác định như thế nào?",
+      options: ["Là góc tạo bởi tia phản xạ và pháp tuyến", "Là góc khúc xạ lớn nhất trong môi trường thứ hai", "Là góc tới trong môi trường có chiết suất lớn hơn khi tia khúc xạ đi sát mặt phân cách", "Là góc tạo bởi tia tới và mặt phân cách"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "tir-live-3",
+      type: "single",
+      prompt: "Phản xạ toàn phần không thể xảy ra trong trường hợp nào?",
+      options: ["Từ thủy tinh sang không khí", "Từ nước sang không khí", "Từ không khí sang nước", "Từ kim cương sang không khí"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "tir-live-4",
+      type: "single",
+      prompt: "Dụng cụ nào không chủ yếu hoạt động dựa trên phản xạ toàn phần?",
+      options: ["Cáp quang", "Kính lúp", "Lăng kính phản xạ", "Ống nội soi dùng sợi quang"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "tir-live-5",
+      type: "single",
+      prompt: "Tia sáng truyền từ nước (n = 1,33) ra không khí (n = 1,00). Góc giới hạn gần nhất với giá trị nào?",
+      options: ["41,8°", "45,0°", "48,8°", "56,3°"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 90,
+    },
+    {
+      slug: "tir-live-6",
+      type: "single",
+      prompt: "Với ánh sáng truyền từ môi trường 1 sang môi trường 2 và n₁ > n₂, góc giới hạn phụ thuộc trực tiếp vào đại lượng nào?",
+      options: ["Cường độ của chùm sáng", "Chiết suất của hai môi trường", "Màu của vật đặt gần mặt phân cách", "Khoảng cách từ nguồn sáng đến mặt phân cách"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "tir-live-7",
+      type: "multiple",
+      prompt: "Chọn tất cả nhận định đúng về phản xạ toàn phần.",
+      options: ["Từ không khí vào nước, với góc tới nhỏ hơn 90°, luôn có tia khúc xạ", "Từ nước ra không khí luôn có tia khúc xạ", "Từ không khí vào thủy tinh có thể phản xạ toàn phần nếu góc tới đủ lớn", "Từ thủy tinh ra không khí luôn phản xạ toàn phần", "Khi góc tới bằng góc giới hạn, tia khúc xạ đi sát mặt phân cách", "Khi truyền từ môi trường có chiết suất lớn sang nhỏ và góc tới lớn hơn góc giới hạn, phản xạ toàn phần xảy ra"],
+      correctAnswer: { type: "multiple", selected: [0, 4, 5] },
+      durationSeconds: 100,
+    },
+    {
+      slug: "tir-live-8",
+      type: "single",
+      prompt: "Tia sáng truyền từ thủy tinh (n = 1,50) ra không khí với góc tới 40°. Biết góc giới hạn xấp xỉ 41,8°. Điều gì xảy ra?",
+      options: ["Phản xạ toàn phần", "Có tia khúc xạ và tia phản xạ", "Tia khúc xạ đi sát mặt phân cách", "Tia sáng không đổi hướng"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 75,
+    },
+    {
+      slug: "tir-live-9",
+      type: "single",
+      prompt: "Hai môi trường A (n = 1,60) và B (n = 1,40) đều truyền ánh sáng ra không khí. Môi trường nào có góc giới hạn nhỏ hơn?",
+      options: ["Môi trường A", "Môi trường B", "Hai góc giới hạn bằng nhau", "Không đủ dữ kiện"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 80,
+    },
+    {
+      slug: "tir-live-10",
+      type: "single",
+      prompt: "Lõi sợi quang có n = 1,48, lớp vỏ có n = 1,46; góc giới hạn xấp xỉ 80,6°. Tia sáng gặp mặt lõi–vỏ với góc tới 82°. Kết luận đúng là gì?",
+      options: ["Tia truyền thẳng qua lớp vỏ", "Tia khúc xạ đi sát mặt phân cách", "Phản xạ toàn phần xảy ra trong lõi", "Không thể xác định"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 90,
+    },
+  ] as const;
+  for (const [index, question] of totalReflectionQuestions.entries()) {
+    await sql`
+      INSERT INTO prism_live_questions (
+        id, school_year, class_name, activity_key, question_type, prompt, options, content, correct_answer,
+        quiz_set, quiz_order, slug, duration_seconds
+      ) VALUES (
+        ${randomUUID()}, '26-27', 'NGAN-HANG', 'total-internal-reflection', ${question.type}, ${question.prompt},
+        ${JSON.stringify(question.options)}::jsonb, '{}'::jsonb, ${JSON.stringify(question.correctAnswer)}::jsonb,
+        'tir-live', ${index + 1}, ${question.slug}, ${question.durationSeconds}
+      )
+      ON CONFLICT (slug) DO UPDATE SET
+        activity_key = EXCLUDED.activity_key,
+        question_type = EXCLUDED.question_type,
+        prompt = EXCLUDED.prompt,
+        options = EXCLUDED.options,
         correct_answer = EXCLUDED.correct_answer,
         quiz_set = EXCLUDED.quiz_set,
         quiz_order = EXCLUDED.quiz_order,
@@ -710,7 +815,7 @@ async function initializeSchema() {
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-prism-five-v3"], { revalidate: false });
+}, ["physics-lab-schema-live-topics-v4"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -1063,6 +1168,7 @@ async function closeExpiredPrismLiveQuestions() {
 export async function createPrismLiveQuestion(input: {
   schoolYear: string;
   className: string;
+  activityKey: ActivityKey;
   type: PrismLiveQuestionType;
   prompt: string;
   options: string[];
@@ -1089,9 +1195,9 @@ export async function createPrismLiveQuestion(input: {
   const id = randomUUID();
   const rows = await sql`
     INSERT INTO prism_live_questions (
-      id, school_year, class_name, question_type, prompt, options, correct_answer, duration_seconds
+      id, school_year, class_name, activity_key, question_type, prompt, options, correct_answer, duration_seconds
     ) VALUES (
-      ${id}, ${input.schoolYear}, 'NGAN-HANG', ${input.type}, ${prompt},
+      ${id}, ${input.schoolYear}, 'NGAN-HANG', ${input.activityKey}, ${input.type}, ${prompt},
       ${JSON.stringify(input.type === "single" || input.type === "multiple" ? options : [])}::jsonb,
       ${correctAnswer ? JSON.stringify(correctAnswer) : null}::jsonb,
       ${durationSeconds}
@@ -1105,7 +1211,7 @@ export async function createPrismLiveQuestion(input: {
   return rowToPrismLiveQuestion(rows[0] as Record<string, unknown>);
 }
 
-export async function listPrismLiveQuestions(schoolYear: string, className: string) {
+export async function listPrismLiveQuestions(schoolYear: string, className: string, activityKey: ActivityKey) {
   await ensureSchema();
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
@@ -1126,13 +1232,14 @@ export async function listPrismLiveQuestions(schoolYear: string, className: stri
       ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
       LIMIT 1
     ) session ON TRUE
+    WHERE question.activity_key = ${activityKey}
     ORDER BY question.quiz_set NULLS LAST, question.quiz_order ASC NULLS LAST, question.created_at DESC
     LIMIT 100
   `;
   return rows.map((row) => rowToPrismLiveQuestion(row as Record<string, unknown>));
 }
 
-export async function getPrismLiveQuestionResults(schoolYear: string, className: string, questionId: string) {
+export async function getPrismLiveQuestionResults(schoolYear: string, className: string, questionId: string, activityKey: ActivityKey) {
   await ensureSchema();
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
@@ -1154,7 +1261,7 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
       ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
       LIMIT 1
     ) session ON TRUE
-    WHERE question.id = ${questionId}
+    WHERE question.id = ${questionId} AND question.activity_key = ${activityKey}
     LIMIT 1
   `;
   if (!questionRows[0]) return null;
@@ -1172,7 +1279,7 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
   };
 }
 
-export async function startPrismLiveQuestion(schoolYear: string, className: string, questionId: string) {
+export async function startPrismLiveQuestion(schoolYear: string, className: string, questionId: string, activityKey: ActivityKey) {
   await ensureSchema();
   const sql = getSql();
   await closeExpiredPrismLiveQuestions();
@@ -1198,11 +1305,11 @@ export async function startPrismLiveQuestion(schoolYear: string, className: stri
     SELECT ${sessionId}, question.id, ${schoolYear}, ${className}, question.duration_seconds, 'running',
       NOW(), NOW() + (question.duration_seconds * INTERVAL '1 second'), NOW(), NOW()
     FROM prism_live_questions question
-    WHERE question.id = ${questionId}
+    WHERE question.id = ${questionId} AND question.activity_key = ${activityKey}
     RETURNING id
   `;
   if (!rows[0]) return null;
-  const result = await getPrismLiveQuestionResults(schoolYear, className, questionId);
+  const result = await getPrismLiveQuestionResults(schoolYear, className, questionId, activityKey);
   return result?.question ?? null;
 }
 
@@ -1238,7 +1345,7 @@ export async function deletePrismLiveQuestion(questionId: string) {
   return rows.length > 0;
 }
 
-export async function getPrismLiveStudentQuestion(className: string, studentNumber: number, schoolYear = getCurrentSchoolYear()) {
+export async function getPrismLiveStudentQuestion(className: string, studentNumber: number, activityKey: ActivityKey, schoolYear = getCurrentSchoolYear()) {
   await ensureSchema();
   const sql = getSql();
   const questionRows = await sql`
@@ -1258,6 +1365,7 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
     LEFT JOIN prism_live_session_responses response
       ON response.session_id = session.id AND response.student_number = ${studentNumber}
     WHERE session.school_year = ${schoolYear} AND session.class_name = ${className}
+      AND question.activity_key = ${activityKey}
       AND session.status IN ('running', 'closed')
     ORDER BY CASE WHEN session.status = 'running' THEN 0 ELSE 1 END, session.started_at DESC
     LIMIT 1
@@ -1280,6 +1388,7 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
 export async function savePrismLiveResponse(input: {
   questionId: string;
   runId: string;
+  activityKey: ActivityKey;
   className: string;
   studentNumber: number;
   answer: unknown;
@@ -1294,6 +1403,7 @@ export async function savePrismLiveResponse(input: {
     JOIN prism_live_questions question ON question.id = session.question_id
     WHERE session.id = ${input.runId} AND question.id = ${input.questionId}
       AND session.school_year = ${schoolYear} AND session.class_name = ${input.className}
+      AND question.activity_key = ${input.activityKey}
       AND session.status = 'running' AND session.deadline_at > NOW()
     LIMIT 1
   `;
@@ -1326,6 +1436,7 @@ export async function gradePrismLiveShortResponse(input: {
   className: string;
   questionId: string;
   runId: string;
+  activityKey: ActivityKey;
   studentNumber: number;
   isCorrect: boolean;
 }) {
@@ -1339,6 +1450,7 @@ export async function gradePrismLiveShortResponse(input: {
       AND session.question_id = question.id
       AND question.question_type = 'short'
       AND question.id = ${input.questionId}
+      AND question.activity_key = ${input.activityKey}
       AND session.id = ${input.runId}
       AND session.school_year = ${input.schoolYear}
       AND session.class_name = ${input.className}

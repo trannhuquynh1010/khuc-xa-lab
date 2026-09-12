@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isActivityKey } from "@/lib/activities";
 import { isClassName } from "@/lib/classes";
 import { getPrismLiveStudentQuestion, isActivityOpen, savePrismLiveResponse } from "@/lib/db";
 
@@ -17,11 +18,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const className = searchParams.get("className");
   const studentNumber = Number(searchParams.get("studentNumber"));
-  if (!isClassName(className) || !isStudentNumber(studentNumber)) {
+  const activityKey = searchParams.get("activityKey");
+  if (!isClassName(className) || !isStudentNumber(studentNumber) || !isActivityKey(activityKey)) {
     return NextResponse.json({ error: "Hãy chọn đúng lớp và STT." }, { status: 400 });
   }
 
-  const snapshot = await getPrismLiveStudentQuestion(className, studentNumber);
+  const snapshot = await getPrismLiveStudentQuestion(className, studentNumber, activityKey);
   return NextResponse.json({ ...snapshot, serverNow: new Date().toISOString() }, {
     headers: { "Cache-Control": "private, no-store" },
   });
@@ -32,17 +34,19 @@ export async function POST(request: Request) {
   if (!body || body.website) return NextResponse.json({ error: "Dữ liệu chưa hợp lệ." }, { status: 400 });
   const className = body.className;
   const studentNumber = Number(body.studentNumber);
-  if (!isClassName(className) || !isStudentNumber(studentNumber) || !isUuid(body.questionId) || !isUuid(body.runId)) {
+  const activityKey = body.activityKey;
+  if (!isClassName(className) || !isStudentNumber(studentNumber) || !isActivityKey(activityKey) || !isUuid(body.questionId) || !isUuid(body.runId)) {
     return NextResponse.json({ error: "Thông tin học sinh hoặc câu hỏi chưa hợp lệ." }, { status: 400 });
   }
-  if (!(await isActivityOpen("prism-colors"))) {
-    return NextResponse.json({ error: "Giáo viên đã đóng bài Lăng kính và màu sắc." }, { status: 409 });
+  if (!(await isActivityOpen(activityKey))) {
+    return NextResponse.json({ error: "Giáo viên đã đóng bài học này." }, { status: 409 });
   }
 
   try {
     const response = await savePrismLiveResponse({
       questionId: body.questionId,
       runId: body.runId,
+      activityKey,
       className,
       studentNumber,
       answer: body.answer,

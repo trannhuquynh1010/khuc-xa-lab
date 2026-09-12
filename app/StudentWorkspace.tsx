@@ -75,11 +75,13 @@ export default function StudentWorkspace() {
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
   const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
   const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
-  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
+  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "total-internal-reflection" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
-    : visibleActiveKey === "resistance-factors"
+      : visibleActiveKey === "resistance-factors"
       ? ["R", "Ω", "ρ"]
+      : visibleActiveKey === "total-internal-reflection"
+        ? ["i", "iᵍʰ", "↗"]
       : visibleActiveKey === "prism-colors"
         ? ["△", "λ", "n"]
         : visibleActiveKey === "optics-game"
@@ -156,7 +158,8 @@ export default function StudentWorkspace() {
             </nav>
           </details>
           {visibleActiveKey === "refraction" ? <LabForm showApplication={applicationOpen} showConstruction={constructionOpen} /> : null}
-          {visibleActiveKey === "prism-colors" ? <><PrismColorLabForm showColorActivity={prismColorOpen} /><PrismLiveStudent /></> : null}
+          {visibleActiveKey === "prism-colors" ? <><PrismColorLabForm showColorActivity={prismColorOpen} /><PrismLiveStudent activityKey="prism-colors" title="Lăng kính và màu sắc" /></> : null}
+          {visibleActiveKey === "total-internal-reflection" ? <PrismLiveStudent activityKey="total-internal-reflection" title="Phản xạ toàn phần" /> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} /></div> : null}
           {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
           {visibleActiveKey === "lenses" ? <LensPathExplorer /> : null}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { formatStudentNumber, studentNumbers } from "@/lib/classes";
+import type { ActivityKey } from "@/lib/activities";
 import {
   hasPrismLiveAnswer,
   prismLiveTypeLabels,
@@ -111,7 +112,7 @@ function ResponseStatistics({ result, onGrade }: { result: QuestionResult; onGra
   );
 }
 
-export default function PrismLiveDashboard({ className, schoolYear, isCurrentYear }: { className: string; schoolYear: string; isCurrentYear: boolean }) {
+export default function PrismLiveDashboard({ className, schoolYear, isCurrentYear, activityKey, title }: { className: string; schoolYear: string; isCurrentYear: boolean; activityKey: ActivityKey; title: string }) {
   const [questions, setQuestions] = useState<PrismLiveQuestion[]>([]);
   const [bonusStudents, setBonusStudents] = useState<PrismLiveBonusStudent[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
@@ -131,7 +132,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
   const loadQuestions = useCallback(async (quiet = false, includeBonus = !quiet) => {
     if (!quiet) setLoading(true);
     try {
-      const params = new URLSearchParams({ className, schoolYear, includeBonus: includeBonus ? "1" : "0" });
+      const params = new URLSearchParams({ className, schoolYear, activityKey, includeBonus: includeBonus ? "1" : "0" });
       const response = await fetch(`/api/teacher-prism-live?${params}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Không thể tải câu hỏi.");
@@ -145,11 +146,11 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [className, schoolYear]);
+  }, [activityKey, className, schoolYear]);
 
   const loadResult = useCallback(async (questionId: string, quiet = false) => {
     try {
-      const params = new URLSearchParams({ className, schoolYear, questionId });
+      const params = new URLSearchParams({ className, schoolYear, activityKey, questionId });
       const response = await fetch(`/api/teacher-prism-live?${params}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Không thể tải thống kê.");
@@ -159,7 +160,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
     } catch (error) {
       if (!quiet) setMessage(error instanceof Error ? error.message : "Không thể tải thống kê.");
     }
-  }, [className, schoolYear]);
+  }, [activityKey, className, schoolYear]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => {
@@ -206,7 +207,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
       const response = await fetch("/api/teacher-prism-live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", className, schoolYear, type, prompt, options: filledOptions.map((item) => item.option), correctAnswer, durationSeconds }),
+        body: JSON.stringify({ action: "create", activityKey, className, schoolYear, type, prompt, options: filledOptions.map((item) => item.option), correctAnswer, durationSeconds }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Không thể tạo câu hỏi.");
@@ -232,6 +233,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
         action: "grade",
         className,
         schoolYear,
+        activityKey,
         questionId: result.question.id,
         runId: result.question.runId,
         studentNumber: responseToGrade.studentNumber,
@@ -255,7 +257,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
       const response = await fetch("/api/teacher-prism-live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, className, schoolYear, questionId: question.id }),
+        body: JSON.stringify({ action, activityKey, className, schoolYear, questionId: question.id }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Không thể thực hiện thao tác.");
@@ -276,7 +278,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
   return (
     <section className="class-progress-panel prism-live-teacher" aria-labelledby="prism-live-teacher-heading">
       <div className="class-progress-header prism-live-teacher-head">
-        <div><p className="eyebrow">NGÂN HÀNG DÙNG CHUNG</p><h2 id="prism-live-teacher-heading">Câu hỏi nhanh · {className}</h2><p>Soạn một lần, chạy cho từng lớp; thời gian và kết quả của mỗi lớp được lưu riêng.</p></div>
+        <div><p className="eyebrow">NGÂN HÀNG DÙNG CHUNG</p><h2 id="prism-live-teacher-heading">{title} · {className}</h2><p>Chạy từng câu cho lớp đang chọn; thời gian và kết quả được lưu riêng.</p></div>
         <span className={`status-badge ${hasRunningQuestion ? "open" : "closed"}`}>{hasRunningQuestion ? "● Đang có câu hỏi" : "○ Chưa chạy"}</span>
       </div>
 
@@ -301,10 +303,10 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
       {message ? <p className="prism-live-teacher-message" role="status">{message}</p> : null}
       {!isCurrentYear ? <p className="prism-live-year-warning">Đang xem năm học cũ. Có thể xem thống kê, nhưng chỉ chạy câu hỏi ở năm học hiện tại.</p> : null}
 
-      <details className="prism-live-bonus-board" open>
+      {activityKey === "prism-colors" ? <details className="prism-live-bonus-board" open>
         <summary><span>Điểm cộng · Bộ 5 câu</span><strong>{bonusStudents.filter((student) => student.bonusPoint === 1).length} học sinh +1</strong></summary>
         {rankedBonusStudents.length ? <div className="prism-live-bonus-list">{rankedBonusStudents.map((student) => <span key={student.studentNumber} className={student.bonusPoint ? "earned" : ""}><b>STT {formatStudentNumber(student.studentNumber)}</b><em>{student.correctCount}/5</em><strong>{student.bonusPoint ? "+1" : student.gradedCount < 5 ? "Chờ chấm" : "—"}</strong></span>)}</div> : <p>Chưa có học sinh làm bộ 5 câu.</p>}
-      </details>
+      </details> : null}
 
       <div className="prism-live-question-list">
         {loading ? <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải câu hỏi…</p></div> : null}
@@ -312,11 +314,12 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
         {questions.map((question, index) => {
           const seconds = question.deadlineAt ? (new Date(question.deadlineAt).getTime() - (now + clockOffset)) / 1000 : 0;
           const isSelected = selectedQuestionId === question.id;
+          const quizTotal = question.quizSet ? questions.filter((item) => item.quizSet === question.quizSet).length : 0;
           return (
             <article key={question.id} className={`prism-live-teacher-question ${question.status} ${isSelected ? "selected" : ""}`}>
-              <div className="prism-live-teacher-question-index"><span>{question.quizOrder ? `${question.quizOrder}/5` : String(questions.length - index).padStart(2, "0")}</span></div>
+              <div className="prism-live-teacher-question-index"><span>{question.quizOrder ? `${question.quizOrder}/${quizTotal}` : String(questions.length - index).padStart(2, "0")}</span></div>
               <div className="prism-live-teacher-question-copy">
-                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ 5 câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : <small>{question.durationSeconds} giây</small>}</div>
+                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ {quizTotal} câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : <small>{question.durationSeconds} giây</small>}</div>
                 <h3>{question.prompt}</h3>
                 {question.options.length ? <p>{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p> : null}
               </div>

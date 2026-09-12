@@ -89,6 +89,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .activity-tabs button.active { background: var(--ink); color: #fff; box-shadow: 4px 4px 0 var(--purple); }
 .activity-symbol { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: .9rem; font-weight: 900; }
 .activity-tabs [data-activity="prism-colors"] .activity-symbol { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
+.activity-tabs [data-activity="total-internal-reflection"] .activity-symbol { color: #fff; background: #1677b8; }
 .activity-tabs [data-activity="optics-game"] .activity-symbol { color: #171717; background: var(--lime); }
 .activity-tabs [data-activity="optics-review"] .activity-symbol { background: #8edfff; }
 .activity-tabs [data-activity="lenses"] .activity-symbol { color: #fff; background: #1677b8; }
@@ -105,6 +106,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .activity-menu-current strong { overflow: hidden; font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }
 .activity-menu .activity-symbol { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border: 1.2px solid var(--ink); border-radius: 50%; color: var(--ink); background: var(--lime); font-size: .76rem; font-weight: 950; }
 .activity-menu [data-activity="prism-colors"] .activity-symbol { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
+.activity-menu [data-activity="total-internal-reflection"] .activity-symbol { color: #fff; background: #1677b8; }
 .activity-menu [data-activity="optics-game"] .activity-symbol { background: var(--lime); }
 .activity-menu [data-activity="optics-review"] .activity-symbol { background: #8edfff; }
 .activity-menu [data-activity="lenses"] .activity-symbol { color: #fff; background: #1677b8; }
@@ -717,6 +719,7 @@ footer a { text-decoration: none; }
 .teacher-tab-label { display: flex; align-items: center; gap: 9px; }
 .teacher-tab-label b { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; color: var(--ink); background: var(--lime); font-size: .72rem; }
 .teacher-tabs [data-activity="prism-colors"] .teacher-tab-label b { background: linear-gradient(135deg, #ff7657, #ffd84e, #63cf79, #7293ff, #9a6cff); }
+.teacher-tabs [data-activity="total-internal-reflection"] .teacher-tab-label b { color: #fff; background: #1677b8; }
 .teacher-tabs [data-activity="optics-game"] .teacher-tab-label b { color: #171717; background: var(--lime); }
 .teacher-tabs [data-activity="optics-review"] .teacher-tab-label b { color: #171717; background: #8edfff; }
 .teacher-tabs [data-activity="lenses"] .teacher-tab-label b { color: #fff; background: #1677b8; }
@@ -1354,6 +1357,24 @@ details .table-scroll { margin-top: 12px; }
   overflow: hidden;
 }
 
+.prism-live-student {
+  margin-top: 18px;
+  padding: 24px 28px;
+  border: 1.5px solid var(--live-ink);
+  border-radius: 24px;
+  background: var(--paper);
+}
+
+.prism-live-student[data-live-activity="total-internal-reflection"] {
+  --live-violet: #1677b8;
+  --live-violet-soft: #e8f5ff;
+  border-color: #173e5f;
+}
+
+.prism-live-student[data-live-activity="total-internal-reflection"]::before {
+  background: linear-gradient(90deg, #0c4a6e, #0ea5e9 55%, #67e8f9);
+}
+
 .prism-live-student::before,
 .prism-live-teacher::before {
   content: "";
@@ -1673,6 +1694,7 @@ details .table-scroll { margin-top: 12px; }
   .prism-live-creator-actions { align-items: flex-start; flex-direction: column; }
   .prism-live-identity,
   .prism-live-creator-grid { grid-template-columns: 1fr; }
+  .prism-live-student { padding: 20px 14px; border-radius: 18px; }
   .prism-live-prompt-field { grid-column: auto; }
   .prism-live-timer { min-width: 98px; align-self: stretch; }
   .prism-live-question-meta { align-items: flex-start; flex-direction: column; }
