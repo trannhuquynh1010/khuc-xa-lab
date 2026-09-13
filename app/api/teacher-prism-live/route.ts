@@ -11,6 +11,7 @@ import {
   gradePrismLiveShortResponse,
   listPrismLiveQuestions,
   startPrismLiveQuestion,
+  updatePrismLiveQuestionDuration,
 } from "@/lib/db";
 import { isPrismLiveQuestionType } from "@/lib/prism-live";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
@@ -72,6 +73,10 @@ export async function POST(request: Request) {
     }
 
     if (!isUuid(body.questionId)) return NextResponse.json({ error: "Câu hỏi chưa hợp lệ." }, { status: 400 });
+    if (action === "update-duration") {
+      const durationSeconds = await updatePrismLiveQuestionDuration(body.questionId, activityKey, Number(body.durationSeconds));
+      return NextResponse.json({ durationSeconds });
+    }
     if (action === "grade") {
       if (!isUuid(body.runId) || !Number.isInteger(Number(body.studentNumber)) || Number(body.studentNumber) < 1 || Number(body.studentNumber) > 33 || typeof body.isCorrect !== "boolean") {
         return NextResponse.json({ error: "Dữ liệu chấm bài chưa hợp lệ." }, { status: 400 });

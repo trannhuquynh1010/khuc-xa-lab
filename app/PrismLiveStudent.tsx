@@ -153,6 +153,7 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
   const [answer, setAnswer] = useState<PrismLiveAnswer | null>(null);
   const [hasEdited, setHasEdited] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [clockOffset, setClockOffset] = useState(0);
   const [now, setNow] = useState(0);
@@ -215,12 +216,13 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
   const remainingSeconds = snapshot?.question?.deadlineAt
     ? (new Date(snapshot.question.deadlineAt).getTime() - (now + clockOffset)) / 1000
     : 0;
-  const locked = snapshot?.question?.status !== "running" || remainingSeconds <= 0;
+  const studentSubmitted = Boolean(snapshot?.response?.submittedAt);
+  const locked = snapshot?.question?.status !== "running" || remainingSeconds <= 0 || studentSubmitted;
   const activeQuestionId = snapshot?.question?.id ?? null;
   const activeRunId = snapshot?.question?.runId ?? null;
 
   useEffect(() => {
-    if (!validIdentity || !activeQuestionId || !activeRunId || locked || !answer || !hasEdited) return;
+    if (!validIdentity || !activeQuestionId || !activeRunId || locked || !answer || !hasEdited || submitting) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setSaveState("saving");
@@ -249,7 +251,7 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [activeQuestionId, activeRunId, activityKey, answer, className, hasEdited, locked, studentNumber, validIdentity]);
+  }, [activeQuestionId, activeRunId, activityKey, answer, className, hasEdited, locked, studentNumber, submitting, validIdentity]);
 
   const updateAnswer = useCallback((next: PrismLiveAnswer) => {
     setAnswer(next);
@@ -261,6 +263,37 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
   const timerTone = remainingSeconds <= 10 ? "danger" : remainingSeconds <= 30 ? "warning" : "";
   const answered = answer ? hasPrismLiveAnswer(answer) : false;
   const shortAnswerLength = answer?.type === "short" ? answer.text.length : 0;
+
+  async function submitAnswer() {
+    if (!validIdentity || !activeQuestionId || !activeRunId || locked || !answer || !answered) return;
+    setSubmitting(true);
+    setSaveState("saving");
+    try {
+      const response = await fetch("/api/prism-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: activeQuestionId,
+          runId: activeRunId,
+          activityKey,
+          className,
+          studentNumber: Number(studentNumber),
+          answer,
+          submit: true,
+          website: "",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Không thể nộp câu trả lời.");
+      setSnapshot((current) => current ? { ...current, response: data.response } : current);
+      setHasEdited(false);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <section className="lab-card prism-live-student" data-live-activity={activityKey} aria-labelledby={`prism-live-student-heading-${activityKey}`}>
@@ -285,7 +318,7 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
         <div className={`prism-live-question-card ${locked ? "locked" : ""}`}>
           <div className="prism-live-question-meta">
             <span>{prismLiveTypeLabels[question.type]}</span>
-            {locked ? <strong>✓ Đã hết giờ · bài được thu tự động</strong> : <strong>{answered ? "Đã có câu trả lời" : "Đang trả lời"}</strong>}
+            {studentSubmitted ? <strong>✓ Đã nộp</strong> : locked ? <strong>✓ Đã hết giờ · bài được thu tự động</strong> : <strong>{answered ? "Đã có câu trả lời" : "Đang trả lời"}</strong>}
           </div>
           <h3>{question.prompt}</h3>
 
@@ -316,7 +349,8 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
 
           {locked && snapshot?.response?.isCorrect !== null && snapshot?.response?.isCorrect !== undefined ? <p className={`prism-live-student-result ${snapshot.response.isCorrect ? "correct" : "incorrect"}`}>{snapshot.response.isCorrect ? "✓ Chính xác" : "Chưa chính xác"}</p> : null}
 
-          {!locked ? <div className={`prism-live-save-state ${saveState}`} aria-live="polite">{saveState === "saving" ? "Đang lưu…" : saveState === "saved" ? "✓ Đã lưu trên hệ thống" : saveState === "error" ? "Chưa lưu được · đang thử lại" : "Câu trả lời tự lưu cho đến khi hết giờ"}</div> : null}
+          {!locked ? <div className="prism-live-submit-row"><div className={`prism-live-save-state ${saveState}`} aria-live="polite">{saveState === "saving" ? "Đang lưu…" : saveState === "saved" ? "✓ Đã lưu trên hệ thống" : saveState === "error" ? "Chưa lưu được · hãy thử nộp lại" : "Câu trả lời được tự lưu"}</div><button type="button" className="primary-button prism-live-submit-button" disabled={!answered || submitting} onClick={submitAnswer}>{submitting ? "Đang nộp…" : "Nộp câu trả lời"}</button></div> : null}
+          {studentSubmitted ? <p className="prism-live-submitted-note">✓ Đã nộp câu trả lời. Em không thể chỉnh sửa thêm.</p> : null}
         </div>
       )}
     </section>

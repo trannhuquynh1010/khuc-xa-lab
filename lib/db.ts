@@ -1096,6 +1096,7 @@ function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion
     isAutoGraded: Boolean(row.is_auto_graded),
     quizSet: row.quiz_set ? String(row.quiz_set) : null,
     quizOrder: row.quiz_order === null || row.quiz_order === undefined ? null : Number(row.quiz_order),
+    configuredDurationSeconds: Number(row.configured_duration_seconds ?? row.duration_seconds),
     durationSeconds: Number(row.duration_seconds),
     status: String(row.status) as PrismLiveQuestionStatus,
     startedAt: row.started_at ? new Date(String(row.started_at)).toISOString() : null,
@@ -1103,6 +1104,7 @@ function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion
     closedAt: row.closed_at ? new Date(String(row.closed_at)).toISOString() : null,
     createdAt: new Date(String(row.created_at)).toISOString(),
     responseCount: Number(row.response_count ?? 0),
+    submittedCount: Number(row.submitted_count ?? 0),
   };
 }
 
@@ -1205,10 +1207,27 @@ export async function createPrismLiveQuestion(input: {
     RETURNING *, (correct_answer IS NOT NULL) AS is_auto_graded,
       NULL::UUID AS run_id, 'draft'::TEXT AS status,
       NULL::TIMESTAMPTZ AS started_at, NULL::TIMESTAMPTZ AS deadline_at,
-      NULL::TIMESTAMPTZ AS closed_at, 0::INTEGER AS response_count
+      NULL::TIMESTAMPTZ AS closed_at, 0::INTEGER AS response_count, 0::INTEGER AS submitted_count
   `;
   expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
   return rowToPrismLiveQuestion(rows[0] as Record<string, unknown>);
+}
+
+export async function updatePrismLiveQuestionDuration(questionId: string, activityKey: ActivityKey, durationSecondsInput: number) {
+  await ensureSchema();
+  const durationSeconds = Math.trunc(durationSecondsInput);
+  if (!Number.isInteger(durationSeconds) || durationSeconds < 10 || durationSeconds > 600) {
+    throw new Error("Thời gian phải từ 10 giây đến 10 phút.");
+  }
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_questions
+    SET duration_seconds = ${durationSeconds}
+    WHERE id = ${questionId} AND activity_key = ${activityKey}
+    RETURNING duration_seconds
+  `;
+  if (!rows[0]) throw new Error("Không tìm thấy câu hỏi.");
+  return Number(rows[0].duration_seconds);
 }
 
 export async function listPrismLiveQuestions(schoolYear: string, className: string, activityKey: ActivityKey) {
@@ -1217,12 +1236,14 @@ export async function listPrismLiveQuestions(schoolYear: string, className: stri
   const sql = getSql();
   const rows = await sql`
     SELECT question.id, question.question_type, question.prompt, question.options, question.content,
-      question.quiz_set, question.quiz_order, (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
+      question.quiz_set, question.quiz_order, question.duration_seconds AS configured_duration_seconds,
+      (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
       ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
       COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
       session.id AS run_id, COALESCE(session.status, 'draft') AS status,
       session.started_at, session.deadline_at, session.closed_at,
-      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id AND response.submitted_at IS NOT NULL), 0) AS submitted_count
     FROM prism_live_questions question
     LEFT JOIN LATERAL (
       SELECT current_session.*
@@ -1245,13 +1266,14 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
   const sql = getSql();
   const questionRows = await sql`
     SELECT question.id, question.question_type, question.prompt, question.options, question.content,
-      question.quiz_set, question.quiz_order, question.correct_answer,
+      question.quiz_set, question.quiz_order, question.correct_answer, question.duration_seconds AS configured_duration_seconds,
       (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
       ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
       COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
       session.id AS run_id, COALESCE(session.status, 'draft') AS status,
       session.started_at, session.deadline_at, session.closed_at,
-      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id AND response.submitted_at IS NOT NULL), 0) AS submitted_count
     FROM prism_live_questions question
     LEFT JOIN LATERAL (
       SELECT current_session.*
@@ -1354,7 +1376,7 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
       session.id AS run_id, session.school_year, session.class_name, session.duration_seconds,
       CASE WHEN session.status = 'running' AND session.deadline_at <= NOW() THEN 'closed' ELSE session.status END AS status,
       session.started_at, session.deadline_at, session.closed_at,
-      0::INTEGER AS response_count,
+      0::INTEGER AS response_count, 0::INTEGER AS submitted_count,
       response.student_number AS response_student_number,
       response.answer AS response_answer,
       response.is_correct AS response_is_correct,
@@ -1392,6 +1414,7 @@ export async function savePrismLiveResponse(input: {
   className: string;
   studentNumber: number;
   answer: unknown;
+  submit?: boolean;
 }) {
   await ensureSchema();
   await closeExpiredPrismLiveQuestions();
@@ -1419,15 +1442,18 @@ export async function savePrismLiveResponse(input: {
   if (!answer) throw new Error("Câu trả lời chưa hợp lệ.");
   const isCorrect = scorePrismLiveAnswer(answer, questionRow.correct_answer);
 
+  const submittedAt = input.submit ? new Date().toISOString() : null;
   const rows = await sql`
-    INSERT INTO prism_live_session_responses (id, session_id, student_number, answer, is_correct, graded_at, updated_at)
+    INSERT INTO prism_live_session_responses (id, session_id, student_number, answer, is_correct, graded_at, submitted_at, updated_at)
     VALUES (${randomUUID()}, ${input.runId}, ${input.studentNumber}, ${JSON.stringify(answer)}::jsonb,
-      ${isCorrect}, ${isCorrect === null ? null : new Date().toISOString()}, NOW())
+      ${isCorrect}, ${isCorrect === null ? null : new Date().toISOString()}, ${submittedAt}, NOW())
     ON CONFLICT (session_id, student_number)
     DO UPDATE SET answer = EXCLUDED.answer, is_correct = EXCLUDED.is_correct, graded_at = EXCLUDED.graded_at,
-      submitted_at = NULL, updated_at = NOW()
+      submitted_at = EXCLUDED.submitted_at, updated_at = NOW()
+    WHERE prism_live_session_responses.submitted_at IS NULL
     RETURNING student_number, answer, is_correct, submitted_at, updated_at
   `;
+  if (!rows[0]) throw new Error("Câu trả lời đã được nộp và không thể sửa.");
   return rowToPrismLiveResponse(rows[0] as Record<string, unknown>);
 }
 

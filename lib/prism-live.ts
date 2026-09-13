@@ -34,6 +34,7 @@ export type PrismLiveQuestion = {
   isAutoGraded: boolean;
   quizSet: string | null;
   quizOrder: number | null;
+  configuredDurationSeconds: number;
   durationSeconds: number;
   status: PrismLiveQuestionStatus;
   startedAt: string | null;
@@ -41,6 +42,7 @@ export type PrismLiveQuestion = {
   closedAt: string | null;
   createdAt: string;
   responseCount: number;
+  submittedCount: number;
 };
 
 export type PrismLiveResponse = {

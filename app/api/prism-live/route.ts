@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       className,
       studentNumber,
       answer: body.answer,
+      submit: body.submit === true,
     });
     return NextResponse.json({ response }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

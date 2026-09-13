@@ -1548,7 +1548,6 @@ details .table-scroll { margin-top: 12px; }
 .prism-live-short-answer small { justify-self: end; color: #778096; font-weight: 600; }
 
 .prism-live-save-state {
-  margin-top: 15px;
   color: #697287;
   font-size: .88rem;
   font-weight: 750;
@@ -1557,6 +1556,9 @@ details .table-scroll { margin-top: 12px; }
 
 .prism-live-save-state.saved { color: #168148; }
 .prism-live-save-state.error { color: #b42318; }
+.prism-live-submit-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 18px; }
+.prism-live-submit-button { min-width: 190px; }
+.prism-live-submitted-note { margin: 16px 0 0; padding: 12px 15px; border-radius: 12px; background: #e9f8ef; color: #10763f; font-weight: 850; text-align: center; }
 
 .prism-live-drawing-editor { display: grid; gap: 10px; }
 .prism-live-drawing-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #616b80; font-size: .84rem; font-weight: 800; }
@@ -1609,6 +1611,9 @@ details .table-scroll { margin-top: 12px; }
 .prism-live-status-chip.closed { background: #eef1f5; color: #596274; }
 .prism-live-inline-timer { min-width: 76px; padding: 6px 9px; border-radius: 9px; font-size: 1rem; }
 .prism-live-teacher-question-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.prism-live-duration-editor { display: grid; gap: 3px; color: #667085; font-size: .7rem; font-weight: 850; }
+.prism-live-duration-editor select { min-width: 100px; min-height: 40px; padding: 7px 28px 7px 9px; border: 1px solid #d5d9e2; border-radius: 10px; background: #fff; color: #202939; font: inherit; font-size: .82rem; cursor: pointer; }
+.prism-live-duration-editor select:disabled { cursor: not-allowed; opacity: .65; }
 .prism-live-teacher-question-actions .primary-button,
 .prism-live-teacher-question-actions .secondary-button { padding: 9px 12px; min-height: 40px; white-space: nowrap; }
 .prism-live-teacher-question-actions .primary-button.stop { background: #b42318; }
@@ -1698,6 +1703,9 @@ details .table-scroll { margin-top: 12px; }
   .prism-live-prompt-field { grid-column: auto; }
   .prism-live-timer { min-width: 98px; align-self: stretch; }
   .prism-live-question-meta { align-items: flex-start; flex-direction: column; }
+  .prism-live-submit-row { align-items: stretch; flex-direction: column; }
+  .prism-live-submit-button { width: 100%; min-width: 0; }
+  .prism-live-save-state { text-align: left; }
   .prism-live-roster { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .prism-live-matching label { grid-template-columns: 1fr; }
   .prism-live-bonus-list { grid-template-columns: 1fr; }

@@ -16,7 +16,7 @@ import {
 
 type QuestionResult = { question: PrismLiveQuestion; responses: PrismLiveResponse[]; correctAnswer: PrismLiveCorrectAnswer | null };
 type MutationAction = "start" | "close" | "delete";
-const durationOptions = [15, 30, 45, 60, 90, 120, 180, 300];
+const durationOptions = [10, 15, 20, 30, 45, 60, 90, 120, 180, 300, 600];
 
 function formatCountdown(seconds: number) {
   const safeSeconds = Math.max(0, Math.ceil(seconds));
@@ -67,11 +67,12 @@ function ChoiceStatistics({ question, responses, correctAnswer }: QuestionResult
 function ResponseStatistics({ result, onGrade }: { result: QuestionResult; onGrade: (response: PrismLiveResponse, isCorrect: boolean) => void }) {
   const { question, responses } = result;
   const meaningfulResponses = responses.filter((response) => hasPrismLiveAnswer(response.answer));
+  const submittedResponses = meaningfulResponses.filter((response) => response.submittedAt);
   return (
     <div className="prism-live-results">
       <div className="prism-live-results-summary">
-        <strong>{meaningfulResponses.length}<span>/33</span></strong>
-        <div><b>đã trả lời</b><small>{33 - meaningfulResponses.length} học sinh chưa có câu trả lời</small></div>
+        <strong>{submittedResponses.length}<span>/33</span></strong>
+        <div><b>đã nộp</b><small>{meaningfulResponses.length - submittedResponses.length} đang làm · {33 - meaningfulResponses.length} chưa có dữ liệu</small></div>
       </div>
 
       <div className="prism-live-roster" aria-label="Tiến độ 33 học sinh">
@@ -272,6 +273,33 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
     }
   }
 
+  async function updateDuration(question: PrismLiveQuestion, nextDuration: number) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/teacher-prism-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-duration",
+          activityKey,
+          className,
+          schoolYear,
+          questionId: question.id,
+          durationSeconds: nextDuration,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Không thể đổi thời gian.");
+      setQuestions((current) => current.map((item) => item.id === question.id ? { ...item, configuredDurationSeconds: data.durationSeconds } : item));
+      setMessage(`✓ Đã đặt thời gian câu hỏi thành ${data.durationSeconds} giây.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể đổi thời gian.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const selectedQuestion = useMemo(() => questions.find((question) => question.id === selectedQuestionId) ?? null, [questions, selectedQuestionId]);
   const rankedBonusStudents = useMemo(() => [...bonusStudents].sort((left, right) => right.bonusPoint - left.bonusPoint || right.correctCount - left.correctCount || left.studentNumber - right.studentNumber), [bonusStudents]);
 
@@ -324,7 +352,8 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
                 {question.options.length ? <p>{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p> : null}
               </div>
               <div className="prism-live-teacher-question-actions">
-                <button type="button" className="secondary-button" onClick={() => setSelectedQuestionId(isSelected ? null : question.id)}>{isSelected ? "Thu gọn" : `Thống kê ${question.responseCount}/33`}</button>
+                <label className="prism-live-duration-editor"><span>Thời gian</span><select aria-label={`Thời gian cho câu ${question.quizOrder ?? questions.length - index}`} value={question.configuredDurationSeconds} disabled={busy || question.status === "running"} onChange={(event) => updateDuration(question, Number(event.target.value))}>{durationOptions.map((duration) => <option key={duration} value={duration}>{duration < 60 ? `${duration} giây` : `${duration / 60} phút`}</option>)}</select></label>
+                <button type="button" className="secondary-button" onClick={() => setSelectedQuestionId(isSelected ? null : question.id)}>{isSelected ? "Thu gọn" : `Đã nộp ${question.submittedCount}/33`}</button>
                 {question.status === "running" ? <button type="button" className="primary-button stop" disabled={busy} onClick={() => mutateQuestion("close", question)}>Thu ngay</button> : <button type="button" className="primary-button" disabled={busy || !isCurrentYear} onClick={() => mutateQuestion("start", question)}>{question.status === "closed" ? "Chạy lại" : "Bắt đầu"}</button>}
                 {question.status !== "running" && !question.quizSet ? <button type="button" className="icon-button danger" aria-label="Xóa câu hỏi" disabled={busy} onClick={() => mutateQuestion("delete", question)}>×</button> : null}
               </div>
@@ -333,7 +362,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
           );
         })}
       </div>
-      {selectedQuestion && selectedQuestion.status === "running" ? <p className="prism-live-auto-note">⌁ Hết giờ, hệ thống khóa câu trả lời và thu đồng loạt. Học sinh không cần bấm nộp.</p> : null}
+      {selectedQuestion && selectedQuestion.status === "running" ? <p className="prism-live-auto-note">⌁ Học sinh có thể nộp sớm; hết giờ hệ thống vẫn khóa và thu các câu chưa nộp.</p> : null}
     </section>
   );
 }
