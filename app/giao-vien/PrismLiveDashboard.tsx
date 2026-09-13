@@ -347,7 +347,7 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
             <article key={question.id} className={`prism-live-teacher-question ${question.status} ${isSelected ? "selected" : ""}`}>
               <div className="prism-live-teacher-question-index"><span>{question.quizOrder ? `${question.quizOrder}/${quizTotal}` : String(questions.length - index).padStart(2, "0")}</span></div>
               <div className="prism-live-teacher-question-copy">
-                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ {quizTotal} câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : <small>{question.durationSeconds} giây</small>}</div>
+                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ {quizTotal} câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : null}</div>
                 <h3>{question.prompt}</h3>
                 {question.options.length ? <p>{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p> : null}
               </div>
