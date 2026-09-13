@@ -261,6 +261,7 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
 
   const question = snapshot?.question ?? null;
   const timerTone = remainingSeconds <= 10 ? "danger" : remainingSeconds <= 30 ? "warning" : "";
+  const countdownProgress = question ? Math.max(0, Math.min(100, remainingSeconds / question.durationSeconds * 100)) : 0;
   const answered = answer ? hasPrismLiveAnswer(answer) : false;
   const shortAnswerLength = answer?.type === "short" ? answer.text.length : 0;
 
@@ -316,6 +317,7 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
         <div className="prism-live-waiting"><span className="loading-dot" /><p>Chưa có câu hỏi. Chờ giáo viên bấm bắt đầu.</p></div>
       ) : (
         <div className={`prism-live-question-card ${locked ? "locked" : ""}`}>
+          {question.status === "running" && !studentSubmitted ? <div className={`prism-live-countdown-panel ${timerTone}`} role="timer" aria-live="polite"><div><span>Thời gian còn lại</span><strong>{formatCountdown(remainingSeconds)}</strong></div><span className="prism-live-countdown-track"><i style={{ width: `${countdownProgress}%` }} /></span></div> : null}
           <div className="prism-live-question-meta">
             <span>{prismLiveTypeLabels[question.type]}</span>
             {studentSubmitted ? <strong>✓ Đã nộp</strong> : locked ? <strong>✓ Đã hết giờ · bài được thu tự động</strong> : <strong>{answered ? "Đã có câu trả lời" : "Đang trả lời"}</strong>}

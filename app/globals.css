@@ -1486,6 +1486,18 @@ details .table-scroll { margin-top: 12px; }
 .prism-live-question-card.locked { border-color: #b8dec8; background: linear-gradient(145deg, #fff, #f7fff9); }
 .prism-live-question-card h3 { margin: 20px 0; color: var(--live-ink); font-size: clamp(1.25rem, 2.6vw, 1.75rem); line-height: 1.35; }
 
+.prism-live-countdown-panel { display: grid; gap: 8px; margin: -4px 0 18px; padding: 12px 15px; border: 1px solid #cfc7fb; border-radius: 14px; background: var(--live-violet-soft); color: var(--live-ink); }
+.prism-live-countdown-panel > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.prism-live-countdown-panel span { font-size: .86rem; font-weight: 850; }
+.prism-live-countdown-panel strong { font-variant-numeric: tabular-nums; font-size: 1.35rem; letter-spacing: .04em; }
+.prism-live-countdown-track { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(82, 60, 186, .15); }
+.prism-live-countdown-track i { display: block; height: 100%; border-radius: inherit; background: var(--live-violet); transition: width .25s linear; }
+.prism-live-countdown-panel.warning { border-color: #efcb74; background: #fff8df; color: #805600; }
+.prism-live-countdown-panel.warning .prism-live-countdown-track i { background: #d89b0d; }
+.prism-live-countdown-panel.danger { border-color: #f0aaa5; background: #fff0ef; color: #b42318; animation: prism-live-countdown-pulse 1s ease-in-out infinite; }
+.prism-live-countdown-panel.danger .prism-live-countdown-track i { background: #d92d20; }
+@keyframes prism-live-countdown-pulse { 50% { box-shadow: 0 0 0 4px rgba(217, 45, 32, .08); } }
+
 .prism-live-question-meta {
   display: flex;
   justify-content: space-between;
