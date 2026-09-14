@@ -349,7 +349,8 @@ export default function PrismLiveStudent({ activityKey, title }: { activityKey: 
 
           {answer?.type === "drawing" ? <DrawingPad strokes={answer.strokes} disabled={locked} onChange={(strokes) => updateAnswer({ type: "drawing", strokes })} /> : null}
 
-          {locked && snapshot?.response?.isCorrect !== null && snapshot?.response?.isCorrect !== undefined ? <p className={`prism-live-student-result ${snapshot.response.isCorrect ? "correct" : "incorrect"}`}>{snapshot.response.isCorrect ? "✓ Chính xác" : "Chưa chính xác"}</p> : null}
+          {locked && question.resultsPublished && snapshot?.response?.isCorrect !== null && snapshot?.response?.isCorrect !== undefined ? <p className={`prism-live-student-result ${snapshot.response.isCorrect ? "correct" : "incorrect"}`}>{snapshot.response.isCorrect ? "✓ Chính xác" : "Chưa chính xác"}</p> : null}
+          {locked && !question.resultsPublished ? <p className="prism-live-student-result pending">⏳ Đã thu bài. Chờ giáo viên công bố kết quả.</p> : null}
 
           {!locked ? <div className="prism-live-submit-row"><div className={`prism-live-save-state ${saveState}`} aria-live="polite">{saveState === "saving" ? "Đang lưu…" : saveState === "saved" ? "✓ Đã lưu trên hệ thống" : saveState === "error" ? "Chưa lưu được · hãy thử nộp lại" : "Câu trả lời được tự lưu"}</div><button type="button" className="primary-button prism-live-submit-button" disabled={!answered || submitting} onClick={submitAnswer}>{submitting ? "Đang nộp…" : "Nộp câu trả lời"}</button></div> : null}
           {studentSubmitted ? <p className="prism-live-submitted-note">✓ Đã nộp câu trả lời. Em không thể chỉnh sửa thêm.</p> : null}

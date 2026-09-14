@@ -10,6 +10,7 @@ import {
   getPrismLiveQuestionResults,
   gradePrismLiveShortResponse,
   listPrismLiveQuestions,
+  setPrismLiveResultsPublished,
   startPrismLiveQuestion,
   updatePrismLiveQuestionDuration,
 } from "@/lib/db";
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ result, serverNow: new Date().toISOString() }, { headers: { "Cache-Control": "private, no-store" } });
   }
   const questions = await listPrismLiveQuestions(schoolYear, className, activityKey);
-  const bonusStudents = includeBonus && activityKey === "prism-colors" ? await getPrismLiveBonusSummary(schoolYear, className) : undefined;
+  const bonusStudents = includeBonus ? await getPrismLiveBonusSummary(schoolYear, className, activityKey) : undefined;
   return NextResponse.json({ questions, bonusStudents, serverNow: new Date().toISOString() }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
@@ -100,6 +101,11 @@ export async function POST(request: Request) {
     }
     if (action === "close") {
       return NextResponse.json({ changed: await closePrismLiveQuestion(schoolYear, className, body.questionId) });
+    }
+    if (action === "publish" || action === "unpublish") {
+      const changed = await setPrismLiveResultsPublished(schoolYear, className, body.questionId, action === "publish");
+      if (!changed) return NextResponse.json({ error: "Chưa có lượt chạy để công bố. Hãy bấm Bắt đầu trước." }, { status: 409 });
+      return NextResponse.json({ changed, resultsPublished: action === "publish" });
     }
     if (action === "delete") {
       const deleted = await deletePrismLiveQuestion(body.questionId);

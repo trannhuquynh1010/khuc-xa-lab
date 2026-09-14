@@ -15,7 +15,7 @@ import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKe
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
-import { normalizePrismLiveAnswer, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
+import { computePrismLiveBonusPoint, normalizePrismLiveAnswer, prismLiveBonusConfigs, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
 
 export type Measurement = {
   sequence: number;
@@ -163,6 +163,10 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'prism_live_session_responses' AND column_name = 'is_correct'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_sessions' AND column_name = 'results_published'
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -539,6 +543,7 @@ async function initializeSchema() {
       class_name VARCHAR(30) NOT NULL,
       duration_seconds INTEGER NOT NULL,
       status VARCHAR(10) NOT NULL DEFAULT 'running',
+      results_published BOOLEAN NOT NULL DEFAULT FALSE,
       started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       deadline_at TIMESTAMPTZ NOT NULL,
       closed_at TIMESTAMPTZ,
@@ -547,6 +552,11 @@ async function initializeSchema() {
       CONSTRAINT prism_live_sessions_status_check CHECK (status IN ('running', 'closed')),
       CONSTRAINT prism_live_sessions_duration_check CHECK (duration_seconds BETWEEN 10 AND 600)
     )
+  `;
+
+  await sql`
+    ALTER TABLE prism_live_sessions
+      ADD COLUMN IF NOT EXISTS results_published BOOLEAN NOT NULL DEFAULT FALSE
   `;
 
   await sql`
@@ -1099,6 +1109,7 @@ function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion
     configuredDurationSeconds: Number(row.configured_duration_seconds ?? row.duration_seconds),
     durationSeconds: Number(row.duration_seconds),
     status: String(row.status) as PrismLiveQuestionStatus,
+    resultsPublished: Boolean(row.results_published),
     startedAt: row.started_at ? new Date(String(row.started_at)).toISOString() : null,
     deadlineAt: row.deadline_at ? new Date(String(row.deadline_at)).toISOString() : null,
     closedAt: row.closed_at ? new Date(String(row.closed_at)).toISOString() : null,
@@ -1241,6 +1252,7 @@ export async function listPrismLiveQuestions(schoolYear: string, className: stri
       ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
       COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
       session.id AS run_id, COALESCE(session.status, 'draft') AS status,
+      COALESCE(session.results_published, FALSE) AS results_published,
       session.started_at, session.deadline_at, session.closed_at,
       COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count,
       COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id AND response.submitted_at IS NOT NULL), 0) AS submitted_count
@@ -1271,6 +1283,7 @@ export async function getPrismLiveQuestionResults(schoolYear: string, className:
       ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
       COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
       session.id AS run_id, COALESCE(session.status, 'draft') AS status,
+      COALESCE(session.results_published, FALSE) AS results_published,
       session.started_at, session.deadline_at, session.closed_at,
       COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count,
       COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id AND response.submitted_at IS NOT NULL), 0) AS submitted_count
@@ -1352,6 +1365,31 @@ export async function closePrismLiveQuestion(schoolYear: string, className: stri
   return rows.length > 0;
 }
 
+/**
+ * Công bố (hoặc thu hồi) kết quả cho học sinh: cập nhật cờ results_published trên
+ * phiên chạy mới nhất của câu hỏi trong lớp đang chọn. Khi published = true, học sinh
+ * mới nhìn thấy mình làm đúng hay sai.
+ */
+export async function setPrismLiveResultsPublished(schoolYear: string, className: string, questionId: string, published: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_sessions
+    SET results_published = ${published}, updated_at = NOW()
+    WHERE id = (
+      SELECT session.id
+      FROM prism_live_sessions session
+      WHERE session.question_id = ${questionId}
+        AND session.school_year = ${schoolYear}
+        AND session.class_name = ${className}
+      ORDER BY CASE WHEN session.status = 'running' THEN 0 ELSE 1 END, session.created_at DESC
+      LIMIT 1
+    )
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
 export async function deletePrismLiveQuestion(questionId: string) {
   await ensureSchema();
   const sql = getSql();
@@ -1375,6 +1413,7 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
       question.quiz_set, question.quiz_order, (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
       session.id AS run_id, session.school_year, session.class_name, session.duration_seconds,
       CASE WHEN session.status = 'running' AND session.deadline_at <= NOW() THEN 'closed' ELSE session.status END AS status,
+      COALESCE(session.results_published, FALSE) AS results_published,
       session.started_at, session.deadline_at, session.closed_at,
       0::INTEGER AS response_count, 0::INTEGER AS submitted_count,
       response.student_number AS response_student_number,
@@ -1395,12 +1434,14 @@ export async function getPrismLiveStudentQuestion(className: string, studentNumb
   if (!questionRows[0]) return { question: null, response: null };
   const row = questionRows[0] as Record<string, unknown>;
   const question = rowToPrismLiveQuestion(row);
+  // Chỉ tiết lộ đúng/sai cho học sinh sau khi giáo viên bấm "Công bố kết quả".
+  const revealCorrect = question.resultsPublished;
   return {
     question,
     response: row.response_student_number === null || row.response_student_number === undefined ? null : rowToPrismLiveResponse({
       student_number: row.response_student_number,
       answer: row.response_answer,
-      is_correct: question.status === "running" ? null : row.response_is_correct,
+      is_correct: revealCorrect ? row.response_is_correct : null,
       submitted_at: row.response_submitted_at,
       updated_at: row.response_updated_at,
     }),
@@ -1486,13 +1527,15 @@ export async function gradePrismLiveShortResponse(input: {
   return rows.length > 0;
 }
 
-export async function getPrismLiveBonusSummary(schoolYear: string, className: string): Promise<PrismLiveBonusStudent[]> {
+export async function getPrismLiveBonusSummary(schoolYear: string, className: string, activityKey: ActivityKey): Promise<PrismLiveBonusStudent[]> {
+  const config = prismLiveBonusConfigs[activityKey];
+  if (!config) return [];
   await ensureSchema();
   await closeExpiredPrismLiveQuestions();
   const sql = getSql();
   const rows = await sql`
     WITH quiz_questions AS (
-      SELECT id FROM prism_live_questions WHERE quiz_set = 'prism-color-five'
+      SELECT id FROM prism_live_questions WHERE quiz_set = ${config.quizSet}
     ), latest_sessions AS (
       SELECT DISTINCT ON (session.question_id) session.id, session.question_id
       FROM prism_live_sessions session
@@ -1517,7 +1560,7 @@ export async function getPrismLiveBonusSummary(schoolYear: string, className: st
       answeredCount: Number(row.answered_count),
       gradedCount,
       correctCount,
-      bonusPoint: gradedCount === 5 && correctCount === 5 ? 1 : 0,
+      bonusPoint: computePrismLiveBonusPoint(gradedCount, correctCount, config),
     };
   });
 }

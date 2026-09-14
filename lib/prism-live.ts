@@ -37,6 +37,7 @@ export type PrismLiveQuestion = {
   configuredDurationSeconds: number;
   durationSeconds: number;
   status: PrismLiveQuestionStatus;
+  resultsPublished: boolean;
   startedAt: string | null;
   deadlineAt: string | null;
   closedAt: string | null;
@@ -151,5 +152,34 @@ export type PrismLiveBonusStudent = {
   answeredCount: number;
   gradedCount: number;
   correctCount: number;
-  bonusPoint: 0 | 1;
+  bonusPoint: 0 | 1 | 2;
 };
+
+/**
+ * Cấu hình bộ câu hỏi tính điểm cộng theo từng hoạt động.
+ * - prism-colors: đúng 5/5 → +2 điểm cộng (không có mức +1).
+ * - total-internal-reflection: đúng 10/10 → +2, đúng 9/10 → +1.
+ */
+export type PrismLiveBonusConfig = {
+  quizSet: string;
+  total: number;
+  /** Số câu đúng tối thiểu để được +1 (mức thấp hơn). Bằng total nếu không có mức +1. */
+  partialThreshold: number;
+  label: string;
+};
+
+export const prismLiveBonusConfigs: Record<string, PrismLiveBonusConfig> = {
+  "prism-colors": { quizSet: "prism-color-five", total: 5, partialThreshold: 5, label: "Bộ 5 câu" },
+  "total-internal-reflection": { quizSet: "tir-live", total: 10, partialThreshold: 9, label: "Bộ 10 câu" },
+};
+
+export function computePrismLiveBonusPoint(
+  gradedCount: number,
+  correctCount: number,
+  config: Pick<PrismLiveBonusConfig, "total" | "partialThreshold">,
+): 0 | 1 | 2 {
+  if (gradedCount < config.total) return 0;
+  if (correctCount >= config.total) return 2;
+  if (correctCount >= config.partialThreshold) return 1;
+  return 0;
+}

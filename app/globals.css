@@ -1621,6 +1621,7 @@ details .table-scroll { margin-top: 12px; }
 .prism-live-teacher-question-copy p { margin: 0; color: #6b7385; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 720px; }
 .prism-live-status-chip.running { background: #e8fff2; color: #10763f; }
 .prism-live-status-chip.closed { background: #eef1f5; color: #596274; }
+.prism-live-status-chip.published { background: #eef2ff; color: #4338ca; }
 .prism-live-inline-timer { min-width: 76px; padding: 6px 9px; border-radius: 9px; font-size: 1rem; }
 .prism-live-teacher-question-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .prism-live-duration-editor { display: grid; gap: 3px; color: #667085; font-size: .7rem; font-weight: 850; }
@@ -1629,6 +1630,8 @@ details .table-scroll { margin-top: 12px; }
 .prism-live-teacher-question-actions .primary-button,
 .prism-live-teacher-question-actions .secondary-button { padding: 9px 12px; min-height: 40px; white-space: nowrap; }
 .prism-live-teacher-question-actions .primary-button.stop { background: #b42318; }
+.prism-live-teacher-question-actions .secondary-button.prism-live-publish { border-color: #c7d0ff; background: #eef2ff; color: #4338ca; }
+.prism-live-teacher-question-actions .secondary-button.prism-live-publish.published { border-color: #f1c0bd; background: #fff5f4; color: #b42318; }
 .prism-live-teacher-question-actions .icon-button.danger { width: 40px; height: 40px; border: 1px solid #f1c0bd; border-radius: 10px; background: #fff5f4; color: #b42318; font-size: 1.35rem; cursor: pointer; }
 .prism-live-result-slot { grid-column: 1 / -1; padding-top: 15px; border-top: 1px solid #e8e9ee; }
 
@@ -1677,11 +1680,13 @@ details .table-scroll { margin-top: 12px; }
 .prism-live-student-result { margin: 16px 0 0; padding: 11px 14px; border-radius: 12px; font-weight: 950; text-align: center; }
 .prism-live-student-result.correct { background: #dff8e9; color: #10763f; }
 .prism-live-student-result.incorrect { background: #ffebe9; color: #b42318; }
+.prism-live-student-result.pending { background: #fff8ea; color: #92600a; }
 
 .prism-live-bonus-board { margin-top: 16px; border: 1px solid #dcd6f7; border-radius: 15px; background: #fbfaff; overflow: hidden; }
 .prism-live-bonus-board summary { display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; cursor: pointer; font-weight: 950; }
 .prism-live-bonus-board summary strong { color: #168148; }
 .prism-live-bonus-board > p { margin: 0; padding: 0 16px 16px; color: #697287; }
+.prism-live-bonus-rule { padding: 0 16px 12px !important; font-size: .82rem; }
 .prism-live-bonus-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0 14px 14px; }
 .prism-live-bonus-list > span { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 9px 10px; border: 1px solid #e1e3e9; border-radius: 10px; background: #fff; }
 .prism-live-bonus-list b { font-size: .82rem; }

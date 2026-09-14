@@ -5,6 +5,7 @@ import { formatStudentNumber, studentNumbers } from "@/lib/classes";
 import type { ActivityKey } from "@/lib/activities";
 import {
   hasPrismLiveAnswer,
+  prismLiveBonusConfigs,
   prismLiveTypeLabels,
   type PrismDrawingStroke,
   type PrismLiveBonusStudent,
@@ -15,7 +16,7 @@ import {
 } from "@/lib/prism-live";
 
 type QuestionResult = { question: PrismLiveQuestion; responses: PrismLiveResponse[]; correctAnswer: PrismLiveCorrectAnswer | null };
-type MutationAction = "start" | "close" | "delete";
+type MutationAction = "start" | "close" | "delete" | "publish" | "unpublish";
 const durationOptions = [10, 15, 20, 30, 45, 60, 90, 120, 180, 300, 600];
 
 function formatCountdown(seconds: number) {
@@ -302,11 +303,14 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
 
   const selectedQuestion = useMemo(() => questions.find((question) => question.id === selectedQuestionId) ?? null, [questions, selectedQuestionId]);
   const rankedBonusStudents = useMemo(() => [...bonusStudents].sort((left, right) => right.bonusPoint - left.bonusPoint || right.correctCount - left.correctCount || left.studentNumber - right.studentNumber), [bonusStudents]);
+  const bonusConfig = prismLiveBonusConfigs[activityKey] ?? null;
+  const bonusEarnedCount = useMemo(() => bonusStudents.filter((student) => student.bonusPoint > 0).length, [bonusStudents]);
+  const bonusTotalPoints = useMemo(() => bonusStudents.reduce((sum, student) => sum + student.bonusPoint, 0), [bonusStudents]);
 
   return (
     <section className="class-progress-panel prism-live-teacher" aria-labelledby="prism-live-teacher-heading">
       <div className="class-progress-header prism-live-teacher-head">
-        <div><p className="eyebrow">NGÂN HÀNG DÙNG CHUNG</p><h2 id="prism-live-teacher-heading">{title} · {className}</h2><p>Chạy từng câu cho lớp đang chọn; thời gian và kết quả được lưu riêng.</p></div>
+        <div><p className="eyebrow">NGÂN HÀNG DÙNG CHUNG</p><h2 id="prism-live-teacher-heading">{title} · {className}</h2><p>Mỗi câu có 3 bước: <strong>① Bắt đầu</strong> để học sinh thấy câu hỏi · <strong>② Bài làm</strong> để xem thống kê lớp · <strong>③ Công bố kết quả</strong> để hiện đúng/sai cho học sinh.</p></div>
         <span className={`status-badge ${hasRunningQuestion ? "open" : "closed"}`}>{hasRunningQuestion ? "● Đang có câu hỏi" : "○ Chưa chạy"}</span>
       </div>
 
@@ -331,11 +335,6 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
       {message ? <p className="prism-live-teacher-message" role="status">{message}</p> : null}
       {!isCurrentYear ? <p className="prism-live-year-warning">Đang xem năm học cũ. Có thể xem thống kê, nhưng chỉ chạy câu hỏi ở năm học hiện tại.</p> : null}
 
-      {activityKey === "prism-colors" ? <details className="prism-live-bonus-board" open>
-        <summary><span>Điểm cộng · Bộ 5 câu</span><strong>{bonusStudents.filter((student) => student.bonusPoint === 1).length} học sinh +1</strong></summary>
-        {rankedBonusStudents.length ? <div className="prism-live-bonus-list">{rankedBonusStudents.map((student) => <span key={student.studentNumber} className={student.bonusPoint ? "earned" : ""}><b>STT {formatStudentNumber(student.studentNumber)}</b><em>{student.correctCount}/5</em><strong>{student.bonusPoint ? "+1" : student.gradedCount < 5 ? "Chờ chấm" : "—"}</strong></span>)}</div> : <p>Chưa có học sinh làm bộ 5 câu.</p>}
-      </details> : null}
-
       <div className="prism-live-question-list">
         {loading ? <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải câu hỏi…</p></div> : null}
         {!loading && !questions.length ? <div className="prism-live-waiting"><span>?</span><p>Ngân hàng chưa có câu hỏi.</p></div> : null}
@@ -347,14 +346,15 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
             <article key={question.id} className={`prism-live-teacher-question ${question.status} ${isSelected ? "selected" : ""}`}>
               <div className="prism-live-teacher-question-index"><span>{question.quizOrder ? `${question.quizOrder}/${quizTotal}` : String(questions.length - index).padStart(2, "0")}</span></div>
               <div className="prism-live-teacher-question-copy">
-                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ {quizTotal} câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : null}</div>
+                <div>{question.quizSet ? <span className="prism-live-type-chip">Bộ {quizTotal} câu</span> : null}<span className="prism-live-type-chip">{prismLiveTypeLabels[question.type]}</span><span className={`prism-live-status-chip ${question.status}`}>{statusLabel(question)}</span>{question.resultsPublished ? <span className="prism-live-status-chip published">Đã công bố</span> : null}{question.status === "running" ? <strong className="prism-live-inline-timer">{formatCountdown(seconds)}</strong> : null}</div>
                 <h3>{question.prompt}</h3>
                 {question.options.length ? <p>{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p> : null}
               </div>
               <div className="prism-live-teacher-question-actions">
                 <label className="prism-live-duration-editor"><span>Thời gian</span><select aria-label={`Thời gian cho câu ${question.quizOrder ?? questions.length - index}`} value={question.configuredDurationSeconds} disabled={busy || question.status === "running"} onChange={(event) => updateDuration(question, Number(event.target.value))}>{durationOptions.map((duration) => <option key={duration} value={duration}>{duration < 60 ? `${duration} giây` : `${duration / 60} phút`}</option>)}</select></label>
-                <button type="button" className="secondary-button" onClick={() => setSelectedQuestionId(isSelected ? null : question.id)}>{isSelected ? "Thu gọn" : `Đã nộp ${question.submittedCount}/33`}</button>
+                <button type="button" className="secondary-button" onClick={() => setSelectedQuestionId(isSelected ? null : question.id)}>{isSelected ? "Thu gọn" : `Bài làm · ${question.submittedCount}/33`}</button>
                 {question.status === "running" ? <button type="button" className="primary-button stop" disabled={busy} onClick={() => mutateQuestion("close", question)}>Thu ngay</button> : <button type="button" className="primary-button" disabled={busy || !isCurrentYear} onClick={() => mutateQuestion("start", question)}>{question.status === "closed" ? "Chạy lại" : "Bắt đầu"}</button>}
+                {question.status !== "draft" ? <button type="button" className={`secondary-button prism-live-publish ${question.resultsPublished ? "published" : ""}`} disabled={busy} onClick={() => mutateQuestion(question.resultsPublished ? "unpublish" : "publish", question)}>{question.resultsPublished ? "Ẩn kết quả" : "Công bố kết quả"}</button> : null}
                 {question.status !== "running" && !question.quizSet ? <button type="button" className="icon-button danger" aria-label="Xóa câu hỏi" disabled={busy} onClick={() => mutateQuestion("delete", question)}>×</button> : null}
               </div>
               {isSelected ? <div className="prism-live-result-slot">{result?.question.id === question.id ? <ResponseStatistics result={result} onGrade={gradeResponse} /> : <div className="prism-live-waiting"><span className="loading-dot" /><p>Đang tải thống kê…</p></div>}</div> : null}
@@ -363,6 +363,31 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
         })}
       </div>
       {selectedQuestion && selectedQuestion.status === "running" ? <p className="prism-live-auto-note">⌁ Học sinh có thể nộp sớm; hết giờ hệ thống vẫn khóa và thu các câu chưa nộp.</p> : null}
+
+      {bonusConfig ? (
+        <details className="prism-live-bonus-board" open>
+          <summary>
+            <span>Điểm cộng · {bonusConfig.label}</span>
+            <strong>{bonusEarnedCount} học sinh · +{bonusTotalPoints} điểm</strong>
+          </summary>
+          <p className="prism-live-bonus-rule">
+            {bonusConfig.partialThreshold < bonusConfig.total
+              ? `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +2 điểm cộng · Đúng ${bonusConfig.partialThreshold}/${bonusConfig.total} câu: +1 điểm cộng.`
+              : `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +2 điểm cộng.`}
+          </p>
+          {rankedBonusStudents.length ? (
+            <div className="prism-live-bonus-list">
+              {rankedBonusStudents.map((student) => (
+                <span key={student.studentNumber} className={student.bonusPoint ? "earned" : ""}>
+                  <b>STT {formatStudentNumber(student.studentNumber)}</b>
+                  <em>{student.correctCount}/{bonusConfig.total}</em>
+                  <strong>{student.bonusPoint ? `+${student.bonusPoint}` : student.gradedCount < bonusConfig.total ? "Chờ chấm" : "—"}</strong>
+                </span>
+              ))}
+            </div>
+          ) : <p>Chưa có học sinh hoàn thành {bonusConfig.label.toLowerCase()}.</p>}
+        </details>
+      ) : null}
     </section>
   );
 }
