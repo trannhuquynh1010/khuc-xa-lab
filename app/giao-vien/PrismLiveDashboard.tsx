@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { formatStudentNumber, studentNumbers } from "@/lib/classes";
 import type { ActivityKey } from "@/lib/activities";
@@ -311,7 +312,10 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
     <section className="class-progress-panel prism-live-teacher" aria-labelledby="prism-live-teacher-heading">
       <div className="class-progress-header prism-live-teacher-head">
         <div><p className="eyebrow">NGÂN HÀNG DÙNG CHUNG</p><h2 id="prism-live-teacher-heading">{title} · {className}</h2><p>Mỗi câu có 3 bước: <strong>① Bắt đầu</strong> để học sinh thấy câu hỏi · <strong>② Bài làm</strong> để xem thống kê lớp · <strong>③ Công bố kết quả</strong> để hiện đúng/sai cho học sinh.</p></div>
-        <span className={`status-badge ${hasRunningQuestion ? "open" : "closed"}`}>{hasRunningQuestion ? "● Đang có câu hỏi" : "○ Chưa chạy"}</span>
+        <div className="prism-live-head-actions">
+          <Link className="prism-live-present-link" href={`/giao-vien/trinh-chieu-cau-hoi/${activityKey}?class=${className}&year=${schoolYear}`}>▶ Trình chiếu</Link>
+          <span className={`status-badge ${hasRunningQuestion ? "open" : "closed"}`}>{hasRunningQuestion ? "● Đang có câu hỏi" : "○ Chưa chạy"}</span>
+        </div>
       </div>
 
       <details className="prism-live-creator" open={!questions.length}>
