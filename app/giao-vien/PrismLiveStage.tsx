@@ -34,6 +34,30 @@ function DrawingPreview({ strokes }: { strokes: PrismDrawingStroke[] }) {
   );
 }
 
+/** Sơ đồ tia sáng qua lăng kính (dùng cho các câu có content.visualKey). Đồng bộ với PrismLiveStudent. */
+function PrismOptionVisual({ kind, index }: { kind: "prism-path" | "prism-dispersion"; index: number }) {
+  const pathRays = [
+    ["18,76 67,62 48,30", "#111827"],
+    ["18,76 67,62 100,69 82,105", "#111827"],
+    ["18,76 67,62 103,58 141,34", "#111827"],
+    ["18,76 67,62 103,68 148,81", "#111827"],
+  ] as const;
+  const dispersionRays = [
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,75", "#7c3aed"], ["103,68 150,87", "#dc2626"]],
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,65", "#dc2626"]],
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,76", "#dc2626"], ["103,68 150,91", "#7c3aed"]],
+    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,58", "#dc2626"], ["103,68 150,67", "#64748b"]],
+  ] as const;
+  const rays = kind === "prism-path" ? [pathRays[index]] : dispersionRays[index];
+  return (
+    <svg className="cp-option-visual" viewBox="0 0 168 116" role="img" aria-label={`Sơ đồ ${String.fromCharCode(65 + index)}`}>
+      <rect width="168" height="116" fill="#fff" rx="8" />
+      <path d="M68 12 L111 103 L38 103 Z" fill="#eff6ff" stroke="#24344d" strokeWidth="3" strokeLinejoin="round" />
+      {rays.map(([points, color], rayIndex) => <polyline key={rayIndex} points={points} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
+    </svg>
+  );
+}
+
 /** Biểu đồ cột phân bố đáp án, tô sáng đáp án đúng sau khi công bố (giống "Show correct answer" của ClassPoint). */
 function ChoiceBars({ question, responses, correctAnswer, reveal }: QuestionResult & { reveal: boolean }) {
   const answered = responses.filter((response) => hasPrismLiveAnswer(response.answer));
@@ -43,12 +67,14 @@ function ChoiceBars({ question, responses, correctAnswer, reveal }: QuestionResu
     return false;
   }).length);
   const largest = Math.max(1, ...counts);
+  const visualKey = question.content.visualKey;
   const correctIndices = new Set(reveal ? (correctAnswer?.type === "single" ? [correctAnswer.selected] : correctAnswer?.type === "multiple" ? correctAnswer.selected : []) : []);
   return (
-    <div className="cp-choice-bars">
+    <div className={`cp-choice-bars ${visualKey ? "with-visual" : ""}`}>
       {question.options.map((option, index) => (
         <div key={`${index}-${option}`} className={`cp-bar-row ${correctIndices.has(index) ? "correct" : ""}`}>
           <b>{correctIndices.has(index) ? "✓" : String.fromCharCode(65 + index)}</b>
+          {visualKey ? <PrismOptionVisual kind={visualKey} index={index} /> : null}
           <span className="cp-bar-label">{option}</span>
           <span className="cp-bar-track"><i style={{ width: `${counts[index] / largest * 100}%` }} /></span>
           <strong>{counts[index]}</strong>
@@ -251,20 +277,37 @@ export default function PrismLiveStage({ className, schoolYear, isCurrentYear, a
 
           <h1 className="cp-question">{current.prompt}</h1>
 
-          {current.options.length ? (
-            current.status !== "draft" && current.status === "closed" && (current.type === "single" || current.type === "multiple") ? (
+          {(current.type === "single" || current.type === "multiple") && current.options.length ? (
+            current.status === "closed" ? (
               result && result.question.id === current.id ? <ChoiceBars {...result} reveal={reveal} /> : <div className="cp-empty small"><span className="loading-dot" /></div>
             ) : (
-              <ol className="cp-options">
-                {current.options.map((option, index) => <li key={`${index}-${option}`}><b>{String.fromCharCode(65 + index)}</b><span>{option}</span></li>)}
+              <ol className={`cp-options ${current.content.visualKey ? "visual" : ""}`}>
+                {current.options.map((option, index) => (
+                  <li key={`${index}-${option}`}>
+                    <b>{String.fromCharCode(65 + index)}</b>
+                    {current.content.visualKey ? <PrismOptionVisual kind={current.content.visualKey} index={index} /> : null}
+                    <span>{option}</span>
+                  </li>
+                ))}
               </ol>
             )
           ) : null}
 
           {current.type === "matching" && current.content.items?.length ? (
-            <ol className="cp-options">
-              {current.content.items.map((item, index) => <li key={`${index}-${item}`}><b>{index + 1}</b><span>{item}</span></li>)}
-            </ol>
+            <div className="cp-matching">
+              <div className="cp-matching-col">
+                <p className="cp-col-title">Tình huống</p>
+                <ol className="cp-options">
+                  {current.content.items.map((item, index) => <li key={`${index}-${item}`}><b>{index + 1}</b><span>{item}</span></li>)}
+                </ol>
+              </div>
+              <div className="cp-matching-col">
+                <p className="cp-col-title">Đáp án màu</p>
+                <ol className="cp-options">
+                  {current.options.map((option, index) => <li key={`${index}-${option}`}><b>{String.fromCharCode(65 + index)}</b><span>{option}</span></li>)}
+                </ol>
+              </div>
+            </div>
           ) : null}
 
           {current.status === "closed" && current.type === "matching" ? (
