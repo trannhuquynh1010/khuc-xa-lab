@@ -36,17 +36,22 @@ function DrawingPreview({ strokes }: { strokes: PrismDrawingStroke[] }) {
 
 /** Sơ đồ tia sáng qua lăng kính (dùng cho các câu có content.visualKey). Đồng bộ với PrismLiveStudent. */
 function PrismOptionVisual({ kind, index }: { kind: "prism-path" | "prism-dispersion"; index: number }) {
+  // Lăng kính: đỉnh (68,12), đáy (38,103)-(111,103). Các tia đều gãy khúc ĐÚNG trên mặt lăng kính.
   const pathRays = [
-    ["18,76 67,62 48,30", "#111827"],
-    ["18,76 67,62 100,69 82,105", "#111827"],
-    ["18,76 67,62 103,58 141,34", "#111827"],
-    ["18,76 67,62 103,68 148,81", "#111827"],
+    ["12,60 52,60 91,60 150,60", "#111827"],   // A: không lệch (sai)
+    ["12,60 52,60 85,48 150,34", "#111827"],   // B: lệch lên, xa đáy (sai)
+    ["12,60 52,60 34,98", "#111827"],          // C: phản xạ hắt ra (sai)
+    ["12,60 52,60 96,72 150,90", "#111827"],   // D: lệch về phía đáy ở cả hai mặt (đúng)
   ] as const;
   const dispersionRays = [
-    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,75", "#7c3aed"], ["103,68 150,87", "#dc2626"]],
-    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,65", "#dc2626"]],
-    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,76", "#dc2626"], ["103,68 150,91", "#7c3aed"]],
-    [["18,76 67,62 103,68", "#64748b"], ["103,68 150,58", "#dc2626"], ["103,68 150,67", "#64748b"]],
+    // A: có tách màu nhưng sai thứ tự (tím lệch ít hơn đỏ) — sai
+    [["12,58 53,58 95,70", "#64748b"], ["95,70 150,80", "#7c3aed"], ["95,70 150,96", "#dc2626"]],
+    // B: không tán sắc, chỉ một tia — sai
+    [["12,58 53,58 95,70", "#64748b"], ["95,70 150,74", "#64748b"]],
+    // C: tán sắc đúng — tím lệch nhiều nhất về phía đáy (đúng)
+    [["12,58 53,58 95,70", "#64748b"], ["95,70 150,80", "#dc2626"], ["95,70 150,98", "#7c3aed"]],
+    // D: tách màu nhưng lệch lên trên, xa đáy — sai
+    [["12,58 53,58 95,70", "#64748b"], ["95,70 150,58", "#dc2626"], ["95,70 150,46", "#7c3aed"]],
   ] as const;
   const rays = kind === "prism-path" ? [pathRays[index]] : dispersionRays[index];
   return (
@@ -254,16 +259,21 @@ export default function PrismLiveStage({ className, schoolYear, isCurrentYear, a
           <p className="cp-summary-note">Tổng số câu đúng của mỗi học sinh sau hoạt động{bonusConfig ? ` · ${bonusConfig.label}` : ""}.</p>
           {rankedBonus.length ? (
             <div className="cp-summary-grid">
-              {rankedBonus.map((student) => (
-                <span key={student.studentNumber} className={student.bonusPoint ? "earned" : ""}>
-                  <b>STT {formatStudentNumber(student.studentNumber)}</b>
-                  <em>{student.correctCount}/{total} đúng</em>
-                  <strong>{student.bonusPoint ? `+${student.bonusPoint}` : student.gradedCount < total ? "…" : "—"}</strong>
-                </span>
-              ))}
+              {rankedBonus.map((student) => {
+                const done = student.gradedCount >= total;
+                const label = student.bonusPoint ? `Được +${student.bonusPoint}` : done ? "Không cộng" : student.answeredCount >= total ? "Chờ chấm" : `${student.answeredCount}/${total} câu`;
+                const cls = student.bonusPoint ? "earned" : done ? "nobonus" : "";
+                return (
+                  <span key={student.studentNumber} className={cls}>
+                    <b>STT {formatStudentNumber(student.studentNumber)}</b>
+                    <em>{student.correctCount}/{total} câu đúng</em>
+                    <strong>{label}</strong>
+                  </span>
+                );
+              })}
             </div>
           ) : <p className="cp-empty-note">Chưa có học sinh nào trả lời.</p>}
-          {bonusConfig ? <p className="cp-summary-rule">{bonusConfig.partialThreshold < bonusConfig.total ? `Đúng ${bonusConfig.total}/${bonusConfig.total}: +2 · Đúng ${bonusConfig.partialThreshold}/${bonusConfig.total}: +1 điểm cộng.` : `Đúng ${bonusConfig.total}/${bonusConfig.total}: +2 điểm cộng.`}</p> : null}
+          {bonusConfig ? <p className="cp-summary-rule">{bonusConfig.partialThreshold < bonusConfig.total ? `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +${bonusConfig.fullPoint} · Đúng ${bonusConfig.partialThreshold}/${bonusConfig.total} câu: +1 điểm cộng.` : `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +${bonusConfig.fullPoint} điểm cộng.`}</p> : null}
         </div>
       ) : current ? (
         <div className="cp-slide">

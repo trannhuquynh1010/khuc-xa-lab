@@ -163,23 +163,27 @@ export type PrismLiveBonusStudent = {
 export type PrismLiveBonusConfig = {
   quizSet: string;
   total: number;
+  /** Điểm cộng khi đúng toàn bộ (đúng total/total). */
+  fullPoint: 1 | 2;
   /** Số câu đúng tối thiểu để được +1 (mức thấp hơn). Bằng total nếu không có mức +1. */
   partialThreshold: number;
   label: string;
 };
 
 export const prismLiveBonusConfigs: Record<string, PrismLiveBonusConfig> = {
-  "prism-colors": { quizSet: "prism-color-five", total: 5, partialThreshold: 5, label: "Bộ 5 câu" },
-  "total-internal-reflection": { quizSet: "tir-live", total: 10, partialThreshold: 9, label: "Bộ 10 câu" },
+  // Lăng kính & màu sắc: đúng 5/5 → +1 điểm cộng (không có mức +1 thấp hơn).
+  "prism-colors": { quizSet: "prism-color-five", total: 5, fullPoint: 1, partialThreshold: 5, label: "Bộ 5 câu" },
+  // Phản xạ toàn phần: đúng 10/10 → +2, đúng 9/10 → +1.
+  "total-internal-reflection": { quizSet: "tir-live", total: 10, fullPoint: 2, partialThreshold: 9, label: "Bộ 10 câu" },
 };
 
 export function computePrismLiveBonusPoint(
   gradedCount: number,
   correctCount: number,
-  config: Pick<PrismLiveBonusConfig, "total" | "partialThreshold">,
+  config: Pick<PrismLiveBonusConfig, "total" | "fullPoint" | "partialThreshold">,
 ): 0 | 1 | 2 {
   if (gradedCount < config.total) return 0;
-  if (correctCount >= config.total) return 2;
+  if (correctCount >= config.total) return config.fullPoint;
   if (correctCount >= config.partialThreshold) return 1;
   return 0;
 }

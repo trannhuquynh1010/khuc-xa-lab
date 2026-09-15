@@ -2051,9 +2051,11 @@ details .table-scroll { margin-top: 12px; }
 .cp-summary-grid span { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10); }
 .cp-summary-grid span b { font-size: .9rem; }
 .cp-summary-grid span em { grid-column: 1; font-style: normal; color: #9aa4ba; font-size: .82rem; }
-.cp-summary-grid span strong { grid-column: 2; grid-row: 1 / span 2; font-size: 1.3rem; color: #9aa4ba; }
+.cp-summary-grid span strong { grid-column: 2; grid-row: 1 / span 2; font-size: .95rem; font-weight: 800; text-align: right; align-self: center; color: #9aa4ba; }
 .cp-summary-grid span.earned { border-color: #34d399; background: rgba(52,211,153,.12); }
 .cp-summary-grid span.earned strong { color: #6ee7b7; }
+.cp-summary-grid span.nobonus { border-color: rgba(248,113,113,.35); }
+.cp-summary-grid span.nobonus > strong { color: #f4a3a3; }
 .cp-summary-rule { margin: 16px 0 0; color: #9aa4ba; font-size: .85rem; }
 
 .cp-back-link { align-self: center; color: #aeb7c9; text-decoration: none; font-weight: 700; }

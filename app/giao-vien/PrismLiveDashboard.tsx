@@ -376,8 +376,8 @@ export default function PrismLiveDashboard({ className, schoolYear, isCurrentYea
           </summary>
           <p className="prism-live-bonus-rule">
             {bonusConfig.partialThreshold < bonusConfig.total
-              ? `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +2 điểm cộng · Đúng ${bonusConfig.partialThreshold}/${bonusConfig.total} câu: +1 điểm cộng.`
-              : `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +2 điểm cộng.`}
+              ? `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +${bonusConfig.fullPoint} điểm cộng · Đúng ${bonusConfig.partialThreshold}/${bonusConfig.total} câu: +1 điểm cộng.`
+              : `Đúng ${bonusConfig.total}/${bonusConfig.total} câu: +${bonusConfig.fullPoint} điểm cộng.`}
           </p>
           {rankedBonusStudents.length ? (
             <div className="prism-live-bonus-list">
