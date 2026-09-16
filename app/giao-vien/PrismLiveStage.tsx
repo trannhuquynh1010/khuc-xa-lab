@@ -206,6 +206,30 @@ export default function PrismLiveStage({ className, schoolYear, isCurrentYear, a
     }
   }
 
+  async function resetClass() {
+    if (!window.confirm(`Xóa toàn bộ bài làm của lớp ${className} cho hoạt động này?\nNgân hàng câu hỏi vẫn được giữ nguyên. Thao tác không thể hoàn tác.`)) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/teacher-prism-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset", activityKey, className, schoolYear }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Không thể xóa dữ liệu.");
+      setResult(null);
+      setBonusStudents([]);
+      setShowStats(false);
+      await loadQuestions(true);
+      setMessage(`✓ Đã xóa dữ liệu bài làm của lớp ${className}. Có thể bắt đầu cho học sinh làm mới.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể xóa dữ liệu.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function gradeShort(response: PrismLiveResponse, isCorrect: boolean) {
     if (!current?.runId) return;
     await fetch("/api/teacher-prism-live", {
@@ -243,6 +267,7 @@ export default function PrismLiveStage({ className, schoolYear, isCurrentYear, a
         </div>
         <div className="cp-topbar-right">
           <button type="button" className="cp-mini-button" onClick={() => setShowStats((value) => !value)}>📊 Thống kê</button>
+          <button type="button" className="cp-mini-button danger" disabled={busy || !isCurrentYear} onClick={resetClass}>♻ Xóa dữ liệu lớp</button>
         </div>
       </div>
 

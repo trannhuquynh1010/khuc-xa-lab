@@ -1390,6 +1390,26 @@ export async function setPrismLiveResultsPublished(schoolYear: string, className
   return rows.length > 0;
 }
 
+/**
+ * Xóa toàn bộ lượt chạy (session) và bài làm của học sinh cho một hoạt động ở một lớp.
+ * Ngân hàng câu hỏi (prism_live_questions) được giữ nguyên; chỉ xóa dữ liệu phiên chạy.
+ * Dùng để làm sạch dữ liệu test trước khi cho học sinh làm thật.
+ */
+export async function resetPrismLiveClass(schoolYear: string, className: string, activityKey: ActivityKey) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM prism_live_sessions session
+    USING prism_live_questions question
+    WHERE session.question_id = question.id
+      AND question.activity_key = ${activityKey}
+      AND session.school_year = ${schoolYear}
+      AND session.class_name = ${className}
+    RETURNING session.id
+  `;
+  return rows.length;
+}
+
 export async function deletePrismLiveQuestion(questionId: string) {
   await ensureSchema();
   const sql = getSql();

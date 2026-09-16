@@ -10,6 +10,7 @@ import {
   getPrismLiveQuestionResults,
   gradePrismLiveShortResponse,
   listPrismLiveQuestions,
+  resetPrismLiveClass,
   setPrismLiveResultsPublished,
   startPrismLiveQuestion,
   updatePrismLiveQuestionDuration,
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
         durationSeconds: Number(body.durationSeconds),
       });
       return NextResponse.json({ question });
+    }
+
+    if (action === "reset") {
+      const removed = await resetPrismLiveClass(schoolYear, className, activityKey);
+      return NextResponse.json({ removed });
     }
 
     if (!isUuid(body.questionId)) return NextResponse.json({ error: "Câu hỏi chưa hợp lệ." }, { status: 400 });
