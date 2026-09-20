@@ -79,6 +79,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       <section className="academic-year-panel">
         <div><p className="eyebrow">DỮ LIỆU LỚP HỌC</p><h2>Năm học {selectedYear}</h2></div>
         <div className="academic-year-actions">
+          <TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} />
           <TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} />
           <details className="teacher-danger-menu">
             <summary>Quản lý dữ liệu</summary>
