@@ -1962,6 +1962,9 @@ details .table-scroll { margin-top: 12px; }
 .cp-mini-button:disabled { opacity: .5; cursor: not-allowed; }
 .cp-chip { padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.10); font-weight: 850; font-size: .9rem; }
 .cp-chip.subtle { background: transparent; border: 1px solid rgba(255,255,255,.18); color: #aeb7c9; }
+.cp-class-pick { display: inline-flex; align-items: center; gap: 6px; color: #aeb7c9; font-weight: 800; font-size: .85rem; }
+.cp-class-pick select { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: 850; cursor: pointer; }
+.cp-class-pick option { color: #111827; }
 
 .cp-progress-dots { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .cp-dot { width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,.20); background: rgba(255,255,255,.05); color: #cdd4e2; font-weight: 900; cursor: pointer; }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { formatStudentNumber, studentNumbers } from "@/lib/classes";
+import { usePathname, useRouter } from "next/navigation";
+import { classNames, formatStudentNumber, studentNumbers } from "@/lib/classes";
 import type { ActivityKey } from "@/lib/activities";
 import {
   hasPrismLiveAnswer,
@@ -100,6 +101,8 @@ export default function PrismLiveStage({ className, schoolYear, isCurrentYear, a
   const [showStats, setShowStats] = useState(false);
   const [now, setNow] = useState(0);
   const [clockOffset, setClockOffset] = useState(0);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const bonusConfig = prismLiveBonusConfigs[activityKey] ?? null;
 
@@ -256,7 +259,12 @@ export default function PrismLiveStage({ className, schoolYear, isCurrentYear, a
       <div className="cp-topbar">
         <div className="cp-topbar-left">
           <span className="cp-chip">{title}</span>
-          <span className="cp-chip subtle">{className} · {schoolYear}</span>
+          <label className="cp-class-pick">Lớp
+            <select value={className} onChange={(event) => router.push(`${pathname}?class=${event.target.value}&year=${schoolYear}`)}>
+              {classNames.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
+          <span className="cp-chip subtle">{schoolYear}</span>
         </div>
         <div className="cp-progress-dots" role="tablist" aria-label="Câu hỏi">
           {slides.map((question, index) => (
