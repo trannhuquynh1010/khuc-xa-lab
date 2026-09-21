@@ -14,7 +14,8 @@ import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attem
 import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
-import { calculateOpticsEnergy, OPTICS_QUEST_MAX_ENERGY, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestSnapshot } from "@/lib/optics-quest";
+import { OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
+import { gradeOpticsQuest } from "@/lib/optics-quest-score";
 import { computePrismLiveBonusPoint, normalizePrismLiveAnswer, prismLiveBonusConfigs, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
 
 export type Measurement = {
@@ -56,6 +57,7 @@ export type ActivitySetting = {
   opticsGameRunning: boolean;
   opticsGameRound: number;
   opticsGameStartedAt: string | null;
+  opticsGameEndedAt: string | null;
   updatedAt: string;
 };
 
@@ -226,6 +228,10 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_ended_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'student_number'
       ) AND
       EXISTS (
@@ -329,6 +335,7 @@ async function initializeSchema() {
       optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
       optics_game_round INTEGER NOT NULL DEFAULT 1,
       optics_game_started_at TIMESTAMPTZ,
+      optics_game_ended_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -348,7 +355,8 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS optics_game_round INTEGER NOT NULL DEFAULT 1,
-    ADD COLUMN IF NOT EXISTS optics_game_started_at TIMESTAMPTZ
+    ADD COLUMN IF NOT EXISTS optics_game_started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS optics_game_ended_at TIMESTAMPTZ
   `;
 
   for (const activity of activityDefinitions) {
@@ -844,7 +852,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
     SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
       ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
       resistivity_open, resistance_factors_practice_open,
-      optics_game_running, optics_game_round, optics_game_started_at, updated_at
+      optics_game_running, optics_game_round, optics_game_started_at, optics_game_ended_at, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -868,6 +876,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       opticsGameRunning: Boolean(row?.optics_game_running),
       opticsGameRound: Math.max(1, Number(row?.optics_game_round ?? 1)),
       opticsGameStartedAt: row?.optics_game_started_at ? new Date(String(row.optics_game_started_at)).toISOString() : null,
+      opticsGameEndedAt: row?.optics_game_ended_at ? new Date(String(row.optics_game_ended_at)).toISOString() : null,
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
@@ -906,8 +915,23 @@ export async function setOpticsGameRunning(isRunning: boolean) {
         WHEN ${isRunning} THEN COALESCE(optics_game_started_at, NOW() + INTERVAL '5 seconds')
         ELSE optics_game_started_at
       END,
+      optics_game_ended_at = CASE WHEN ${isRunning} THEN NULL ELSE optics_game_ended_at END,
       updated_at = NOW()
     WHERE activity_key = 'optics-game' AND (is_open = TRUE OR ${isRunning} = FALSE)
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+// Kết thúc & công bố: dừng game, ghi mốc kết thúc (dùng làm thời gian chốt cho HS chưa nộp và làm tín hiệu công bố đáp án).
+export async function endOpticsGame() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET optics_game_running = FALSE,
+      optics_game_ended_at = COALESCE(optics_game_ended_at, NOW()),
+      updated_at = NOW()
+    WHERE activity_key = 'optics-game'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
@@ -920,6 +944,7 @@ export async function advanceOpticsGameRound() {
     SET optics_game_round = optics_game_round + 1,
       optics_game_running = FALSE,
       optics_game_started_at = NULL,
+      optics_game_ended_at = NULL,
       updated_at = NOW()
     WHERE activity_key = 'optics-game'
   `;
@@ -1925,68 +1950,113 @@ export async function getOhmRaceSnapshot(schoolYear: string, className: string):
   };
 }
 
+function readStringMap(value: unknown): Record<string, string> {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const result: Record<string, string> = {};
+  for (const [key, item] of Object.entries(source)) {
+    if (typeof item === "string") result[key] = item;
+  }
+  return result;
+}
+
 export async function getOpticsQuestSnapshot(schoolYear: string, className: string): Promise<OpticsQuestSnapshot> {
   await ensureSchema();
   const sql = getSql();
   const [settings, rows] = await Promise.all([
     listActivitySettings(),
     sql`
-      SELECT student_number, status, answers, submitted_at, created_at
+      SELECT student_number, status, answers, submitted_at
       FROM practice_attempts
       WHERE school_year = ${schoolYear} AND practice_key = 'optics-quest' AND class_name = ${className}
     `,
   ]);
   const setting = settings.find((item) => item.key === "optics-game");
-  const sharedStart = setting?.opticsGameStartedAt ? new Date(setting.opticsGameStartedAt).getTime() : null;
+  const round = setting?.opticsGameRound ?? 1;
+  const startedAtMs = setting?.opticsGameStartedAt ? new Date(setting.opticsGameStartedAt).getTime() : null;
+  const endedAtMs = setting?.opticsGameEndedAt ? new Date(setting.opticsGameEndedAt).getTime() : null;
+  const cutoffMs = endedAtMs ?? Date.now();
 
   const players: OpticsQuestPlayer[] = rows.flatMap((row) => {
     const data = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
     const groupName = typeof data.groupName === "string" && groupNames.includes(data.groupName as (typeof groupNames)[number]) ? data.groupName : "";
     if (!groupName) return [];
+    const studentNumber = Number(row.student_number);
     const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
-    const clearedIds = new Set(Array.isArray(data.clearedQuestionIds) ? data.clearedQuestionIds.filter((item): item is string => typeof item === "string") : []);
-    const attempts = data.attemptCounts && typeof data.attemptCounts === "object" && !Array.isArray(data.attemptCounts) ? data.attemptCounts as Record<string, unknown> : {};
+    const graded = gradeOpticsQuest(studentNumber, round, questionIds, readStringMap(data.responses));
     const finished = row.status === "submitted";
-    const submittedTime = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
-    const startTime = sharedStart ?? (row.created_at ? new Date(String(row.created_at)).getTime() : null);
+    const submittedMs = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+    const effectiveEnd = finished && submittedMs !== null ? submittedMs : cutoffMs;
+    const elapsedSeconds = startedAtMs !== null ? Math.max(0, Math.round((effectiveEnd - startedAtMs) / 1000)) : null;
     return [{
-      studentNumber: Number(row.student_number),
+      studentNumber,
       groupName,
-      progress: Math.min(OPTICS_QUEST_QUESTION_COUNT, clearedIds.size),
+      answeredCount: graded.answeredCount,
+      correctCount: graded.correctCount,
       finished,
-      energy: Math.min(OPTICS_QUEST_MAX_ENERGY, calculateOpticsEnergy(questionIds, clearedIds, attempts)),
-      elapsedSeconds: finished && submittedTime !== null && startTime !== null ? Math.max(0, Math.round((submittedTime - startTime) / 1000)) : null,
+      elapsedSeconds,
     }];
   }).sort((left, right) => left.studentNumber - right.studentNumber);
 
   const groups: OpticsQuestGroup[] = groupNames.map((groupName) => {
     const members = players.filter((player) => player.groupName === groupName);
-    const finishedCount = members.filter((player) => player.finished).length;
-    const completionRate = members.length ? finishedCount / members.length : 0;
-    return {
-      groupName,
-      participantCount: members.length,
-      finishedCount,
-      completionRate,
-      averageEnergy: members.length ? Math.round(members.reduce((sum, player) => sum + player.energy, 0) / members.length * 10) / 10 : 0,
-      eligible: members.length > 0 && completionRate >= 0.75,
-      rank: null,
-    };
+    const participantCount = members.length;
+    const averageScore = participantCount ? Math.round(members.reduce((sum, player) => sum + player.correctCount, 0) / participantCount * 10) / 10 : 0;
+    const totalTimeSeconds = members.reduce((sum, player) => sum + (player.elapsedSeconds ?? 0), 0);
+    return { groupName, participantCount, averageScore, totalTimeSeconds, rank: null };
   });
-  const ranked = groups.filter((group) => group.eligible).sort((left, right) => right.averageEnergy - left.averageEnergy || right.completionRate - left.completionRate || left.groupName.localeCompare(right.groupName));
+  // Xếp hạng: điểm trung bình cao hơn xếp trước; đồng điểm thì tổng thời gian nhỏ hơn xếp trước.
+  const ranked = groups
+    .filter((group) => group.participantCount > 0)
+    .sort((left, right) => right.averageScore - left.averageScore || left.totalTimeSeconds - right.totalTimeSeconds || left.groupName.localeCompare(right.groupName));
   const rankMap = new Map(ranked.map((group, index) => [group.groupName, index + 1]));
   groups.forEach((group) => { group.rank = rankMap.get(group.groupName) ?? null; });
 
+  const totalCorrect = players.reduce((sum, player) => sum + player.correctCount, 0);
+  const classCorrectRate = players.length ? totalCorrect / (players.length * OPTICS_QUEST_QUESTION_COUNT) : 0;
+
   return {
-    round: setting?.opticsGameRound ?? 1,
+    round,
     isOpen: setting?.isOpen ?? false,
     isRunning: setting?.opticsGameRunning ?? false,
+    ended: Boolean(endedAtMs),
+    endedAt: setting?.opticsGameEndedAt ?? null,
     startedAt: setting?.opticsGameStartedAt ?? null,
-    readyCount: players.length,
-    finishedCount: players.filter((player) => player.finished).length,
+    participantCount: players.length,
+    submittedCount: players.filter((player) => player.finished).length,
+    classCorrectRate,
     players,
     groups,
   };
+}
+
+// Kết quả cá nhân cho học sinh — chỉ trả về chi tiết đúng/sai sau khi giáo viên kết thúc & công bố.
+export async function getOpticsQuestReveal(schoolYear: string, className: string, studentNumber: number): Promise<OpticsQuestReveal> {
+  await ensureSchema();
+  const sql = getSql();
+  const settings = await listActivitySettings();
+  const setting = settings.find((item) => item.key === "optics-game");
+  const round = setting?.opticsGameRound ?? 1;
+  const ended = Boolean(setting?.opticsGameEndedAt);
+  const rows = await sql`
+    SELECT status, answers, submitted_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = 'optics-quest' AND class_name = ${className} AND student_number = ${studentNumber}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  const submitted = row?.status === "submitted";
+  if (!ended) {
+    return { ended: false, submitted, correctCount: 0, totalItems: OPTICS_QUEST_QUESTION_COUNT, elapsedSeconds: null, items: [] };
+  }
+  const data = row?.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
+  const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
+  const graded = gradeOpticsQuest(studentNumber, round, questionIds, readStringMap(data.responses));
+  const startedAtMs = setting?.opticsGameStartedAt ? new Date(setting.opticsGameStartedAt).getTime() : null;
+  const endedAtMs = setting?.opticsGameEndedAt ? new Date(setting.opticsGameEndedAt).getTime() : null;
+  const submittedMs = row?.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+  const effectiveEnd = submitted && submittedMs !== null ? submittedMs : (endedAtMs ?? Date.now());
+  const elapsedSeconds = startedAtMs !== null ? Math.max(0, Math.round((effectiveEnd - startedAtMs) / 1000)) : null;
+  return { ended: true, submitted, correctCount: graded.correctCount, totalItems: graded.totalItems, elapsedSeconds, items: graded.items };
 }
 
 const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, practiceKey: PracticeKey, className: string): Promise<TeacherPracticeAttempt[]> => {

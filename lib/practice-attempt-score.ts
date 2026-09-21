@@ -9,7 +9,8 @@ import {
 import { scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 import { getPracticeBonusPoint, type PracticeKey } from "@/lib/practice-attempt-types";
 import { createEmptyOhmRaceAnswers, getOhmRaceQuestion, isOhmRaceAnswerCorrect, OHM_RACE_STATION_COUNT } from "@/lib/ohm-race";
-import { createEmptyOpticsQuestAnswers, getOpticsQuestQuestion, isOpticsQuestAnswerCorrect, OPTICS_QUEST_QUESTION_COUNT, OPTICS_QUEST_QUESTIONS_PER_STATION } from "@/lib/optics-quest";
+import { createEmptyOpticsQuestAnswers, OPTICS_QUEST_QUESTION_COUNT } from "@/lib/optics-quest";
+import { isOpticsQuestAnswerCorrect } from "@/lib/optics-quest-score";
 import { createEmptyOpticsReviewAnswers, getOpticsReviewQuestion, isOpticsReviewAnswerCorrect, isOpticsReviewResponseAnswered, OPTICS_REVIEW_QUESTION_COUNT } from "@/lib/optics-review";
 
 type ScoreResult = { completedCount: number; correctCount: number; totalItems: number; bonusPoint: number };
@@ -109,13 +110,18 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
   }
 
   if (key === "optics-quest") {
+    // Chấm trực tiếp đáp án đã lưu; câu bỏ trống = sai. Không cần làm đúng mới tính.
     const questionIds = Array.isArray(answers.questionIds) ? answers.questionIds.filter((item): item is string => typeof item === "string") : [];
     const responses = record(answers.responses);
-    const clearedIds = new Set(Array.isArray(answers.clearedQuestionIds) ? answers.clearedQuestionIds.filter((item): item is string => typeof item === "string") : []);
-    const questions = questionIds.length === OPTICS_QUEST_QUESTION_COUNT ? questionIds.map(getOpticsQuestQuestion) : [];
-    const valid = questions.length === OPTICS_QUEST_QUESTION_COUNT && questions.every((question, index) => question?.station === Math.floor(index / OPTICS_QUEST_QUESTIONS_PER_STATION) + 1);
-    const correctCount = valid ? questions.filter((question) => question && clearedIds.has(question.id) && typeof responses[question.id] === "string" && isOpticsQuestAnswerCorrect(question, String(responses[question.id]))).length : 0;
-    return { completedCount: correctCount, correctCount, totalItems: OPTICS_QUEST_QUESTION_COUNT, bonusPoint: 0 };
+    const ids = questionIds.slice(0, OPTICS_QUEST_QUESTION_COUNT);
+    let answered = 0;
+    let correct = 0;
+    for (const id of ids) {
+      const response = typeof responses[id] === "string" ? responses[id] : "";
+      if (response.trim()) answered += 1;
+      if (isOpticsQuestAnswerCorrect(id, response)) correct += 1;
+    }
+    return { completedCount: answered, correctCount: correct, totalItems: OPTICS_QUEST_QUESTION_COUNT, bonusPoint: 0 };
   }
 
   if (key === "optics-review") {

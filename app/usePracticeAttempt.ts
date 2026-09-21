@@ -12,8 +12,9 @@ function classAllowed(practiceKey: PracticeKey, className: string) {
   return practiceKey === "refraction-application" ? isRefractionQuizClassName(className) : isClassName(className);
 }
 
-export default function usePracticeAttempt(practiceKey: PracticeKey, answers: unknown, completedCount: number) {
+export default function usePracticeAttempt(practiceKey: PracticeKey, answers: unknown, completedCount: number, options?: { allowEarlySubmit?: boolean }) {
   const definition = getPracticeDefinition(practiceKey);
+  const allowEarlySubmit = options?.allowEarlySubmit ?? false;
   const [className, setClassName] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
   const [phase, setPhase] = useState<AttemptPhase>("idle");
@@ -127,7 +128,7 @@ export default function usePracticeAttempt(practiceKey: PracticeKey, answers: un
       setMessage("Hãy chọn lớp và STT của em.");
       return;
     }
-    if (completedCount < definition.totalItems) {
+    if (!allowEarlySubmit && completedCount < definition.totalItems) {
       setMessageType("error");
       setMessage(`Còn ${definition.totalItems - completedCount} ý chưa hoàn thành.`);
       return;

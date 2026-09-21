@@ -5,7 +5,7 @@ import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivityS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -247,10 +247,11 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       {selectedKey === "optics-game" && (
         <>
           <section className="activity-control-panel construction-control-panel optics-game-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">✦</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.opticsGameRound}</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>12 câu/6 trạm · điểm nhóm là trung bình · đủ 75% mới xếp hạng.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">✦</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.opticsGameRound}</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>12 câu/6 trạm · tự do làm · điểm = số câu đúng · điểm nhóm là trung bình; đồng điểm xét tổng thời gian. Đáp án công bố khi bấm Kết thúc.</p></div></div>
             <div className="activity-control-actions">
-              <span className={`status-badge ${currentSetting.opticsGameRunning ? "open" : "closed"}`}>{currentSetting.opticsGameRunning ? "● Đang chơi" : currentSetting.isOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
-              {currentSetting.isOpen ? <form action={toggleOpticsGameRunning}><input type="hidden" name="nextRunning" value={String(!currentSetting.opticsGameRunning)} /><TeacherToggleSubmitButton isOpen={currentSetting.opticsGameRunning} openLabel="Bắt đầu" closeLabel="Tạm dừng" /></form> : null}
+              <span className={`status-badge ${currentSetting.opticsGameEndedAt ? "closed" : currentSetting.opticsGameRunning ? "open" : "closed"}`}>{currentSetting.opticsGameEndedAt ? "✓ Đã công bố" : currentSetting.opticsGameRunning ? "● Đang chơi" : currentSetting.isOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
+              {currentSetting.isOpen && !currentSetting.opticsGameEndedAt ? <form action={toggleOpticsGameRunning}><input type="hidden" name="nextRunning" value={String(!currentSetting.opticsGameRunning)} /><TeacherToggleSubmitButton isOpen={currentSetting.opticsGameRunning} openLabel="Bắt đầu" closeLabel="Tạm dừng" /></form> : null}
+              {currentSetting.isOpen && !currentSetting.opticsGameEndedAt && (currentSetting.opticsGameRunning || currentSetting.opticsGameStartedAt) ? <form action={finishOpticsGame}><button type="submit" className="primary-button stop">Kết thúc & công bố</button></form> : null}
               <Link className="presentation-button" href={`/giao-vien/trinh-chieu/optics-game?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu game</Link>
               <form action={resetPracticeAttempts}><input type="hidden" name="schoolYear" value={selectedYear} /><input type="hidden" name="className" value={selectedClass} /><input type="hidden" name="practiceKey" value="optics-quest" /><ResetPracticeButton className={selectedClass} practiceLabel="Photon Quest" /></form>
             </div>

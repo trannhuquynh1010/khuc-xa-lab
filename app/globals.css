@@ -2075,3 +2075,32 @@ details .table-scroll { margin-top: 12px; }
   .cp-controls { grid-template-columns: 1fr; }
   .cp-nav { display: none; }
 }
+
+/* ===== Photon Quest (bản làm lại: tự do làm + công bố cuối) ===== */
+.quest-play { display: grid; gap: 14px; }
+.quest-palette { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; }
+.quest-palette button { aspect-ratio: 1; border-radius: 10px; border: 1px solid #d5d9e2; background: #fff; color: #475569; font-weight: 900; cursor: pointer; }
+.quest-palette button.answered { background: var(--quest-group-color, #6366f1); border-color: var(--quest-group-color, #6366f1); color: #10240f; }
+.quest-palette button.skip { background: #fff; color: #94a3b8; }
+.quest-palette button.current { outline: 3px solid #111827; outline-offset: 1px; }
+.quest-nav-buttons { display: flex; gap: 8px; }
+@media (max-width: 620px) { .quest-palette { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+.quest-result { display: grid; gap: 14px; }
+.quest-result-head { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; background: #0b1120; color: #e5e9f2; }
+.quest-result-head > span { font-size: 2rem; }
+.quest-result-head h3 { margin: 2px 0; font-size: 1.6rem; }
+.quest-review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.quest-review-list li { padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+.quest-review-list li.correct { border-color: #86efac; background: #f0fdf4; }
+.quest-review-list li.incorrect { border-color: #fca5a5; background: #fef2f2; }
+.quest-review-list li b { display: block; }
+.quest-review-list li p { margin: 6px 0 0; }
+.quest-review-list li small { display: block; margin-top: 6px; color: #64748b; }
+.quest-correct-answer { font-weight: 800; color: #15803d; }
+
+.quest-rank-board { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 8px; }
+.quest-rank-board li { display: grid; grid-template-columns: 52px 1fr auto auto; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; border-left: 6px solid var(--quest-group-color, #6366f1); }
+.quest-rank-board .quest-rank-no { font-weight: 950; font-size: 1.1rem; }
+.quest-rank-board b { font-size: 1.2rem; }
+.quest-rank-board em { color: #64748b; font-style: normal; font-variant-numeric: tabular-nums; }

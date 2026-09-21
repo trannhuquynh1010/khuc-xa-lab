@@ -83,19 +83,20 @@ export async function POST(request: Request) {
       if (typeof body.answers.groupName !== "string" || !groupNames.includes(body.answers.groupName)) {
         return NextResponse.json({ error: "Hãy chọn nhóm trước khi chơi." }, { status: 400 });
       }
+      if (gameSetting?.opticsGameEndedAt) {
+        return NextResponse.json({ error: "Trò chơi đã kết thúc và công bố kết quả." }, { status: 403 });
+      }
       if (body.mode === "submit" && !gameSetting?.opticsGameRunning) {
         return NextResponse.json({ error: "Trò chơi đang tạm dừng." }, { status: 403 });
       }
     }
     const evaluation = scorePracticeAttempt(body.practiceKey, body.answers);
-    if (body.mode === "submit" && evaluation.completedCount < evaluation.totalItems) {
+    // Photon Quest cho phép nộp sớm với số câu bất kỳ (câu bỏ trống tính sai khi chấm).
+    if (body.mode === "submit" && body.practiceKey !== "optics-quest" && evaluation.completedCount < evaluation.totalItems) {
       return NextResponse.json({ error: `Còn ${evaluation.totalItems - evaluation.completedCount} ý chưa hoàn thành.` }, { status: 400 });
     }
     if (body.mode === "submit" && body.practiceKey === "ohm-race" && evaluation.correctCount < evaluation.totalItems) {
       return NextResponse.json({ error: "Hãy vượt qua đủ 6 trạm trước khi về đích." }, { status: 400 });
-    }
-    if (body.mode === "submit" && body.practiceKey === "optics-quest" && evaluation.correctCount < evaluation.totalItems) {
-      return NextResponse.json({ error: "Hãy hoàn thành đủ 12 câu ở 6 trạm trước khi kết thúc." }, { status: 400 });
     }
     const input = { practiceKey: body.practiceKey, className: body.className, studentNumber: body.studentNumber, answers: body.answers };
     if (body.mode === "submit" && body.practiceKey === "refraction-application") {
