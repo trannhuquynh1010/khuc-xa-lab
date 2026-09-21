@@ -39,8 +39,8 @@ export const opticsQuestAnswerKey: Record<string, AnswerEntry> = {
   "c-blue-red": { answer: "dark", explanation: "Nguồn không có ánh sáng xanh để vật phản xạ vào mắt." },
   "c-white-blue": { answer: "blue", explanation: "Giấy trắng phản xạ tốt màu đang chiếu tới, nên phản xạ ánh sáng xanh vào mắt." },
   "c-black": { answer: "absorb", explanation: "Rất ít ánh sáng từ vật đen truyền đến mắt nên ta thấy nó tối." },
-  "c-rgb-power": { answer: "4", tolerance: 0.01, explanation: "Mỗi thành phần có 12/3 = 4 mW; vật đỏ phản xạ phần đỏ 4 mW." },
-  "c-yellow-power": { answer: "5", tolerance: 0.01, explanation: "Phần đỏ chiếm 10/2 = 5 mW và được vật đỏ phản xạ vào mắt." },
+  "c-green-under-blue": { answer: "dark", explanation: "Nguồn sáng không có ánh sáng lục để vật phản xạ vào mắt nên vật trông tối." },
+  "c-mix-filter": { answer: "dark", explanation: "Kính lọc đỏ chỉ cho ánh sáng đỏ qua, kính lọc lục chỉ cho ánh sáng lục qua; không có màu chung nên hầu như không có ánh sáng lọt qua cả hai." },
   // Trạm 6 · Boss hải đăng
   "b-pool-fiber": { answer: "ref-tir", explanation: "Tia đổi hướng khi qua mặt nước; tín hiệu được giữ trong sợi bằng phản xạ toàn phần." },
   "b-rainbow-shirt": { answer: "spectrum-dark", explanation: "Lăng kính tán sắc; áo xanh không phản xạ tốt ánh sáng đỏ." },

@@ -31,7 +31,7 @@ function OpticsVisual({ question }: { question: OpticsQuestQuestion }) {
       {question.visual === "refraction" && <><line className="quest-surface" x1="40" y1="115" x2="480" y2="115"/><line className="quest-normal" x1="260" y1="20" x2="260" y2="210"/><path className="quest-ray" d="M120 35 L260 115 L320 205"/><circle cx="260" cy="115" r="7"/></>}
       {question.visual === "apparent" && <><rect className="quest-water" x="20" y="105" width="480" height="115"/><circle className="quest-object" cx="280" cy="184" r="13"/><path className="quest-ray" d="M280 184 L220 105 L118 44"/><path className="quest-virtual" d="M220 105 L160 26"/><path className="quest-eye" d="M95 45 q22 -20 44 0 q-22 20 -44 0"/></>}
       {question.visual === "tir" && <><rect className="quest-glass" x="20" y="30" width="480" height="155" rx="18"/><path className="quest-ray" d="M55 150 L155 65 L255 150 L355 65 L465 150"/><line className="quest-surface" x1="20" y1="185" x2="500" y2="185"/></>}
-      {question.visual === "prism" && <><path className="quest-prism" d="M190 205 L300 25 L410 205 Z"/><path className="quest-ray" d="M25 105 L240 105"/><path className="quest-ray" d="M240 105 L465 65" style={{stroke:"url(#spectrum)",strokeWidth:18}}/></>}
+      {question.visual === "prism" && <><path className="quest-prism" d="M190 205 L300 25 L410 205 Z"/><path className="quest-ray" d="M25 105 L240 105"/><path className="quest-ray" d="M240 105 L465 165" style={{stroke:"url(#spectrum)",strokeWidth:18}}/></>}
       {question.visual === "color" && <><circle className="quest-lamp" cx="80" cy="70" r="30"/><rect className="quest-color-object" x="230" y="78" width="80" height="90" rx="16"/><path className="quest-ray" d="M112 74 L230 108"/><path className="quest-ray" d="M310 110 L420 62"/><path className="quest-eye" d="M410 62 q28 -24 56 0 q-28 24 -56 0"/></>}
       {question.visual === "boss" && <><path className="quest-lighthouse" d="M215 205 L240 58 L290 58 L315 205 Z M232 58 L247 28 L283 28 L298 58"/><path className="quest-ray" d="M292 52 L488 18 M292 52 L498 72 M292 52 L470 124"/><circle className="quest-beacon" cx="265" cy="48" r="16"/></>}
     </svg>
@@ -181,7 +181,7 @@ export default function OpticsQuestGame({ round, running, startedAt, endedAt }: 
                 <button type="button" className="secondary-button" disabled={currentIndex === 0} onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))}>‹ Câu trước</button>
                 <button type="button" className="secondary-button" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((index) => Math.min(questions.length - 1, index + 1))}>Câu sau ›</button>
               </div>
-              <button type="button" className="primary-button" disabled={attempt.submitting} onClick={submitEarly}>{attempt.submitting ? "Đang nộp…" : "Nộp bài sớm"}</button>
+              {currentIndex === questions.length - 1 ? <button type="button" className="primary-button" disabled={attempt.submitting} onClick={submitEarly}>{attempt.submitting ? "Đang nộp…" : "Nộp bài sớm"}</button> : null}
             </div>
           </fieldset>
         </div>
