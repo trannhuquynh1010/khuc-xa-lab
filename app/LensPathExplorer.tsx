@@ -364,7 +364,7 @@ export default function LensPathExplorer({ presentation = false }: { presentatio
       {allComplete ? (
         <div className="lens-conclusion">
           <div className="lens-conclusion-icon" aria-hidden="true">◎</div>
-          <div><p className="eyebrow">CHỐT KIẾN THỨC</p><h3>Một mạch giải thích, không phải hai thí nghiệm rời nhau</h3><p>Ta xét khúc xạ tại M, phóng to chính vùng M thành một mảnh gần đúng, lặp lại ở nhiều vị trí rồi làm mượt thành thấu kính. Hai mặt cong phân bố độ lệch thích hợp để chùm tia song song gặp nhau gần F′.</p></div>
+          <div><p className="eyebrow">Thí nghiệm ảo</p><h3>Một mạch giải thích, không phải hai thí nghiệm rời nhau</h3><p>Ta xét khúc xạ tại M, phóng to chính vùng M thành một mảnh gần đúng, lặp lại ở nhiều vị trí rồi làm mượt thành thấu kính. Hai mặt cong phân bố độ lệch thích hợp để chùm tia song song gặp nhau gần F′.</p></div>
           <div className="lens-conclusion-actions"><a className="primary-button" href="https://phet.colorado.edu/sims/html/geometric-optics-basics/latest/geometric-optics-basics_vi.html" target="_blank" rel="noreferrer">Kiểm chứng trên PhET ↗</a><button type="button" className="secondary-button" onClick={resetActivity}>Làm lại</button></div>
         </div>
       ) : null}
