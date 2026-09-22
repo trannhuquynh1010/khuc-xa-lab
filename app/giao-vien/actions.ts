@@ -3,7 +3,7 @@
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { advanceOhmRaceRound, advanceOpticsGameRound, endOpticsGame, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setOpticsGameRunning, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
+import { advanceOhmRaceRound, advanceOpticsGameRound, endOpticsGame, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setLensPracticeOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setOpticsGameRunning, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
 import { isPracticeKey } from "@/lib/practice-attempt-types";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
@@ -92,6 +92,12 @@ export async function toggleResistanceFactorsPractice(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setResistanceFactorsPracticeOpen(formData.get("nextOpen") === "true");
+}
+
+export async function toggleLensPractice(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setLensPracticeOpen(formData.get("nextOpen") === "true");
 }
 
 export async function toggleRefractionQuizScores(formData: FormData) {

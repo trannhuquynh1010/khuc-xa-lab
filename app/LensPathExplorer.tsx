@@ -12,7 +12,6 @@ type Stage = {
   title: string;
   lead: string;
   teacherPrompt: string;
-  listenFor: string;
   revealSteps: { button: string; title: string; text: string }[];
   conclusion: string;
 };
@@ -25,7 +24,6 @@ const stages: Stage[] = [
     title: "Tia sáng gặp mặt cong tại M",
     lead: "M được đặt ở vùng phía trên của thấu kính. Tia tới kết thúc đúng tại M và mọi đường dựng tiếp theo đều đi qua điểm này.",
     teacherPrompt: "Muốn dự đoán tia khúc xạ tại M, ta cần dựng những đường nào trước?",
-    listenFor: "Học sinh nêu được tiếp tuyến tại M và pháp tuyến vuông góc với tiếp tuyến.",
     revealSteps: [
       { button: "Dựng tiếp tuyến", title: "Tiếp tuyến tại M", text: "Đường thẳng chỉ tiếp xúc với mặt cong tại vùng rất nhỏ quanh M." },
       { button: "Dựng pháp tuyến", title: "Pháp tuyến tại M", text: "Pháp tuyến vuông góc với tiếp tuyến và đi qua đúng điểm M." },
@@ -40,7 +38,6 @@ const stages: Stage[] = [
     title: "Phóng to đúng vùng quanh M",
     lead: "Không đổi sang một dụng cụ khác: ta chỉ phóng to vùng thấu kính vừa xét ở chặng 1 và thay hai đoạn cong rất ngắn bằng hai mặt phẳng nghiêng.",
     teacherPrompt: "Nếu quan sát một vùng rất nhỏ quanh M, mặt cong có thể được xem gần đúng như dạng hình học nào?",
-    listenFor: "Học sinh nhận ra vùng nhỏ có hai mặt nghiêng và dày dần về phía trục chính.",
     revealSteps: [
       { button: "Khoanh vùng M", title: "Giữ nguyên vùng đang xét", text: "Khung phóng đại bám đúng vùng M ở phía trên trục chính." },
       { button: "Thay bằng hai mặt phẳng", title: "Mảnh lăng kính gần đúng", text: "Hai đoạn cong rất ngắn được thay bằng hai mặt nghiêng; phần dày hơn hướng về trục." },
@@ -55,7 +52,6 @@ const stages: Stage[] = [
     title: "Lặp lại cách xét ở nhiều vị trí",
     lead: "Mảnh phía trên có đáy hướng xuống; mảnh phía dưới có đáy hướng lên. Tất cả phần dày hơn đều hướng về trục chính.",
     teacherPrompt: "Khi đặt nhiều mảnh nhỏ đối xứng qua trục chính, đường bao và hướng lệch của các tia sẽ thay đổi thế nào?",
-    listenFor: "Học sinh dự đoán các mảnh tạo thành mặt cong và đều hướng tia về trục chính.",
     revealSteps: [
       { button: "Ghép nhiều mảnh", title: "Các vùng nối tiếp nhau", text: "Cùng một cách xét tại M được lặp lại ở nhiều độ cao khác nhau." },
       { button: "Chỉ hướng các đáy", title: "Đáy cùng hướng về trục", text: "Phía trên hướng xuống, phía dưới hướng lên; vùng giữa gần như song song với trục." },
@@ -70,7 +66,6 @@ const stages: Stage[] = [
     title: "Từ từng lần khúc xạ đến tiêu điểm",
     lead: "Mặt cong nghiêng nhiều ở xa trục và nghiêng ít ở gần trục. Vì vậy mỗi tia nhận một độ lệch khác nhau.",
     teacherPrompt: "Tia ở xa trục hay gần trục phải đổi hướng nhiều hơn để cùng gặp nhau ở một vùng?",
-    listenFor: "Học sinh chọn tia xa trục và giải thích bằng độ nghiêng của mặt cong tại điểm tới.",
     revealSteps: [
       { button: "So sánh độ nghiêng", title: "Pháp tuyến không giống nhau", text: "Xa trục, mặt cong nghiêng nhiều hơn; gần trục, mặt cong ít nghiêng hơn." },
       { button: "Hiện đường truyền", title: "Độ lệch được phân bố", text: "Tia xa trục lệch nhiều, tia gần trục lệch ít và các tia đều hướng về trục." },
@@ -351,13 +346,8 @@ export default function LensPathExplorer({ presentation = false }: { presentatio
 
           <div className="lens-teacher-prompt">
             <span aria-hidden="true">?</span>
-            <div><small>{presentation ? "GV HỎI · CHỜ HỌC SINH DỰ ĐOÁN" : "SUY NGHĨ TRƯỚC KHI GIÁO VIÊN MỞ"}</small><strong>{stage.teacherPrompt}</strong></div>
+            <div><small>{presentation ? "GV HỎI · CHỜ HỌC SINH DỰ ĐOÁN" : "Question"}</small><strong>{stage.teacherPrompt}</strong></div>
           </div>
-
-          <details className="lens-listen-for">
-            <summary>Ý cần nghe từ học sinh</summary>
-            <p>{stage.listenFor}</p>
-          </details>
 
           <GuidanceSequence stage={stage} revealed={revealed} />
 
