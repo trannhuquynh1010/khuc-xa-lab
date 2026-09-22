@@ -175,6 +175,8 @@ export const prismLiveBonusConfigs: Record<string, PrismLiveBonusConfig> = {
   "prism-colors": { quizSet: "prism-color-five", total: 5, fullPoint: 1, partialThreshold: 5, label: "Bộ 5 câu" },
   // Phản xạ toàn phần: đúng 10/10 → +2, đúng 9/10 → +1.
   "total-internal-reflection": { quizSet: "tir-live", total: 10, fullPoint: 2, partialThreshold: 9, label: "Bộ 10 câu" },
+  // Thấu kính (bài tập củng cố): đúng 10/10 → +2, đúng 9/10 → +1.
+  "lenses": { quizSet: "lens-live", total: 10, fullPoint: 2, partialThreshold: 9, label: "Bộ 10 câu" },
 };
 
 export function computePrismLiveBonusPoint(

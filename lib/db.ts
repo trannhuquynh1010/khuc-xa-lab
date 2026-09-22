@@ -54,7 +54,6 @@ export type ActivitySetting = {
   ohmRaceStartedAt: string | null;
   resistivityOpen: boolean;
   resistanceFactorsPracticeOpen: boolean;
-  lensPracticeOpen: boolean;
   opticsGameRunning: boolean;
   opticsGameRound: number;
   opticsGameStartedAt: string | null;
@@ -217,10 +216,6 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'lens_practice_open'
-      ) AND
-      EXISTS (
-        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_running'
       ) AND
       EXISTS (
@@ -337,7 +332,6 @@ async function initializeSchema() {
       ohm_race_started_at TIMESTAMPTZ,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
       resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
-      lens_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
       optics_game_round INTEGER NOT NULL DEFAULT 1,
       optics_game_started_at TIMESTAMPTZ,
@@ -359,7 +353,6 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS ohm_race_started_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS lens_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS optics_game_round INTEGER NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS optics_game_started_at TIMESTAMPTZ,
@@ -803,6 +796,111 @@ async function initializeSchema() {
     `;
   }
 
+  const lensQuestions = [
+    {
+      slug: "lens-live-1",
+      type: "single",
+      prompt: "Quang tâm O của thấu kính có đặc điểm nào sau đây?",
+      options: ["Tia sáng tới quang tâm truyền thẳng, không đổi hướng", "Mọi tia tới quang tâm đều hội tụ tại tiêu điểm", "Tia tới quang tâm bị phản xạ trở lại", "Quang tâm luôn nằm ở mép ngoài của thấu kính"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "lens-live-2",
+      type: "single",
+      prompt: "Trục chính của thấu kính là đường thẳng có đặc điểm gì?",
+      options: ["Đi qua quang tâm O và vuông góc với mặt thấu kính tại O", "Đi qua hai tiêu điểm nhưng không qua quang tâm", "Song song với mặt thấu kính", "Chỉ tồn tại ở thấu kính hội tụ"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "lens-live-3",
+      type: "single",
+      prompt: "Chiếu một tia sáng song song với trục chính vào thấu kính hội tụ. Sau khi qua thấu kính, tia sáng sẽ:",
+      options: ["Đi qua tiêu điểm chính F′", "Vẫn truyền song song với trục chính", "Loe ra xa trục chính", "Dừng lại tại quang tâm"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "lens-live-4",
+      type: "single",
+      prompt: "Chiếu một tia sáng song song với trục chính vào thấu kính phân kì. Đường kéo dài của tia ló sẽ:",
+      options: ["Đi qua tiêu điểm chính F (cùng phía với tia tới)", "Đi qua tiêu điểm chính F′ (khác phía với tia tới)", "Trùng với trục chính", "Đi qua quang tâm O"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 80,
+    },
+    {
+      slug: "lens-live-5",
+      type: "single",
+      prompt: "Tiêu cự f của thấu kính là khoảng cách từ:",
+      options: ["Quang tâm O đến tiêu điểm chính", "Tiêu điểm F đến tiêu điểm F′", "Mép thấu kính đến quang tâm O", "Vật đến quang tâm O"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "lens-live-6",
+      type: "single",
+      prompt: "Đặc điểm hình dạng nào giúp nhận biết thấu kính hội tụ (phần rìa mỏng)?",
+      options: ["Phần giữa dày hơn phần mép", "Phần mép dày hơn phần giữa", "Hai mặt đều là mặt phẳng song song", "Độ dày đều nhau ở mọi vị trí"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "lens-live-7",
+      type: "single",
+      prompt: "Trong hình vẽ quang học, thấu kính phân kì được kí hiệu bằng đường thẳng có hai đầu mũi tên hướng:",
+      options: ["Chụm vào trong", "Choãi ra ngoài", "Hướng lên trên", "Hướng xuống dưới"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "lens-live-8",
+      type: "single",
+      prompt: "Đối với cả thấu kính hội tụ và phân kì, tia sáng tới quang tâm O cho tia ló như thế nào?",
+      options: ["Truyền thẳng, không đổi hướng", "Luôn đi qua tiêu điểm F′", "Bị phản xạ ngược lại", "Đổi hướng khác nhau tùy loại thấu kính"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "lens-live-9",
+      type: "single",
+      prompt: "Hai tiêu điểm chính F và F′ của một thấu kính có vị trí như thế nào?",
+      options: ["Đối xứng nhau qua quang tâm O trên trục chính", "Trùng nhau tại quang tâm O", "Nằm trên hai trục chính khác nhau", "Chỉ có một tiêu điểm duy nhất"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "lens-live-10",
+      type: "single",
+      prompt: "Đặt vật ngoài khoảng tiêu cự của thấu kính hội tụ (d > f). Ảnh thu được qua thấu kính là:",
+      options: ["Ảnh thật, ngược chiều với vật", "Ảnh ảo, cùng chiều với vật", "Ảnh thật, cùng chiều với vật", "Không tạo được ảnh"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 80,
+    },
+  ] as const;
+  for (const [index, question] of lensQuestions.entries()) {
+    await sql`
+      INSERT INTO prism_live_questions (
+        id, school_year, class_name, activity_key, question_type, prompt, options, content, correct_answer,
+        quiz_set, quiz_order, slug, duration_seconds
+      ) VALUES (
+        ${randomUUID()}, '26-27', 'NGAN-HANG', 'lenses', ${question.type}, ${question.prompt},
+        ${JSON.stringify(question.options)}::jsonb, '{}'::jsonb, ${JSON.stringify(question.correctAnswer)}::jsonb,
+        'lens-live', ${index + 1}, ${question.slug}, ${question.durationSeconds}
+      )
+      ON CONFLICT (slug) DO UPDATE SET
+        activity_key = EXCLUDED.activity_key,
+        question_type = EXCLUDED.question_type,
+        prompt = EXCLUDED.prompt,
+        options = EXCLUDED.options,
+        correct_answer = EXCLUDED.correct_answer,
+        quiz_set = EXCLUDED.quiz_set,
+        quiz_order = EXCLUDED.quiz_order,
+        duration_seconds = EXCLUDED.duration_seconds,
+        updated_at = NOW()
+    `;
+  }
+
   const legacyQuestions = await sql`
     SELECT question.*
     FROM prism_live_questions question
@@ -858,7 +956,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
   const rows = await sql`
     SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
       ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
-      resistivity_open, resistance_factors_practice_open, lens_practice_open,
+      resistivity_open, resistance_factors_practice_open,
       optics_game_running, optics_game_round, optics_game_started_at, optics_game_ended_at, updated_at
     FROM activity_settings
   `;
@@ -880,7 +978,6 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       ohmRaceStartedAt: row?.ohm_race_started_at ? new Date(String(row.ohm_race_started_at)).toISOString() : null,
       resistivityOpen: Boolean(row?.resistivity_open),
       resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
-      lensPracticeOpen: Boolean(row?.lens_practice_open),
       opticsGameRunning: Boolean(row?.optics_game_running),
       opticsGameRound: Math.max(1, Number(row?.optics_game_round ?? 1)),
       opticsGameStartedAt: row?.optics_game_started_at ? new Date(String(row.optics_game_started_at)).toISOString() : null,
@@ -888,7 +985,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v7"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v8"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
@@ -1075,17 +1172,6 @@ export async function setResistanceFactorsPracticeOpen(isOpen: boolean) {
     UPDATE activity_settings
     SET resistance_factors_practice_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'resistance-factors'
-  `;
-  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
-}
-
-export async function setLensPracticeOpen(isOpen: boolean) {
-  await ensureSchema();
-  const sql = getSql();
-  await sql`
-    UPDATE activity_settings
-    SET lens_practice_open = ${isOpen}, updated_at = NOW()
-    WHERE activity_key = 'lenses'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }

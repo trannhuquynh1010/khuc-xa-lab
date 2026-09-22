@@ -12,7 +12,6 @@ import { createEmptyOhmRaceAnswers, getOhmRaceQuestion, isOhmRaceAnswerCorrect, 
 import { createEmptyOpticsQuestAnswers, OPTICS_QUEST_QUESTION_COUNT } from "@/lib/optics-quest";
 import { isOpticsQuestAnswerCorrect } from "@/lib/optics-quest-score";
 import { createEmptyOpticsReviewAnswers, getOpticsReviewQuestion, isOpticsReviewAnswerCorrect, isOpticsReviewResponseAnswered, OPTICS_REVIEW_QUESTION_COUNT } from "@/lib/optics-review";
-import { createEmptyLensPracticeAnswers, getLensPracticeQuestion, isLensPracticeAnswerCorrect, lensPracticeQuestions, LENS_PRACTICE_QUESTION_COUNT } from "@/lib/lens-practice";
 
 type ScoreResult = { completedCount: number; correctCount: number; totalItems: number; bonusPoint: number };
 
@@ -61,7 +60,6 @@ export function emptyPracticeAnswers(key: PracticeKey): unknown {
   if (key === "ohm-race") return createEmptyOhmRaceAnswers(1);
   if (key === "optics-quest") return createEmptyOpticsQuestAnswers(1);
   if (key === "optics-review") return createEmptyOpticsReviewAnswers();
-  if (key === "lens-practice") return createEmptyLensPracticeAnswers();
   return { controls: {}, rankOrder: [], lengthScale: "", areaScale: "", diagnosis: "", fix: "", statementAnswers: {} };
 }
 
@@ -138,13 +136,6 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
     const completedCount = valid ? questions.filter((question) => question && checkedIds.has(question.id) && isOpticsReviewResponseAnswered(responses[question.id])).length : 0;
     const correctCount = valid ? questions.filter((question) => question && checkedIds.has(question.id) && isOpticsReviewAnswerCorrect(question, responses[question.id])).length : 0;
     return finish(completedCount, correctCount, OPTICS_REVIEW_QUESTION_COUNT);
-  }
-
-  if (key === "lens-practice") {
-    const responses = record(answers.responses);
-    const completedCount = lensPracticeQuestions.filter((question) => typeof responses[question.id] === "string" && (responses[question.id] as string).trim()).length;
-    const correctCount = lensPracticeQuestions.filter((question) => isLensPracticeAnswerCorrect(getLensPracticeQuestion(question.id), responses[question.id])).length;
-    return finish(completedCount, correctCount, LENS_PRACTICE_QUESTION_COUNT);
   }
 
   const controls = record(answers.controls);

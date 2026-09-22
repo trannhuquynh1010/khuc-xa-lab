@@ -5,7 +5,7 @@ import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivityS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleLensPractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -58,9 +58,6 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const opticsReviewSummaryPromise = selectedKey === "optics-review"
     ? getPracticeAttemptSummary(selectedYear, "optics-review", selectedClass)
     : null;
-  const lensPracticeSummaryPromise = selectedKey === "lenses"
-    ? getPracticeAttemptSummary(selectedYear, "lens-practice", selectedClass)
-    : null;
   const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
   const currentSetting = settings.find((setting) => setting.key === selectedKey)!;
@@ -102,7 +99,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
             <TeacherToggleSubmitButton isOpen={currentSetting.isOpen} openLabel="Mở bài" closeLabel="Đóng bài" />
           </form>
-          {selectedKey !== "optics-game" && selectedKey !== "optics-review" && selectedKey !== "total-internal-reflection" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
+          {selectedKey !== "optics-game" && selectedKey !== "optics-review" && selectedKey !== "total-internal-reflection" && selectedKey !== "lenses" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
         </div>
       </section>
 
@@ -118,21 +115,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
         </section>
       ) : null}
 
-      {selectedKey === "lenses" && (
-        <>
-          <section className="activity-control-panel construction-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">)(</span><div><p className="eyebrow">BỘ LUYỆN TẬP</p><h2>Bài tập củng cố thấu kính</h2><p>Vận dụng sau bài học: quang tâm, trục chính, tiêu điểm, tiêu cự và tạo ảnh.</p></div></div>
-            <div className="activity-control-actions">
-              <span className={`status-badge ${currentSetting.lensPracticeOpen ? "open" : "closed"}`}>{currentSetting.lensPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-              <form action={toggleLensPractice}>
-                <input type="hidden" name="nextOpen" value={String(!currentSetting.lensPracticeOpen)} />
-                <TeacherToggleSubmitButton isOpen={currentSetting.lensPracticeOpen} openLabel="Mở luyện tập" closeLabel="Đóng luyện tập" />
-              </form>
-            </div>
-          </section>
-          {lensPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={lensPracticeSummaryPromise} practiceKey="lens-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
-        </>
-      )}
+      {selectedKey === "lenses" ? <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} activityKey="lenses" title="Bài tập củng cố Thấu kính" /> : null}
 
       {selectedKey === "refraction" && (
         <>
