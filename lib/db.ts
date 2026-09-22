@@ -14,7 +14,7 @@ import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attem
 import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
 import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
-import { OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
+import { getOpticsQuestQuestion, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestQuestionStat, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
 import { gradeOpticsQuest } from "@/lib/optics-quest-score";
 import { computePrismLiveBonusPoint, normalizePrismLiveAnswer, prismLiveBonusConfigs, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
 
@@ -1976,6 +1976,16 @@ export async function getOpticsQuestSnapshot(schoolYear: string, className: stri
   const endedAtMs = setting?.opticsGameEndedAt ? new Date(setting.opticsGameEndedAt).getTime() : null;
   const cutoffMs = endedAtMs ?? Date.now();
 
+  // Thống kê theo từng câu (đúng/sai/đã trả lời) trên toàn lớp, gộp từ mọi học sinh đã tham gia.
+  const questionStatMap = new Map<string, { answeredCount: number; correctCount: number; attemptedCount: number }>();
+  function recordQuestionStat(questionId: string, answered: boolean, correct: boolean) {
+    const current = questionStatMap.get(questionId) ?? { answeredCount: 0, correctCount: 0, attemptedCount: 0 };
+    current.attemptedCount += 1;
+    if (answered) current.answeredCount += 1;
+    if (correct) current.correctCount += 1;
+    questionStatMap.set(questionId, current);
+  }
+
   const players: OpticsQuestPlayer[] = rows.flatMap((row) => {
     const data = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
     const groupName = typeof data.groupName === "string" && groupNames.includes(data.groupName as (typeof groupNames)[number]) ? data.groupName : "";
@@ -1983,6 +1993,7 @@ export async function getOpticsQuestSnapshot(schoolYear: string, className: stri
     const studentNumber = Number(row.student_number);
     const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
     const graded = gradeOpticsQuest(studentNumber, round, questionIds, readStringMap(data.responses));
+    for (const item of graded.items) recordQuestionStat(item.id, item.answered, item.correct);
     const finished = row.status === "submitted";
     const submittedMs = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
     const effectiveEnd = finished && submittedMs !== null ? submittedMs : cutoffMs;
@@ -1996,6 +2007,22 @@ export async function getOpticsQuestSnapshot(schoolYear: string, className: stri
       elapsedSeconds,
     }];
   }).sort((left, right) => left.studentNumber - right.studentNumber);
+
+  const questionStats: OpticsQuestQuestionStat[] = [...questionStatMap.entries()]
+    .map(([id, stat]) => {
+      const question = getOpticsQuestQuestion(id);
+      return {
+        id,
+        title: question?.title ?? id,
+        stationLabel: question?.stationLabel ?? "",
+        station: question?.station ?? 0,
+        answeredCount: stat.answeredCount,
+        correctCount: stat.correctCount,
+        wrongCount: stat.attemptedCount - stat.correctCount,
+        attemptedCount: stat.attemptedCount,
+      };
+    })
+    .sort((left, right) => left.station - right.station || left.title.localeCompare(right.title));
 
   const groups: OpticsQuestGroup[] = groupNames.map((groupName) => {
     const members = players.filter((player) => player.groupName === groupName);
@@ -2026,6 +2053,7 @@ export async function getOpticsQuestSnapshot(schoolYear: string, className: stri
     classCorrectRate,
     players,
     groups,
+    questionStats,
   };
 }
 

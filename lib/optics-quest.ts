@@ -36,6 +36,17 @@ export type OpticsQuestGroup = {
   rank: number | null;
 };
 
+export type OpticsQuestQuestionStat = {
+  id: string;
+  title: string;
+  stationLabel: string;
+  station: number;
+  answeredCount: number;
+  correctCount: number;
+  wrongCount: number;
+  attemptedCount: number;
+};
+
 export type OpticsQuestSnapshot = {
   round: number;
   isOpen: boolean;
@@ -48,6 +59,7 @@ export type OpticsQuestSnapshot = {
   classCorrectRate: number;
   players: OpticsQuestPlayer[];
   groups: OpticsQuestGroup[];
+  questionStats: OpticsQuestQuestionStat[];
 };
 
 export type OpticsQuestRevealItem = {
@@ -93,7 +105,7 @@ const stations: OpticsQuestQuestion[][] = [
     { id: "r-normal", station: 1, stationLabel: "Cổng khúc xạ", title: "Tia đi theo pháp tuyến", prompt: "Một tia tới vuông góc mặt phân cách. Góc khúc xạ bằng bao nhiêu?", kind: "number", unit: "°", visual: "refraction" },
     { id: "r-index", station: 1, stationLabel: "Cổng khúc xạ", title: "Giải mã chiết suất", prompt: "Từ không khí vào môi trường X: sin i = 0,60; sin r = 0,40. Chiết suất của X gần bằng bao nhiêu?", kind: "number", visual: "refraction" },
     { id: "r-snell-sine", station: 1, stationLabel: "Cổng khúc xạ", title: "Khóa số Snell", prompt: "Tia truyền từ không khí vào thủy tinh có n = 1,50 và sin i = 0,75. Tính sin r.", kind: "number", visual: "refraction" },
-    { id: "r-speed", station: 1, stationLabel: "Cổng khúc xạ", title: "Tốc độ trong thủy tinh", prompt: "Chiết suất của thủy tinh là 1,50. Tốc độ ánh sáng trong chân không là 300 000 km/s. Tính tốc độ ánh sáng trong thủy tinh.", kind: "number", unit: "km/s", visual: "refraction" },
+    { id: "r-speed", station: 1, stationLabel: "Cổng khúc xạ", title: "Tốc độ trong nước", prompt: "Chiết suất của nước là 1,33. Tốc độ ánh sáng trong chân không là 300 000 km/s. Tính tốc độ ánh sáng trong nước, làm tròn đến hàng nghìn.", kind: "number", unit: "km/s", visual: "refraction" },
   ],
   [
     { id: "a-fish", station: 2, stationLabel: "Mắt nhìn dưới nước", title: "Con cá ở đâu?", prompt: "Nhìn gần vuông góc từ trên mặt nước, ta thấy con cá ở vị trí nào so với vị trí thật?", kind: "choice", choices: [{ value: "shallower", label: "Gần mặt nước hơn" }, { value: "deeper", label: "Sâu hơn" }, { value: "same", label: "Đúng vị trí thật" }], visual: "apparent" },
@@ -116,8 +128,8 @@ const stations: OpticsQuestQuestion[][] = [
     { id: "p-white", station: 4, stationLabel: "Mật mã lăng kính", title: "Nguồn của dải màu", prompt: "Ánh sáng trắng qua lăng kính tách thành nhiều màu vì sao?", kind: "choice", choices: [{ value: "index", label: "Chiết suất phụ thuộc màu ánh sáng" }, { value: "paint", label: "Lăng kính chứa sẵn các màu" }, { value: "heat", label: "Lăng kính bị nóng lên" }], visual: "prism" },
     { id: "p-second", station: 4, stationLabel: "Mật mã lăng kính", title: "Ghép lại ánh sáng", prompt: "Đặt lăng kính thứ hai ngược chiều phù hợp sau lăng kính thứ nhất. Kết quả có thể là gì?", kind: "choice", choices: [{ value: "white", label: "Các màu ghép lại gần thành ánh sáng trắng" }, { value: "black", label: "Ánh sáng biến mất hoàn toàn" }, { value: "violet", label: "Chỉ còn tia tím" }], visual: "prism" },
     { id: "p-red", station: 4, stationLabel: "Mật mã lăng kính", title: "Một tia đỏ đơn sắc", prompt: "Chiếu ánh sáng đỏ đơn sắc qua lăng kính. Quan sát nào đúng?", kind: "choice", choices: [{ value: "red-only", label: "Chỉ có tia đỏ bị lệch" }, { value: "spectrum", label: "Xuất hiện đủ bảy màu" }, { value: "no-light", label: "Không có tia ló" }], visual: "prism" },
-    { id: "p-violet-speed", station: 4, stationLabel: "Mật mã lăng kính", title: "Tốc độ tia tím", prompt: "Với tia tím, lăng kính có n = 1,50. Lấy c = 300 000 km/s. Tính tốc độ truyền của tia tím trong lăng kính.", kind: "number", unit: "km/s", visual: "prism" },
-    { id: "p-color-speed", station: 4, stationLabel: "Mật mã lăng kính", title: "So tốc độ hai màu", prompt: "Trong lăng kính, chiết suất đối với tia đỏ là 1,50 và tia tím là 1,60. Tốc độ ánh sáng trong chân không là 300 000 km/s. Tính độ chênh lệch tốc độ giữa hai tia.", kind: "number", unit: "km/s", visual: "prism" },
+    { id: "p-violet-speed", station: 4, stationLabel: "Mật mã lăng kính", title: "Tốc độ tia tím", prompt: "Với tia tím, lăng kính có n = 1,60. Lấy c = 300 000 km/s. Tính tốc độ truyền của tia tím trong lăng kính, làm tròn đến hàng nghìn.", kind: "number", unit: "km/s", visual: "prism" },
+    { id: "p-color-speed", station: 4, stationLabel: "Mật mã lăng kính", title: "So tốc độ hai màu", prompt: "Trong lăng kính, chiết suất đối với tia đỏ là 1,40 và tia tím là 1,60. Tốc độ ánh sáng trong chân không là 300 000 km/s. Tính độ chênh lệch tốc độ giữa hai tia, làm tròn đến hàng nghìn.", kind: "number", unit: "km/s", visual: "prism" },
   ],
   [
     { id: "c-red-white", station: 5, stationLabel: "Phòng màu sắc", title: "Vật đỏ dưới ánh sáng trắng", prompt: "Vì sao mắt thấy một vật màu đỏ dưới ánh sáng trắng?", kind: "choice", choices: [{ value: "reflect-red", label: "Vật phản xạ ánh sáng đỏ vào mắt và hấp thụ phần lớn màu khác" }, { value: "make-red", label: "Vật tự tạo ra ánh sáng đỏ" }, { value: "eye-paint", label: "Mắt nhuộm ánh sáng thành đỏ" }], visual: "color" },

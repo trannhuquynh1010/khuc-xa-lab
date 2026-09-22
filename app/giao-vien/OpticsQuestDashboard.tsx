@@ -88,8 +88,27 @@ export default function OpticsQuestDashboard({ className, schoolYear, presentati
 
       {!presentation ? (
         <details className="quest-player-details">
+          <summary>Báo cáo theo từng câu ({(snapshot?.questionStats ?? []).length})</summary>
+          <div className="table-scroll quest-table-scroll"><table>
+            <thead><tr><th>Trạm</th><th>Câu hỏi</th><th>Đã trả lời</th><th>Đúng</th><th>Sai</th><th>% đúng</th></tr></thead>
+            <tbody>{(snapshot?.questionStats ?? []).map((stat) => (
+              <tr key={stat.id}>
+                <td>{stat.station}</td>
+                <td>{stat.stationLabel} · {stat.title}</td>
+                <td>{stat.answeredCount}/{stat.attemptedCount}</td>
+                <td className="quest-stat-correct">{stat.correctCount}</td>
+                <td className="quest-stat-wrong">{stat.wrongCount}</td>
+                <td>{stat.attemptedCount ? Math.round(stat.correctCount / stat.attemptedCount * 100) : 0}%</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </details>
+      ) : null}
+
+      {!presentation ? (
+        <details className="quest-player-details">
           <summary>Chi tiết học sinh ({snapshot?.participantCount ?? 0})</summary>
-          <div className="table-scroll"><table>
+          <div className="table-scroll quest-table-scroll"><table>
             <thead><tr><th>STT</th><th>Nhóm</th><th>Đã trả lời</th><th>Số câu đúng</th><th>% đúng</th><th>Thời gian</th><th>Trạng thái</th></tr></thead>
             <tbody>{(snapshot?.players ?? []).map((player) => (
               <tr key={player.studentNumber}>

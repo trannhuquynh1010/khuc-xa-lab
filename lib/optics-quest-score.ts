@@ -12,7 +12,7 @@ export const opticsQuestAnswerKey: Record<string, AnswerEntry> = {
   "r-normal": { answer: "0", tolerance: 0.01, explanation: "Tia tới theo pháp tuyến có i = 0° và truyền thẳng với r = 0°." },
   "r-index": { answer: "1.5", tolerance: 0.01, explanation: "n ≈ sin i/sin r = 0,60/0,40 = 1,50." },
   "r-snell-sine": { answer: "0.5", tolerance: 0.01, explanation: "sin r = 0,75/1,50 = 0,50." },
-  "r-speed": { answer: "200000", tolerance: 1, explanation: "v = 300 000/1,50 = 200 000 km/s." },
+  "r-speed": { answer: "226000", tolerance: 1000, explanation: "v = 300 000/1,33 ≈ 225 564 km/s, làm tròn đến hàng nghìn ≈ 226 000 km/s." },
   // Trạm 2 · Mắt nhìn dưới nước
   "a-fish": { answer: "shallower", explanation: "Mắt kéo dài tia ló theo đường thẳng và thấy ảnh ảo của cá gần mặt nước hơn." },
   "a-branch": { answer: "higher", explanation: "Tia từ không khí vào nước lệch về pháp tuyến; mắt truy ngược tia và thấy ảnh cao hơn." },
@@ -32,8 +32,8 @@ export const opticsQuestAnswerKey: Record<string, AnswerEntry> = {
   "p-white": { answer: "index", explanation: "Mỗi thành phần màu có chiết suất khác nhau nên bị lệch khác nhau." },
   "p-second": { answer: "white", explanation: "Lăng kính thứ hai có thể bù độ lệch và tổng hợp các thành phần màu." },
   "p-red": { answer: "red-only", explanation: "Ánh sáng đơn sắc không bị phân tích thành các màu khác." },
-  "p-violet-speed": { answer: "200000", tolerance: 1, explanation: "v = c/n = 300 000/1,50 = 200 000 km/s." },
-  "p-color-speed": { answer: "12500", tolerance: 1, explanation: "vđỏ = 200 000 km/s; vtím = 187 500 km/s; chênh lệch 12 500 km/s." },
+  "p-violet-speed": { answer: "187500", tolerance: 1, explanation: "v = c/n = 300 000/1,60 = 187 500 km/s." },
+  "p-color-speed": { answer: "27000", tolerance: 1000, explanation: "vđỏ = 300 000/1,40 ≈ 214 286 km/s; vtím = 300 000/1,60 = 187 500 km/s; chênh lệch ≈ 26 786 km/s, làm tròn đến hàng nghìn ≈ 27 000 km/s." },
   // Trạm 5 · Phòng màu sắc
   "c-red-white": { answer: "reflect-red", explanation: "Màu quan sát phụ thuộc ánh sáng vật phản xạ truyền tới mắt." },
   "c-blue-red": { answer: "dark", explanation: "Nguồn không có ánh sáng xanh để vật phản xạ vào mắt." },

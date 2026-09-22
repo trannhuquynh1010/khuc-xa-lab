@@ -1063,9 +1063,15 @@ details .table-scroll { margin-top: 12px; }
 .quest-member-dots span.playing, .quest-member-dots span.finished { color: var(--ink); background: var(--quest-group-color); }
 .quest-member-dots span.finished { box-shadow: 0 0 0 2px #fff; }
 .quest-player-details { margin-top: 14px; border: 1px solid #484269; border-radius: 14px; }
-.quest-player-details summary { padding: 12px 14px; cursor: pointer; font-weight: 800; }
+.quest-player-details summary { padding: 12px 14px; cursor: pointer; font-weight: 800; color: #fff; }
 .quest-player-details table { width: 100%; border-collapse: collapse; }
 .quest-player-details th, .quest-player-details td { padding: 9px; border-top: 1px solid #393451; text-align: left; }
+/* Bảng nằm trên nền trắng (.table-scroll) bên trong khối tối của dashboard: ép chữ màu đậm để không bị trắng-trên-trắng. */
+.quest-table-scroll { background: #fff; }
+.quest-table-scroll th, .quest-table-scroll td { color: var(--ink, #17142c); }
+.quest-table-scroll thead th { color: var(--ink, #17142c); background: #f1ede5; }
+.quest-stat-correct { color: #15803d; font-weight: 800; }
+.quest-stat-wrong { color: #b42318; font-weight: 800; }
 .quest-table-group { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .quest-table-group i { display: inline-block; box-shadow: none; }
 .optics-quest-dashboard.presentation { margin-top: 0; padding: 26px; }
