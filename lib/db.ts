@@ -843,7 +843,7 @@ async function initializeSchema() {
     {
       slug: "lens-live-6",
       type: "single",
-      prompt: "Đặc điểm hình dạng nào giúp nhận biết thấu kính hội tụ (phần rìa mỏng)?",
+      prompt: "Đặc điểm hình dạng nào giúp nhận biết thấu kính hội tụ?",
       options: ["Phần giữa dày hơn phần mép", "Phần mép dày hơn phần giữa", "Hai mặt đều là mặt phẳng song song", "Độ dày đều nhau ở mọi vị trí"],
       correctAnswer: { type: "single", selected: 0 },
       durationSeconds: 55,
@@ -875,10 +875,15 @@ async function initializeSchema() {
     {
       slug: "lens-live-10",
       type: "single",
-      prompt: "Đặt vật ngoài khoảng tiêu cự của thấu kính hội tụ (d > f). Ảnh thu được qua thấu kính là:",
-      options: ["Ảnh thật, ngược chiều với vật", "Ảnh ảo, cùng chiều với vật", "Ảnh thật, cùng chiều với vật", "Không tạo được ảnh"],
+      prompt: "Ảnh của một vật qua thấu kính là gì?",
+      options: [
+        "Điểm hội tụ của các tia sáng xuất phát từ vật sau khi qua thấu kính, hoặc điểm mà đường kéo dài của các tia ló gặp nhau",
+        "Bóng tối của vật chiếu lên màn",
+        "Phần ánh sáng bị thấu kính hấp thụ từ vật",
+        "Hình ảnh vật phản xạ ngược chiều trên mặt thấu kính",
+      ],
       correctAnswer: { type: "single", selected: 0 },
-      durationSeconds: 80,
+      durationSeconds: 90,
     },
   ] as const;
   for (const [index, question] of lensQuestions.entries()) {
