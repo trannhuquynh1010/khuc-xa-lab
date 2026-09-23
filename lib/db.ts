@@ -237,6 +237,9 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'released_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM prism_live_questions WHERE slug = 'lens-live-1'
       )
     ) AS ready
   `;
