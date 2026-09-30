@@ -1337,8 +1337,13 @@ details .table-scroll { margin-top: 12px; }
 .lens-construction-control-group > span { font-size: .74rem; font-weight: 900; }
 .lens-construction-control-group .practice-options-horizontal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .lens-construction-control-group:first-child .practice-options-horizontal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lens-construction-workspace { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .lens-construction-stage { position: relative; overflow: auto; border: 1.5px solid var(--ink); border-radius: 20px; background: #fff; }
-.lens-construction-diagram { display: block; width: 100%; height: auto; min-width: 700px; }
+.lens-construction-diagram { display: block; width: 100%; height: auto; min-width: 520px; }
+@media (max-width: 900px) {
+  .lens-construction-workspace { grid-template-columns: 1fr; }
+  .lens-construction-diagram { min-width: 560px; }
+}
 .lens-construction-grid-line { stroke: #e4ecf0; stroke-width: 1; }
 .lens-construction-axis-line { stroke: #8a9aa5; stroke-width: 1.4; }
 .lens-construction-glyph .lens-construction-lens-body { stroke: var(--lens-blue-dark); stroke-width: 2; stroke-dasharray: 5 4; }
@@ -1349,7 +1354,7 @@ details .table-scroll { margin-top: 12px; }
 .lens-construction-image { stroke: #7b5be7; stroke-width: 4; stroke-linecap: round; animation: lens-reveal .35s ease both; }
 .lens-construction-ray.incident { stroke: #ef8b00; stroke-width: 2.6; stroke-linecap: round; animation: lens-reveal .3s ease both; }
 .lens-construction-ray.emergent { stroke: #1677b8; stroke-width: 2.6; stroke-linecap: round; animation: lens-reveal .3s ease both; }
-.lens-construction-rays-panel { display: grid; gap: 11px; padding: 15px; border: 1.4px solid var(--ink); border-radius: 17px; background: var(--paper); }
+.lens-construction-rays-panel { display: grid; gap: 11px; align-content: start; padding: 15px; border: 1.4px solid var(--ink); border-radius: 17px; background: var(--paper); max-height: 640px; overflow-y: auto; }
 .lens-construction-rays-heading { margin: 0; font-size: .8rem; font-weight: 900; }
 .lens-construction-ray-buttons { display: grid; gap: 8px; }
 .lens-construction-ray-buttons button { padding: 10px 13px; border: 1.3px solid var(--ink); border-radius: 12px; color: var(--ink); background: #fff; font-size: .8rem; font-weight: 800; text-align: left; cursor: pointer; }

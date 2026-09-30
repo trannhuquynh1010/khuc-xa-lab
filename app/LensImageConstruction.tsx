@@ -115,17 +115,17 @@ function LensGlyph({ kind }: { kind: LensKind }) {
 function ArrowDefs() {
   return (
     <defs>
-      <marker id="lc-arrow-incident" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto" markerUnits="strokeWidth">
-        <path d="M0,0 L8,4.5 L0,9 Z" fill="#ef8b00" />
+      <marker id="lc-arrow-incident" markerWidth="10" markerHeight="10" refX="4" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L9,5 L0,10 Z" fill="#ef8b00" />
       </marker>
-      <marker id="lc-arrow-emergent" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto" markerUnits="strokeWidth">
-        <path d="M0,0 L8,4.5 L0,9 Z" fill="#1677b8" />
+      <marker id="lc-arrow-emergent" markerWidth="10" markerHeight="10" refX="4" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L9,5 L0,10 Z" fill="#1677b8" />
       </marker>
-      <marker id="lc-arrow-object" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="strokeWidth">
-        <path d="M0,0 L8,4.5 L0,9 Z" fill="#ef8b00" />
+      <marker id="lc-arrow-object" markerWidth="10" markerHeight="10" refX="4" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L9,5 L0,10 Z" fill="#ef8b00" />
       </marker>
-      <marker id="lc-arrow-image" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="strokeWidth">
-        <path d="M0,0 L8,4.5 L0,9 Z" fill="#7b5be7" />
+      <marker id="lc-arrow-image" markerWidth="10" markerHeight="10" refX="4" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L9,5 L0,10 Z" fill="#7b5be7" />
       </marker>
     </defs>
   );
@@ -167,6 +167,23 @@ function buildRayPaths(kind: LensKind, rayId: RayId, d: number, height: number) 
   const extendFactor = 14;
   const emergentEnd: Point = [atLens[0] + afterDirection[0] * extendFactor, atLens[1] + afterDirection[1] * extendFactor];
   return { objectTip, atLens, emergentEnd, afterDirection };
+}
+
+/** Vẽ một mũi tên nhỏ ngay giữa đoạn (px1,py1)-(px2,py2), hướng theo chiều truyền của tia sáng. */
+function MidArrow({ p1, p2, markerId }: { p1: Point; p2: Point; markerId: string }) {
+  const mx = (p1[0] + p2[0]) / 2;
+  const my = (p1[1] + p2[1]) / 2;
+  const dx = p2[0] - p1[0];
+  const dy = p2[1] - p1[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const half = 0.01;
+  const ax1 = mx - ux * half;
+  const ay1 = my - uy * half;
+  const ax2 = mx + ux * half;
+  const ay2 = my + uy * half;
+  return <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} markerEnd={`url(#${markerId})`} stroke="transparent" />;
 }
 
 export default function LensImageConstruction() {
@@ -225,6 +242,7 @@ export default function LensImageConstruction() {
       return;
     }
     if (selectedRayIds.length >= 2) return;
+    if (pendingEmergentChoice) return;
     setSelectedRayIds((current) => [...current, rayId]);
     setRayPhases((current) => ({ ...current, [rayId]: "incident" }));
     setPendingEmergentChoice(rayId);
@@ -289,6 +307,7 @@ export default function LensImageConstruction() {
         </div>
       </div>
 
+      <div className="lens-construction-workspace">
       <div className="lens-construction-stage">
         <svg className="lens-construction-diagram" viewBox={`0 0 ${GRID_HALF_COLS * 2 * UNIT} ${GRID_HALF_ROWS * 2 * UNIT}`} role="img" aria-label="Sơ đồ dựng ảnh qua thấu kính trên lưới ô ly">
           <ArrowDefs />
@@ -309,9 +328,16 @@ export default function LensImageConstruction() {
           })()}
 
           {(() => {
-            const [ox, oy] = toPixel([-d, 0]);
-            const [tx, ty] = toPixel([-d, OBJECT_HEIGHT]);
-            return <line className="lens-construction-object" x1={ox} y1={oy} x2={tx} y2={ty} markerEnd="url(#lc-arrow-object)" />;
+            const objBase: Point = [-d, 0];
+            const objTip: Point = [-d, OBJECT_HEIGHT];
+            const [ox, oy] = toPixel(objBase);
+            const [tx, ty] = toPixel(objTip);
+            return (
+              <>
+                <line className="lens-construction-object" x1={ox} y1={oy} x2={tx} y2={ty} />
+                <MidArrow p1={[ox, oy]} p2={[tx, ty]} markerId="lc-arrow-object" />
+              </>
+            );
           })()}
 
           {selectedRayIds.map((rayId) => {
@@ -322,8 +348,14 @@ export default function LensImageConstruction() {
             const [ex, ey] = toPixel(emergentEnd);
             return (
               <g key={rayId}>
-                <line className="lens-construction-ray incident" x1={ox} y1={oy} x2={lx} y2={ly} markerEnd="url(#lc-arrow-incident)" />
-                {phase === "complete" ? <line className="lens-construction-ray emergent" x1={lx} y1={ly} x2={ex} y2={ey} markerEnd="url(#lc-arrow-emergent)" /> : null}
+                <line className="lens-construction-ray incident" x1={ox} y1={oy} x2={lx} y2={ly} />
+                <MidArrow p1={[ox, oy]} p2={[lx, ly]} markerId="lc-arrow-incident" />
+                {phase === "complete" ? (
+                  <>
+                    <line className="lens-construction-ray emergent" x1={lx} y1={ly} x2={ex} y2={ey} />
+                    <MidArrow p1={[lx, ly]} p2={[ex, ey]} markerId="lc-arrow-emergent" />
+                  </>
+                ) : null}
               </g>
             );
           })}
@@ -331,7 +363,12 @@ export default function LensImageConstruction() {
           {bothRaysComplete && imageTip ? (() => {
             const [ix, iy] = toPixel([imageTip![0], 0]);
             const [tx, ty] = toPixel(imageTip!);
-            return <line className="lens-construction-image" x1={ix} y1={iy} x2={tx} y2={ty} markerEnd="url(#lc-arrow-image)" />;
+            return (
+              <>
+                <line className="lens-construction-image" x1={ix} y1={iy} x2={tx} y2={ty} />
+                <MidArrow p1={[ix, iy]} p2={[tx, ty]} markerId="lc-arrow-image" />
+              </>
+            );
           })() : null}
         </svg>
       </div>
@@ -341,7 +378,7 @@ export default function LensImageConstruction() {
         <div className="lens-construction-ray-buttons">
           {availableRays.map((rayId) => {
             const selected = selectedRayIds.includes(rayId);
-            const disabled = !selected && selectedRayIds.length >= 2;
+            const disabled = !selected && (selectedRayIds.length >= 2 || pendingEmergentChoice !== null);
             return (
               <button key={rayId} type="button" className={selected ? "selected" : ""} disabled={disabled} onClick={() => toggleRaySelection(rayId)}>
                 {selected ? "✓ " : ""}{rayLabels[rayId].incidentLabel}
@@ -374,6 +411,7 @@ export default function LensImageConstruction() {
             ))}
           </div>
         ) : null}
+      </div>
       </div>
 
       {bothRaysComplete ? (
