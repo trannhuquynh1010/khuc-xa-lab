@@ -26,13 +26,13 @@ const stages: Stage[] = [
       shortLabel: "Điểm tựa",
       eyebrow: "QUAN SÁT",
       question: "Chuồn chuồn chỉ chạm 1 điểm mà không rơi. Vì sao?",
-      answer: "Chuồn chuồn chỉ chạm 1 điểm O ở đầu. Hai cánh cong xuống, treo đều hai bên O. Chạm nhẹ, nó lắc rồi tự đứng thẳng lại.",
+      answer: "Chuồn chuồn chỉ chạm 1 điểm O ở đầu. Hai cánh cong xuống, treo đều hai bên O. Chạm nhẹ, nó lắc rồi tự đứng thẳng lại — đó là vì nó đang ở trạng thái cân bằng bền.",
     },
     en: {
       shortLabel: "Pivot point",
       eyebrow: "OBSERVE",
       question: "The dragonfly touches only 1 point without falling. Why?",
-      answer: "It touches only 1 point O at its head. Both wings curve down, hanging evenly on each side. A gentle push makes it wobble, then stand still again.",
+      answer: "It touches only 1 point O at its head. Both wings curve down, hanging evenly on each side. A gentle push makes it wobble, then stand still again — this is called stable equilibrium.",
     },
   },
   {
@@ -40,14 +40,14 @@ const stages: Stage[] = [
     vi: {
       shortLabel: "Trọng tâm",
       eyebrow: "TÌM ĐIỂM CÂN",
-      question: "Hai cánh nặng ở dưới, thân nhẹ ở trên. Trọng tâm G ở trên hay dưới điểm tựa O?",
-      answer: "Vì hai cánh nặng và cong xuống, trọng tâm G nằm dưới điểm tựa O. Khi cân bằng, G luôn ở ngay dưới O theo đường thẳng.",
+      question: "Trọng tâm G của chuồn chuồn nằm ở đâu?",
+      answer: "Hai cánh nặng bằng nhau và đối xứng hai bên. Vì hai cánh cong xuống, trọng tâm G nằm dưới điểm tựa O, ngay trên đường thẳng đứng qua O.",
     },
     en: {
       shortLabel: "Center of mass",
       eyebrow: "FIND THE BALANCE POINT",
-      question: "The heavy wings are below, the light body is above. Is the center of mass G above or below the pivot O?",
-      answer: "Since the wings are heavy and curve down, the center of mass G lies below the pivot O. When balanced, G always sits directly below O.",
+      question: "Where is the dragonfly's center of mass G?",
+      answer: "Both wings are equally heavy and symmetric. Since the wings curve down, the center of mass G lies below the pivot O, right on the vertical line through O.",
     },
   },
   {
