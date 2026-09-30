@@ -94,20 +94,23 @@ function GridBackground() {
 function LensGlyph({ kind }: { kind: LensKind }) {
   const [x0, yTop] = toPixel([0, GRID_HALF_ROWS - 0.4]);
   const [, yBottom] = toPixel([0, -(GRID_HALF_ROWS - 0.4)]);
+  const mid = (yTop + yBottom) / 2;
   if (kind === "convex") {
+    // Thấu kính hội tụ: rìa mỏng, giữa dày — hai cạnh phình ra xa trục trung tâm ở giữa.
     return (
       <g className="lens-construction-glyph">
         <line x1={x0} y1={yTop} x2={x0} y2={yBottom} className="lens-construction-lens-body" />
-        <path d={`M${x0 - 9} ${yTop} Q${x0 + 9} ${(yTop + yBottom) / 2} ${x0 - 9} ${yBottom}`} className="lens-construction-lens-edge" />
-        <path d={`M${x0 + 9} ${yTop} Q${x0 - 9} ${(yTop + yBottom) / 2} ${x0 + 9} ${yBottom}`} className="lens-construction-lens-edge" />
+        <path d={`M${x0} ${yTop} Q${x0 - 9} ${mid} ${x0} ${yBottom}`} className="lens-construction-lens-edge" />
+        <path d={`M${x0} ${yTop} Q${x0 + 9} ${mid} ${x0} ${yBottom}`} className="lens-construction-lens-edge" />
       </g>
     );
   }
+  // Thấu kính phân kì: rìa dày, giữa mỏng — hai cạnh lõm vào gần trục trung tâm ở giữa.
   return (
     <g className="lens-construction-glyph">
       <line x1={x0} y1={yTop} x2={x0} y2={yBottom} className="lens-construction-lens-body" />
-      <path d={`M${x0 - 9} ${yTop + 10} L${x0} ${yTop} L${x0 + 9} ${yTop + 10}`} className="lens-construction-lens-edge" fill="none" />
-      <path d={`M${x0 - 9} ${yBottom - 10} L${x0} ${yBottom} L${x0 + 9} ${yBottom - 10}`} className="lens-construction-lens-edge" fill="none" />
+      <path d={`M${x0 - 9} ${yTop} Q${x0} ${mid} ${x0 - 9} ${yBottom}`} className="lens-construction-lens-edge" fill="none" />
+      <path d={`M${x0 + 9} ${yTop} Q${x0} ${mid} ${x0 + 9} ${yBottom}`} className="lens-construction-lens-edge" fill="none" />
     </g>
   );
 }
