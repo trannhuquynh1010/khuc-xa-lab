@@ -135,10 +135,14 @@ function rayAtLens(kind: LensKind, rayId: RayId, d: number, height: number): { a
   if (rayId === "parallel") {
     const atLens: Point = [0, height];
     if (kind === "convex") {
+      // Thấu kính hội tụ: tia ló đi qua tiêu điểm ảnh F′(f, 0) phía sau thấu kính.
       const dir: Point = [FOCAL_LENGTH - 0, 0 - height];
       return { atLens, afterDirection: dir };
     }
-    const dir: Point = [-(FOCAL_LENGTH - 0), -(0 - height)];
+    // Thấu kính phân kì: tia ló đi ra xa trục chính, đường kéo dài của nó (về phía sau, x âm)
+    // đi qua tiêu điểm F(-f, 0) cùng phía với vật. Vậy tia ló đi theo hướng từ F tới điểm tới atLens,
+    // tức là hướng (atLens - F) = (0 - (-f), height - 0) = (f, height), tiếp tục truyền về phía trước (x dương).
+    const dir: Point = [FOCAL_LENGTH - 0, height - 0];
     return { atLens, afterDirection: dir };
   }
   if (rayId === "center") {
@@ -384,10 +388,7 @@ export default function LensImageConstruction() {
                   </>
                 ) : null}
                 {showExtension ? (
-                  <>
-                    <line className="lens-construction-ray emergent-extension" x1={lx} y1={ly} x2={vx} y2={vy} />
-                    <MidArrow p1={[lx, ly]} p2={[vx, vy]} markerId="lc-arrow-emergent" />
-                  </>
+                  <line className="lens-construction-ray emergent-extension" x1={lx} y1={ly} x2={vx} y2={vy} />
                 ) : null}
               </g>
             );
