@@ -276,6 +276,7 @@ export default function LensImageConstruction() {
   const rayGeometry = completedRays.map((rayId) => ({ rayId, ...buildRayPaths(lensKind, rayId, d, OBJECT_HEIGHT) }));
 
   let imageTip: Point | null = null;
+  let imageIsVirtual = false;
   if (bothRaysComplete && rayGeometry.length === 2) {
     const [first, second] = rayGeometry;
     const denom = first.afterDirection[1] * second.afterDirection[0] - second.afterDirection[1] * first.afterDirection[0];
@@ -284,6 +285,8 @@ export default function LensImageConstruction() {
       const dy = second.atLens[1] - first.atLens[1];
       const t = (dy * second.afterDirection[0] - dx * second.afterDirection[1]) / denom;
       imageTip = [first.atLens[0] + first.afterDirection[0] * t, first.atLens[1] + first.afterDirection[1] * t];
+      // Ảnh ảo khi giao điểm nằm ở phía sau tia ló thực (t < 0), phải kéo dài ngược tia ló bằng nét đứt để tới được ảnh.
+      imageIsVirtual = t < 0;
     }
   }
 
@@ -348,6 +351,8 @@ export default function LensImageConstruction() {
             const [ox, oy] = toPixel(objectTip);
             const [lx, ly] = toPixel(atLens);
             const [ex, ey] = toPixel(emergentEnd);
+            const showExtension = phase === "complete" && bothRaysComplete && imageIsVirtual && imageTip;
+            const [vx, vy] = showExtension ? toPixel(imageTip!) : [lx, ly];
             return (
               <g key={rayId}>
                 <line className="lens-construction-ray incident" x1={ox} y1={oy} x2={lx} y2={ly} />
@@ -358,6 +363,7 @@ export default function LensImageConstruction() {
                     <MidArrow p1={[lx, ly]} p2={[ex, ey]} markerId="lc-arrow-emergent" />
                   </>
                 ) : null}
+                {showExtension ? <line className="lens-construction-ray emergent-extension" x1={lx} y1={ly} x2={vx} y2={vy} /> : null}
               </g>
             );
           })}
@@ -367,7 +373,7 @@ export default function LensImageConstruction() {
             const [tx, ty] = toPixel(imageTip!);
             return (
               <>
-                <line className="lens-construction-image" x1={ix} y1={iy} x2={tx} y2={ty} />
+                <line className={`lens-construction-image${imageIsVirtual ? " virtual" : ""}`} x1={ix} y1={iy} x2={tx} y2={ty} />
                 <MidArrow p1={[ix, iy]} p2={[tx, ty]} markerId="lc-arrow-image" />
               </>
             );

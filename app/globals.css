@@ -1352,8 +1352,10 @@ details .table-scroll { margin-top: 12px; }
 .lens-construction-label { font-size: 15px; font-weight: 900; fill: #2c3a45; }
 .lens-construction-object { stroke: #ef8b00; stroke-width: 4; stroke-linecap: round; }
 .lens-construction-image { stroke: #7b5be7; stroke-width: 4; stroke-linecap: round; animation: lens-reveal .35s ease both; }
+.lens-construction-image.virtual { stroke-dasharray: 9 7; }
 .lens-construction-ray.incident { stroke: #ef8b00; stroke-width: 2.6; stroke-linecap: round; animation: lens-reveal .3s ease both; }
 .lens-construction-ray.emergent { stroke: #1677b8; stroke-width: 2.6; stroke-linecap: round; animation: lens-reveal .3s ease both; }
+.lens-construction-ray.emergent-extension { stroke: #1677b8; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 7 6; opacity: .75; animation: lens-reveal .3s ease both; }
 .lens-construction-rays-panel { display: grid; gap: 11px; align-content: start; padding: 15px; border: 1.4px solid var(--ink); border-radius: 17px; background: var(--paper); max-height: 640px; overflow-y: auto; }
 .lens-construction-rays-heading { margin: 0; font-size: .8rem; font-weight: 900; }
 .lens-construction-ray-buttons { display: grid; gap: 8px; }
