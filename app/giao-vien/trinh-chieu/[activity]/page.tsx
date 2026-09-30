@@ -9,6 +9,7 @@ import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResu
 import PresentationToolbar from "../PresentationToolbar";
 import PhysicsBrand from "../../../PhysicsBrand";
 import LensPathExplorer from "../../../LensPathExplorer";
+import DragonflyBalanceExplorer from "../../../DragonflyBalanceExplorer";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,9 @@ export default async function PresentationPage({ params, searchParams }: { param
     const submissions = await listExperimentSubmissions("resistance-factors", selectedYear, selectedClass, 1);
     if (submissions[0]) groupLabel = `${submissions[0].className} · ${submissions[0].groupName}`;
     latestResult = <ResistanceFactorsResults submissions={submissions} />;
+  } else if (activity === "dragonfly-balance") {
+    groupLabel = "Giáo viên dẫn dắt · 4 chặng";
+    latestResult = <DragonflyBalanceExplorer presentation />;
   } else {
     groupLabel = "Giáo viên dẫn dắt · 4 chặng";
     latestResult = <LensPathExplorer presentation />;

@@ -42,6 +42,13 @@ export const activityDefinitions = [
     description: "Giáo viên dẫn dắt từ điểm khúc xạ đến tác dụng hội tụ.",
   },
   {
+    key: "dragonfly-balance",
+    symbol: "⚖",
+    shortLabel: "Chuồn chuồn tre thăng bằng",
+    label: "Chuồn chuồn tre thăng bằng · Trọng tâm và cân bằng",
+    description: "Khám phá vì sao chuồn chuồn tre không ngã: trọng tâm nằm dưới điểm tựa.",
+  },
+  {
     key: "ohm",
     symbol: "I–U",
     shortLabel: "Sự phụ thuộc của I vào U",

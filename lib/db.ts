@@ -240,6 +240,9 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM prism_live_questions WHERE slug = 'lens-live-1'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM activity_settings WHERE activity_key = 'dragonfly-balance'
       )
     ) AS ready
   `;

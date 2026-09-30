@@ -42,7 +42,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" || selectedKey === "lenses" || selectedKey === "total-internal-reflection" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" || selectedKey === "lenses" || selectedKey === "total-internal-reflection" || selectedKey === "dragonfly-balance" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
   const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
     ? getRefractionQuizClassSummary(selectedYear, selectedClass)
     : null;
@@ -99,7 +99,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
             <TeacherToggleSubmitButton isOpen={currentSetting.isOpen} openLabel="Mở bài" closeLabel="Đóng bài" />
           </form>
-          {selectedKey !== "optics-game" && selectedKey !== "optics-review" && selectedKey !== "total-internal-reflection" && selectedKey !== "lenses" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
+          {selectedKey !== "optics-game" && selectedKey !== "optics-review" && selectedKey !== "total-internal-reflection" && selectedKey !== "lenses" && selectedKey !== "dragonfly-balance" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
         </div>
       </section>
 
@@ -116,6 +116,18 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       ) : null}
 
       {selectedKey === "lenses" ? <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} activityKey="lenses" title="Bài tập củng cố Thấu kính" /> : null}
+
+      {selectedKey === "dragonfly-balance" ? (
+        <section className="class-progress-panel balance-teacher-overview">
+          <div className="class-progress-header">
+            <div><p className="eyebrow">GIÁO VIÊN DẪN DẮT</p><h2>4 chặng khám phá cân bằng bền</h2><p>Đặt câu hỏi trước, chờ học sinh dự đoán rồi lần lượt mở từng nội dung: điểm tựa → trọng tâm → mô men hồi phục → ứng dụng thực tế.</p></div>
+            <span className="mastery-chip">Không thu dữ liệu lớp</span>
+          </div>
+          <div className="lens-teacher-stage-list">
+            {["Đặt lên điểm tựa", "Tìm trọng tâm", "Vì sao tự hồi phục", "Ứng dụng thực tế"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
+          </div>
+        </section>
+      ) : null}
 
       {selectedKey === "refraction" && (
         <>

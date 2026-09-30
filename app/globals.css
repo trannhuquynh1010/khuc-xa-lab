@@ -1328,6 +1328,103 @@ details .table-scroll { margin-top: 12px; }
 .lens-teacher-stage-list span { display: flex; gap: 7px; align-items: center; min-height: 42px; padding: 7px 9px; border: 1.2px solid var(--ink); border-radius: 11px; background: #fff; font-size: .72rem; font-weight: 850; }
 .lens-teacher-stage-list b { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 25px; border-radius: 50%; color: #fff; background: var(--lens-blue); font-size: .66rem; }
 
+.balance-explorer { --balance-green: #3f7d3a; --balance-green-dark: #1f4a1c; --balance-sand: #f2ecd8; display: grid; min-width: 0; gap: 15px; }
+.balance-explorer-hero { position: relative; display: flex; justify-content: space-between; gap: 24px; align-items: center; min-height: 158px; overflow: hidden; padding: 25px 29px; border: 1.5px solid var(--ink); border-radius: 24px; color: #fff; background: radial-gradient(circle at 82% 20%, rgba(212,235,161,.32), transparent 28%), linear-gradient(125deg, #10240d, #2c5a26 58%, #3f7d3a); box-shadow: 5px 5px 0 var(--ink); }
+.balance-explorer-hero::after { content: ""; position: absolute; right: 105px; bottom: -112px; width: 230px; height: 230px; border: 2px solid rgba(255,255,255,.18); border-radius: 50%; }
+.balance-explorer-hero > div:first-child { position: relative; z-index: 2; min-width: 0; }
+.balance-explorer-hero .eyebrow { color: #d4eba1 !important; }
+.balance-explorer-hero h2 { max-width: 820px; margin: 4px 0 7px; font-size: clamp(1.8rem, 3.4vw, 3rem); line-height: 1.04; letter-spacing: -.045em; }
+.balance-explorer-hero p:last-child { max-width: 720px; margin: 0; color: #e4f0d6; }
+.balance-hero-mark { position: relative; z-index: 2; display: grid; grid-template-columns: auto 150px auto; align-items: center; min-width: 255px; color: #fff; }
+.balance-hero-mark::before { content: ""; position: absolute; left: 50%; width: 48px; height: 104px; border: 2px solid #d4eba1; border-radius: 50%; background: rgba(212,235,161,.12); transform: translateX(-50%); }
+.balance-hero-mark i { height: 2px; background: repeating-linear-gradient(90deg, #fff 0 9px, transparent 9px 16px); }
+.balance-hero-mark span, .balance-hero-mark b { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.45); border-radius: 50%; background: rgba(16,36,13,.55); font-size: .82rem; }
+
+.balance-stage-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px; border: 1.5px solid var(--ink); border-radius: 20px; background: var(--paper); }
+.balance-stage-nav button { display: flex; min-width: 0; gap: 8px; align-items: center; min-height: 54px; padding: 8px 10px; border: 1.2px solid #c8c1b5; border-radius: 13px; color: var(--ink); background: #fff; font-weight: 850; cursor: pointer; }
+.balance-stage-nav button:hover:not(:disabled) { border-color: var(--ink); background: var(--balance-sand); }
+.balance-stage-nav button.active { color: #fff; border-color: var(--balance-green-dark); background: var(--balance-green-dark); box-shadow: 2px 2px 0 #d4eba1; }
+.balance-stage-nav button:disabled { color: #a49e93; background: #efebe4; cursor: not-allowed; }
+.balance-stage-nav button b { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; color: #fff; background: var(--balance-green); font-size: .72rem; }
+.balance-stage-nav button.complete:not(.active) { border-color: #65a870; background: #e8f7e3; }
+.balance-stage-nav button.complete:not(.active) b { background: var(--success); }
+.balance-stage-nav button span { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+
+.balance-learning-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr); gap: 15px; align-items: stretch; }
+.balance-visual-panel, .balance-mission-panel { min-width: 0; border: 1.5px solid var(--ink); border-radius: 22px; background: var(--paper); }
+.balance-visual-panel { position: relative; display: grid; align-content: center; min-height: 530px; overflow: hidden; padding: 54px 20px 18px; background: radial-gradient(circle at 50% 46%, #fff 0, #f8faf3 55%, #eaf3df 100%); }
+.balance-visual-panel::before { content: ""; position: absolute; inset: 0; opacity: .38; background-image: linear-gradient(rgba(63,125,58,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(63,125,58,.08) 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; }
+.balance-visual-label { position: absolute; z-index: 3; top: 14px; right: 16px; left: 16px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.balance-visual-label span { padding: 5px 9px; border: 1px solid var(--ink); border-radius: 999px; background: #fff; font-size: .65rem; font-weight: 950; letter-spacing: .1em; }
+.balance-visual-label small { color: #4b5e40; font-size: .67rem; font-weight: 850; }
+.balance-diagram { position: relative; z-index: 2; display: block; width: 100%; height: auto; max-height: 430px; overflow: visible; }
+.balance-diagram text { fill: #38452f; font-size: 16px; font-weight: 780; }
+.balance-finger { stroke: #c9a06b; stroke-width: 10; stroke-linecap: round; }
+.balance-fingertip { fill: #dcb383; stroke: var(--ink); stroke-width: 2; }
+.balance-body { stroke: var(--balance-green-dark); stroke-width: 5; stroke-linecap: round; }
+.balance-pivot-dot { fill: var(--ink); stroke: #fff; stroke-width: 2; }
+.balance-pivot-ring { fill: none; stroke: #ef523d; stroke-width: 2; opacity: .6; animation: lens-pulse 1.8s ease-in-out infinite; }
+.balance-label { font-size: 15px !important; font-weight: 900 !important; fill: #2c3a24; }
+.balance-com-marker { fill: #ef523d; stroke: #fff; stroke-width: 2; animation: lens-reveal .35s ease both; }
+.balance-com-marker.com-label { fill: #ef523d !important; }
+.balance-wing { fill: rgba(63,125,58,.22); stroke: var(--balance-green-dark); stroke-width: 3; stroke-linejoin: round; transition: fill .3s ease; }
+.balance-wing.heavy { fill: rgba(63,125,58,.42); }
+.balance-deviation-label { fill: var(--balance-green-dark) !important; font-size: 14px !important; font-weight: 900 !important; }
+.balance-axis-line { stroke: #8a9a7c; stroke-width: 2; stroke-dasharray: 8 7; }
+.balance-gravity-arrow { stroke: #ef523d; stroke-width: 3.5; stroke-linecap: round; animation: lens-reveal .35s ease both; }
+.balance-vertical-guide { stroke: #8a9a7c; stroke-width: 2; stroke-dasharray: 6 6; }
+.balance-torque-arc { fill: none; stroke: #ef523d; stroke-width: 3; stroke-linecap: round; animation: lens-reveal .4s ease both; }
+.balance-tilt-demo text { animation: lens-reveal .4s ease both; }
+.balance-rope { stroke: #7a6a4d; stroke-width: 4; }
+.balance-pole { fill: none; stroke: var(--balance-green-dark); stroke-width: 5; stroke-linecap: round; animation: lens-reveal .4s ease both; }
+.balance-figure-head { fill: #f2c9a0; stroke: var(--ink); stroke-width: 2; }
+.balance-figure-body { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; }
+.balance-roly-body { fill: #e8574b; stroke: var(--ink); stroke-width: 2.5; }
+.balance-roly-face { fill: #fbe3d0; stroke: var(--ink); stroke-width: 2; }
+.balance-percent { fill: var(--balance-green-dark) !important; font-weight: 900 !important; }
+
+.balance-mission-panel { display: flex; flex-direction: column; padding: 23px; background: #fff; }
+.balance-stage-kicker { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.balance-stage-kicker span, .balance-stage-kicker b { font-size: .65rem; font-weight: 950; letter-spacing: .11em; }
+.balance-stage-kicker span { padding: 5px 8px; border-radius: 999px; color: #fff; background: var(--balance-green); }
+.balance-stage-kicker b { color: var(--balance-green-dark); }
+.balance-mission-panel h3 { margin: 13px 0 7px; font-size: clamp(1.5rem, 2.5vw, 2.15rem); line-height: 1.08; letter-spacing: -.04em; }
+.balance-stage-lead { margin: 0; color: var(--muted); font-size: .87rem; line-height: 1.6; }
+.balance-teacher-prompt { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 11px; align-items: start; margin-top: 18px; padding: 13px; border: 1.4px solid var(--balance-green-dark); border-radius: 14px; background: var(--balance-sand); }
+.balance-teacher-prompt > span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; color: #fff; background: var(--balance-green-dark); font-size: 1.25rem; font-weight: 950; }
+.balance-teacher-prompt > div { display: grid; gap: 5px; }
+.balance-teacher-prompt small { color: var(--balance-green-dark); font-size: .62rem; font-weight: 950; letter-spacing: .08em; }
+.balance-teacher-prompt strong { font-size: .88rem; line-height: 1.45; }
+.balance-guidance-sequence { display: grid; gap: 7px; margin-top: 12px; }
+.balance-guidance-sequence > div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 9px; border: 1px solid #d8d2c8; border-radius: 11px; background: #f4f0e9; transition: border-color .25s ease, background .25s ease, opacity .25s ease; }
+.balance-guidance-sequence > div.revealed { border-color: #82b88a; background: #edf8e9; }
+.balance-guidance-sequence > div.next { border-color: var(--balance-green); background: #f6f9f2; }
+.balance-guidance-sequence > div.pending { opacity: .54; }
+.balance-guidance-sequence > div > b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; background: #9d978e; font-size: .67rem; }
+.balance-guidance-sequence > div.revealed > b { background: var(--success); }
+.balance-guidance-sequence > div.next > b { background: var(--balance-green); }
+.balance-guidance-sequence span { display: grid; gap: 2px; }
+.balance-guidance-sequence strong { font-size: .72rem; }
+.balance-guidance-sequence small { color: #4b5e40; font-size: .66rem; line-height: 1.4; }
+.balance-stage-conclusion { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 9px; align-items: start; margin-top: 10px; padding: 10px; border: 1.2px solid var(--success); border-radius: 12px; background: #e8f7e3; animation: lens-reveal .35s ease both; }
+.balance-stage-conclusion > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #fff; background: var(--success); font-weight: 950; }
+.balance-stage-conclusion p { margin: 2px 0 0; font-size: .73rem; line-height: 1.48; }
+.balance-reveal-button { min-width: 210px; }
+.balance-stage-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 20px; }
+.balance-stage-actions button { width: auto; }
+.balance-stage-actions button:disabled { opacity: .4; cursor: not-allowed; }
+.balance-draft-status { display: block; margin-top: 10px; color: var(--muted); text-align: right; }
+
+.balance-conclusion { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 17px; align-items: center; padding: 21px 24px; border: 1.5px solid var(--ink); border-radius: 22px; background: var(--lime); box-shadow: 4px 4px 0 var(--ink); }
+.balance-conclusion-icon { display: grid; place-items: center; width: 58px; height: 58px; border: 1.5px solid var(--ink); border-radius: 50%; color: #fff; background: var(--balance-green-dark); font-size: 1.6rem; }
+.balance-conclusion p:last-child { margin: 0; max-width: 760px; font-size: .82rem; line-height: 1.5; }
+.balance-conclusion-actions { display: flex; gap: 8px; }
+.balance-conclusion-actions .primary-button, .balance-conclusion-actions .secondary-button { width: auto; white-space: nowrap; }
+.balance-explorer.presentation .balance-explorer-hero { min-height: 130px; }
+.balance-explorer.presentation .balance-learning-layout { grid-template-columns: minmax(0, 1.4fr) minmax(390px, .6fr); }
+.balance-teacher-overview { background: var(--balance-sand); }
+.balance-teacher-overview .class-progress-header p:last-child { max-width: 850px; margin: 4px 0 0; color: var(--muted); font-size: .78rem; }
+
 @media (max-width: 980px) {
   .activity-tabs, .teacher-tabs { display: flex; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: inline mandatory; scrollbar-width: thin; }
   .activity-tabs button, .teacher-tabs a { flex: 0 0 min(270px, 74vw); scroll-snap-align: start; }
@@ -1350,6 +1447,9 @@ details .table-scroll { margin-top: 12px; }
   .lens-visual-panel { min-height: 440px; }
   .lens-stage-nav { overflow-x: auto; grid-template-columns: repeat(4, 170px); }
   .lens-teacher-stage-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .balance-learning-layout, .balance-explorer.presentation .balance-learning-layout { grid-template-columns: 1fr; }
+  .balance-visual-panel { min-height: 440px; }
+  .balance-stage-nav { overflow-x: auto; grid-template-columns: repeat(4, 170px); }
 }
 
 /* Prism & color live questions */

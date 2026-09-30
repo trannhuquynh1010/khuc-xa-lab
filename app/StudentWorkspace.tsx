@@ -15,6 +15,7 @@ const PrismLiveStudent = dynamic(() => import("./PrismLiveStudent"), { loading: 
 const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: ActivityToolLoading });
 const OpticsReviewPractice = dynamic(() => import("./OpticsReviewPractice"), { loading: ActivityToolLoading });
 const LensPathExplorer = dynamic(() => import("./LensPathExplorer"), { loading: ActivityToolLoading });
+const DragonflyBalanceExplorer = dynamic(() => import("./DragonflyBalanceExplorer"), { loading: ActivityToolLoading });
 const OhmLabForm = dynamic(() => import("./OhmLabForm"), { loading: ActivityToolLoading });
 const ResistanceFactorsLabForm = dynamic(() => import("./ResistanceFactorsLabForm"), { loading: ActivityToolLoading });
 
@@ -75,7 +76,7 @@ export default function StudentWorkspace() {
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
   const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
   const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
-  const heroTheme = visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "total-internal-reflection" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
+  const heroTheme = visibleActiveKey === "dragonfly-balance" ? "mechanics" : visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "total-internal-reflection" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
       : visibleActiveKey === "resistance-factors"
@@ -90,6 +91,8 @@ export default function StudentWorkspace() {
             ? ["◎", "↘", "△"]
             : visibleActiveKey === "lenses"
               ? ["O", "F", "F′"]
+              : visibleActiveKey === "dragonfly-balance"
+                ? ["O", "G", "⚖"]
           : ["i", "r", "n"];
 
   return (
@@ -163,6 +166,7 @@ export default function StudentWorkspace() {
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} endedAt={opticsGameSetting?.opticsGameEndedAt ?? null} /></div> : null}
           {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
           {visibleActiveKey === "lenses" ? <><LensPathExplorer /><PrismLiveStudent activityKey="lenses" title="Bài tập củng cố Thấu kính" /></> : null}
+          {visibleActiveKey === "dragonfly-balance" ? <DragonflyBalanceExplorer /> : null}
           {visibleActiveKey === "ohm" ? <OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /> : null}
           {visibleActiveKey === "resistance-factors" ? <ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /> : null}
         </>
