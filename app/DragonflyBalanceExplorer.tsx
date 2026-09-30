@@ -96,7 +96,7 @@ const ui = {
     finalEyebrow: "Kết luận",
     finalConclusion: "Trọng tâm nằm dưới điểm tựa → vật luôn tự trở lại vị trí cân bằng khi bị nghiêng.",
     restart: "Làm lại",
-    waitingNote: "Chờ giáo viên bấm Hiện đáp án…",
+    waitingNote: "Chờ đáp án…",
   },
   en: {
     presentationEyebrow: "TEACHER-LED",
@@ -111,7 +111,7 @@ const ui = {
     finalEyebrow: "Conclusion",
     finalConclusion: "Center of mass below the pivot → the object always returns to balance when tilted.",
     restart: "Restart",
-    waitingNote: "Waiting for the teacher to show the answer…",
+    waitingNote: "Wait for answer…",
   },
 };
 
