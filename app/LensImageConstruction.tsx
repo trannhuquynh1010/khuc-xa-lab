@@ -458,7 +458,11 @@ export default function LensImageConstruction() {
         <div className="lens-construction-result">
           <p className="eyebrow">Kết quả dựng ảnh</p>
           {imageInfo.atInfinity ? (
-            <p>Khi d = f, các tia ló song song nhau — ảnh ở vô cực, không dựng được ảnh rõ nét.</p>
+            <p>
+              Khi d = f, vật nằm đúng tại tiêu điểm F. Tia tới song song với trục chính sau khi qua thấu kính sẽ đi qua tiêu điểm ảnh F′,
+              còn tia tới đi qua quang tâm O truyền thẳng không đổi hướng — hai tia ló này song song với nhau (không cắt nhau ở bất kỳ điểm nào phía trước hay phía sau thấu kính).
+              Vì ảnh được xác định là giao điểm của các tia ló, hai tia song song chỉ “gặp nhau” ở vô cực, nên ảnh ở vô cực và không thể dựng được ảnh rõ nét trên mặt phẳng hữu hạn.
+            </p>
           ) : (
             <p>
               Ảnh {imageInfo.real ? "thật" : "ảo"}, {(imageInfo.magnification ?? 0) < 0 ? "ngược chiều" : "cùng chiều"} với vật,
