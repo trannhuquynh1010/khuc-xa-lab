@@ -5,7 +5,7 @@ import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivityS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleLensImageConstruction, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -116,6 +116,19 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
       ) : null}
 
       {selectedKey === "lenses" ? <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} activityKey="lenses" title="Bài tập củng cố Thấu kính" /> : null}
+
+      {selectedKey === "lenses" ? (
+        <section className="activity-control-panel construction-control-panel">
+          <div className="activity-control-title"><span aria-hidden="true">▱</span><div><p className="eyebrow">HOẠT ĐỘNG BỔ SUNG</p><h2>Dựng ảnh qua thấu kính</h2><p>Học sinh chọn 2 tia đặc biệt để dựng ảnh trên lưới ô ly.</p></div></div>
+          <div className="activity-control-actions">
+            <span className={`status-badge ${currentSetting.imageConstructionOpen ? "open" : "closed"}`}>{currentSetting.imageConstructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+            <form action={toggleLensImageConstruction}>
+              <input type="hidden" name="nextOpen" value={String(!currentSetting.imageConstructionOpen)} />
+              <TeacherToggleSubmitButton isOpen={currentSetting.imageConstructionOpen} openLabel="Mở dựng ảnh" closeLabel="Đóng dựng ảnh" />
+            </form>
+          </div>
+        </section>
+      ) : null}
 
       {selectedKey === "dragonfly-balance" ? (
         <section className="class-progress-panel balance-teacher-overview">

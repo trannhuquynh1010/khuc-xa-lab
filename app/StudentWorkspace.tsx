@@ -20,7 +20,7 @@ const DragonflyBalanceExplorer = dynamic(() => import("./DragonflyBalanceExplore
 const OhmLabForm = dynamic(() => import("./OhmLabForm"), { loading: ActivityToolLoading });
 const ResistanceFactorsLabForm = dynamic(() => import("./ResistanceFactorsLabForm"), { loading: ActivityToolLoading });
 
-type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; ohmRaceOpen: boolean; ohmRaceRunning: boolean; ohmRaceRound: number; ohmRaceStartedAt: string | null; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; opticsGameRunning: boolean; opticsGameRound: number; opticsGameStartedAt: string | null; opticsGameEndedAt: string | null; updatedAt: string };
+type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; ohmRaceOpen: boolean; ohmRaceRunning: boolean; ohmRaceRound: number; ohmRaceStartedAt: string | null; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; imageConstructionOpen: boolean; opticsGameRunning: boolean; opticsGameRound: number; opticsGameStartedAt: string | null; opticsGameEndedAt: string | null; updatedAt: string };
 
 export default function StudentWorkspace() {
   const [activities, setActivities] = useState<ActivityStatus[] | null>(null);
@@ -76,6 +76,7 @@ export default function StudentWorkspace() {
   const ohmRaceStartedAt = ohmSetting?.ohmRaceStartedAt ?? null;
   const resistivityOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistivityOpen ?? false;
   const resistanceFactorsPracticeOpen = activities?.find((activity) => activity.key === "resistance-factors")?.resistanceFactorsPracticeOpen ?? false;
+  const imageConstructionOpen = activities?.find((activity) => activity.key === "lenses")?.imageConstructionOpen ?? false;
   const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
   const heroTheme = visibleActiveKey === "dragonfly-balance" ? "mechanics" : visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "total-internal-reflection" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
   const heroSymbols = visibleActiveKey === "ohm"
@@ -166,7 +167,7 @@ export default function StudentWorkspace() {
           {visibleActiveKey === "total-internal-reflection" ? <PrismLiveStudent activityKey="total-internal-reflection" title="Phản xạ toàn phần" /> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} endedAt={opticsGameSetting?.opticsGameEndedAt ?? null} /></div> : null}
           {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
-          {visibleActiveKey === "lenses" ? <><LensPathExplorer /><PrismLiveStudent activityKey="lenses" title="Bài tập củng cố Thấu kính" /><LensImageConstruction /></> : null}
+          {visibleActiveKey === "lenses" ? <><LensPathExplorer /><PrismLiveStudent activityKey="lenses" title="Bài tập củng cố Thấu kính" />{imageConstructionOpen ? <LensImageConstruction /> : null}</> : null}
           {visibleActiveKey === "dragonfly-balance" ? <DragonflyBalanceExplorer /> : null}
           {visibleActiveKey === "ohm" ? <OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /> : null}
           {visibleActiveKey === "resistance-factors" ? <ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /> : null}

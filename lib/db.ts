@@ -54,6 +54,7 @@ export type ActivitySetting = {
   ohmRaceStartedAt: string | null;
   resistivityOpen: boolean;
   resistanceFactorsPracticeOpen: boolean;
+  imageConstructionOpen: boolean;
   opticsGameRunning: boolean;
   opticsGameRound: number;
   opticsGameStartedAt: string | null;
@@ -216,6 +217,10 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'image_construction_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_running'
       ) AND
       EXISTS (
@@ -338,6 +343,7 @@ async function initializeSchema() {
       ohm_race_started_at TIMESTAMPTZ,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
       resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+      image_construction_open BOOLEAN NOT NULL DEFAULT FALSE,
       optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
       optics_game_round INTEGER NOT NULL DEFAULT 1,
       optics_game_started_at TIMESTAMPTZ,
@@ -359,6 +365,7 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS ohm_race_started_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS image_construction_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS optics_game_round INTEGER NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS optics_game_started_at TIMESTAMPTZ,
@@ -967,7 +974,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
   const rows = await sql`
     SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
       ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
-      resistivity_open, resistance_factors_practice_open,
+      resistivity_open, resistance_factors_practice_open, image_construction_open,
       optics_game_running, optics_game_round, optics_game_started_at, optics_game_ended_at, updated_at
     FROM activity_settings
   `;
@@ -989,6 +996,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       ohmRaceStartedAt: row?.ohm_race_started_at ? new Date(String(row.ohm_race_started_at)).toISOString() : null,
       resistivityOpen: Boolean(row?.resistivity_open),
       resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
+      imageConstructionOpen: Boolean(row?.image_construction_open),
       opticsGameRunning: Boolean(row?.optics_game_running),
       opticsGameRound: Math.max(1, Number(row?.optics_game_round ?? 1)),
       opticsGameStartedAt: row?.optics_game_started_at ? new Date(String(row.optics_game_started_at)).toISOString() : null,
@@ -996,7 +1004,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v8"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v9"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
@@ -1172,6 +1180,17 @@ export async function setResistivityOpen(isOpen: boolean) {
     UPDATE activity_settings
     SET resistivity_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'resistance-factors'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setImageConstructionOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET image_construction_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'lenses'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
