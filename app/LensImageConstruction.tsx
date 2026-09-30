@@ -188,6 +188,21 @@ function MidArrow({ p1, p2, markerId }: { p1: Point; p2: Point; markerId: string
   return <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} markerEnd={`url(#${markerId})`} stroke="transparent" />;
 }
 
+/** Vẽ mũi tên ngay tại đầu mút p2 của đoạn (dùng cho vật và ảnh, mũi tên luôn ở đỉnh mũi tên biểu diễn). */
+function TipArrow({ p1, p2, markerId }: { p1: Point; p2: Point; markerId: string }) {
+  const dx = p2[0] - p1[0];
+  const dy = p2[1] - p1[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const half = 0.01;
+  const ax1 = p2[0] - ux * half;
+  const ay1 = p2[1] - uy * half;
+  const ax2 = p2[0] + ux * half;
+  const ay2 = p2[1] + uy * half;
+  return <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} markerEnd={`url(#${markerId})`} stroke="transparent" />;
+}
+
 export default function LensImageConstruction() {
   const [lensKind, setLensKind] = useState<LensKind>("convex");
   const [positionId, setPositionId] = useState(convexPositions[3].id);
@@ -195,6 +210,7 @@ export default function LensImageConstruction() {
   const [rayPhases, setRayPhases] = useState<Record<RayId, RayPhase>>({ parallel: "hidden", center: "hidden", focal: "hidden" });
   const [pendingEmergentChoice, setPendingEmergentChoice] = useState<RayId | null>(null);
   const [feedback, setFeedback] = useState<{ rayId: RayId; correct: boolean } | null>(null);
+  const [extensionRevealed, setExtensionRevealed] = useState(false);
 
   const positions = lensKind === "convex" ? convexPositions : concavePositions;
   const position = positions.find((item) => item.id === positionId) ?? positions[0];
@@ -226,6 +242,7 @@ export default function LensImageConstruction() {
     setRayPhases({ parallel: "hidden", center: "hidden", focal: "hidden" });
     setPendingEmergentChoice(null);
     setFeedback(null);
+    setExtensionRevealed(false);
   }
 
   function changePosition(nextId: string) {
@@ -234,6 +251,7 @@ export default function LensImageConstruction() {
     setRayPhases({ parallel: "hidden", center: "hidden", focal: "hidden" });
     setPendingEmergentChoice(null);
     setFeedback(null);
+    setExtensionRevealed(false);
   }
 
   function toggleRaySelection(rayId: RayId) {
@@ -241,6 +259,7 @@ export default function LensImageConstruction() {
       setSelectedRayIds((current) => current.filter((item) => item !== rayId));
       setRayPhases((current) => ({ ...current, [rayId]: "hidden" }));
       if (pendingEmergentChoice === rayId) setPendingEmergentChoice(null);
+      setExtensionRevealed(false);
       return;
     }
     if (selectedRayIds.length >= 2) return;
@@ -266,6 +285,7 @@ export default function LensImageConstruction() {
     setRayPhases({ parallel: "hidden", center: "hidden", focal: "hidden" });
     setPendingEmergentChoice(null);
     setFeedback(null);
+    setExtensionRevealed(false);
   }
 
   const emergentOptions = pendingEmergentChoice
@@ -340,7 +360,7 @@ export default function LensImageConstruction() {
             return (
               <>
                 <line className="lens-construction-object" x1={ox} y1={oy} x2={tx} y2={ty} />
-                <MidArrow p1={[ox, oy]} p2={[tx, ty]} markerId="lc-arrow-object" />
+                <TipArrow p1={[ox, oy]} p2={[tx, ty]} markerId="lc-arrow-object" />
               </>
             );
           })()}
@@ -351,7 +371,7 @@ export default function LensImageConstruction() {
             const [ox, oy] = toPixel(objectTip);
             const [lx, ly] = toPixel(atLens);
             const [ex, ey] = toPixel(emergentEnd);
-            const showExtension = phase === "complete" && bothRaysComplete && imageIsVirtual && imageTip;
+            const showExtension = phase === "complete" && bothRaysComplete && imageIsVirtual && extensionRevealed && imageTip;
             const [vx, vy] = showExtension ? toPixel(imageTip!) : [lx, ly];
             return (
               <g key={rayId}>
@@ -363,18 +383,23 @@ export default function LensImageConstruction() {
                     <MidArrow p1={[lx, ly]} p2={[ex, ey]} markerId="lc-arrow-emergent" />
                   </>
                 ) : null}
-                {showExtension ? <line className="lens-construction-ray emergent-extension" x1={lx} y1={ly} x2={vx} y2={vy} /> : null}
+                {showExtension ? (
+                  <>
+                    <line className="lens-construction-ray emergent-extension" x1={lx} y1={ly} x2={vx} y2={vy} />
+                    <MidArrow p1={[lx, ly]} p2={[vx, vy]} markerId="lc-arrow-emergent" />
+                  </>
+                ) : null}
               </g>
             );
           })}
 
-          {bothRaysComplete && imageTip ? (() => {
+          {bothRaysComplete && imageTip && (!imageIsVirtual || extensionRevealed) ? (() => {
             const [ix, iy] = toPixel([imageTip![0], 0]);
             const [tx, ty] = toPixel(imageTip!);
             return (
               <>
                 <line className={`lens-construction-image${imageIsVirtual ? " virtual" : ""}`} x1={ix} y1={iy} x2={tx} y2={ty} />
-                <MidArrow p1={[ix, iy]} p2={[tx, ty]} markerId="lc-arrow-image" />
+                <TipArrow p1={[ix, iy]} p2={[tx, ty]} markerId="lc-arrow-image" />
               </>
             );
           })() : null}
@@ -419,10 +444,17 @@ export default function LensImageConstruction() {
             ))}
           </div>
         ) : null}
+
+        {bothRaysComplete && imageIsVirtual && !extensionRevealed ? (
+          <div className="lens-construction-emergent-quiz">
+            <p>Hai tia ló không cắt nhau ở phía trước thấu kính — ảnh là ảnh ảo. Hãy vẽ đường kéo dài của 2 tia ló (nét đứt) để tìm ảnh.</p>
+            <button type="button" className="secondary-button" onClick={() => setExtensionRevealed(true)}>Vẽ đường kéo dài</button>
+          </div>
+        ) : null}
       </div>
       </div>
 
-      {bothRaysComplete ? (
+      {bothRaysComplete && (!imageIsVirtual || extensionRevealed) ? (
         <div className="lens-construction-result">
           <p className="eyebrow">Kết quả dựng ảnh</p>
           {imageInfo.atInfinity ? (
