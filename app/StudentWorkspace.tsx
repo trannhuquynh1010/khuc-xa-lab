@@ -15,6 +15,7 @@ const PrismLiveStudent = dynamic(() => import("./PrismLiveStudent"), { loading: 
 const OpticsQuestGame = dynamic(() => import("./OpticsQuestGame"), { loading: ActivityToolLoading });
 const OpticsReviewPractice = dynamic(() => import("./OpticsReviewPractice"), { loading: ActivityToolLoading });
 const LensPathExplorer = dynamic(() => import("./LensPathExplorer"), { loading: ActivityToolLoading });
+const LensImageConstruction = dynamic(() => import("./LensImageConstruction"), { loading: ActivityToolLoading });
 const DragonflyBalanceExplorer = dynamic(() => import("./DragonflyBalanceExplorer"), { loading: ActivityToolLoading });
 const OhmLabForm = dynamic(() => import("./OhmLabForm"), { loading: ActivityToolLoading });
 const ResistanceFactorsLabForm = dynamic(() => import("./ResistanceFactorsLabForm"), { loading: ActivityToolLoading });
@@ -165,7 +166,7 @@ export default function StudentWorkspace() {
           {visibleActiveKey === "total-internal-reflection" ? <PrismLiveStudent activityKey="total-internal-reflection" title="Phản xạ toàn phần" /> : null}
           {visibleActiveKey === "optics-game" ? <div className="lab-card quest-shell"><OpticsQuestGame round={opticsGameSetting?.opticsGameRound ?? 1} running={opticsGameSetting?.opticsGameRunning ?? false} startedAt={opticsGameSetting?.opticsGameStartedAt ?? null} endedAt={opticsGameSetting?.opticsGameEndedAt ?? null} /></div> : null}
           {visibleActiveKey === "optics-review" ? <OpticsReviewPractice /> : null}
-          {visibleActiveKey === "lenses" ? <><LensPathExplorer /><PrismLiveStudent activityKey="lenses" title="Bài tập củng cố Thấu kính" /></> : null}
+          {visibleActiveKey === "lenses" ? <><LensPathExplorer /><PrismLiveStudent activityKey="lenses" title="Bài tập củng cố Thấu kính" /><LensImageConstruction /></> : null}
           {visibleActiveKey === "dragonfly-balance" ? <DragonflyBalanceExplorer /> : null}
           {visibleActiveKey === "ohm" ? <OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} /> : null}
           {visibleActiveKey === "resistance-factors" ? <ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /> : null}
