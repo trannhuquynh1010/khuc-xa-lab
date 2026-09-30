@@ -8,7 +8,7 @@ import usePracticeAttempt from "./usePracticeAttempt";
 type BoxConclusion = "consistent" | "resistance-doubles" | "current-constant" | "";
 
 const boxConclusionChoices: Array<{ id: Exclude<BoxConclusion, "">; text: string }> = [
-  { id: "consistent", text: "Hai phép đo phù hợp với cùng một điện trở." },
+  { id: "consistent", text: "Điện trở của dây dẫn không phụ thuộc vào hiệu điện thế đặt vào nó." },
   { id: "resistance-doubles", text: "Điện trở tăng gấp đôi khi U tăng gấp đôi." },
   { id: "current-constant", text: "Cường độ dòng điện không phụ thuộc vào U." },
 ];
@@ -110,7 +110,7 @@ export default function OhmsLawPractice() {
           </div>
           <div className="ohm-unlock-grid">
             <label>Điện trở của X<div><input inputMode="decimal" aria-label="Điện trở của dây dẫn X" value={boxResistanceAnswer} className={resultClass(approximately(boxResistanceAnswer, 20))} onChange={(event) => updateNumber(setBoxResistanceAnswer, event.target.value)} placeholder="0,00" /><span>Ω</span></div></label>
-            <label>Nếu U = 9 V, dự đoán I<div><input inputMode="decimal" aria-label="Cường độ dòng điện dự đoán khi U bằng 9 V" value={boxCurrentAnswer} className={resultClass(approximately(boxCurrentAnswer, 0.45))} onChange={(event) => updateNumber(setBoxCurrentAnswer, event.target.value)} placeholder="0,00" /><span>A</span></div></label>
+            <label>Nếu U = 9 V, tính I<div><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 9 V" value={boxCurrentAnswer} className={resultClass(approximately(boxCurrentAnswer, 0.45))} onChange={(event) => updateNumber(setBoxCurrentAnswer, event.target.value)} placeholder="0,00" /><span>A</span></div></label>
           </div>
           <p>Nhận định phù hợp nhất:</p>
           <div className="practice-options practice-options-horizontal">{boxConclusionChoices.map((choice) => <button key={choice.id} type="button" className={`${boxConclusion === choice.id ? "selected" : ""} ${boxConclusion === choice.id ? resultClass(choice.id === "consistent") : ""}`} onClick={() => { setBoxConclusion(choice.id); setChecked(false); }}>{choice.text}</button>)}</div>
@@ -137,7 +137,6 @@ export default function OhmsLawPractice() {
         <article className="practice-card practice-safety-card">
           <div className="practice-card-heading"><span>05</span><div><h4>Chọn nguồn trong giới hạn</h4><p>Tìm nguồn điện lớn nhất vẫn bảo đảm phép đo an toàn.</p></div></div>
           <p>Một dây dẫn có R = 24 Ω. Ampe kế chỉ đo an toàn khi I ≤ 0,25 A. Chọn nguồn có hiệu điện thế lớn nhất có thể sử dụng.</p>
-          <div className="safety-constraint" aria-label="Giới hạn của mạch"><span><small>Dây dẫn</small><b>R = 24 Ω</b></span><span><small>Giới hạn</small><b>I ≤ 0,25 A</b></span></div>
           <div className="practice-options practice-options-horizontal">{safeSourceChoices.map((voltage) => <button key={voltage} type="button" className={`${safeSource === voltage ? "selected" : ""} ${safeSource === voltage ? resultClass(voltage === "6") : ""}`} onClick={() => { setSafeSource(voltage); setChecked(false); }}>Nguồn {voltage} V</button>)}</div>
         </article>
       </fieldset>

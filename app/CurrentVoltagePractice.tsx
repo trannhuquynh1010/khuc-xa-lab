@@ -146,7 +146,7 @@ export default function CurrentVoltagePractice() {
   return (
     <div className="electric-practice current-voltage-practice">
       <div className="practice-intro">
-        <div><p className="eyebrow">LUYỆN TẬP NÂNG CAO I – U</p><h3>Thử thách phòng thí nghiệm</h3><p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ.</p></div>
+        <div><p className="eyebrow">LUYỆN TẬP I – U</p><h3>Thử thách phòng thí nghiệm</h3><p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ.</p></div>
         <strong>{completedChallenges}/5</strong>
       </div>
 
@@ -165,7 +165,7 @@ export default function CurrentVoltagePractice() {
 
         <article className="practice-card increment-challenge-card practice-calculation-card">
           <div className="practice-card-heading"><span>02</span><div><h4>Tính I khi U thay đổi</h4><p>Tính giá trị mới của cường độ dòng điện.</p></div></div>
-          <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 4 V</b><b>I₁ = 0,20 A</b></div><span><strong>+3 V</strong><small>Tăng thêm</small></span><div><small>Sau đó</small><b>U₂ = 7 V</b><b>I₂ = ?</b></div></div>
+          <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 4 V</b><b>I₁ = 0,20 A</b></div><span><strong>+3 V</strong><small>Tăng thêm</small></span><div><small>Sau đó</small><b>I₂ = ?</b></div></div>
           <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} className={resultClass(approximately(incrementAnswer, 0.35))} onChange={(event) => { setIncrementAnswer(event.target.value); setChecked(false); }} placeholder="0,00" /><span>A</span></div></label>
         </article>
 
