@@ -142,8 +142,10 @@ function rayAtLens(kind: LensKind, rayId: RayId, d: number, height: number): { a
     return { atLens, afterDirection: dir };
   }
   if (rayId === "center") {
+    // Tia đi qua quang tâm O truyền thẳng không đổi hướng: hướng ló ra giữ nguyên hướng tia tới,
+    // đi từ đỉnh vật A(-d, height) tới O(0, 0), tức là hướng (d, -height).
     const atLens: Point = [0, 0];
-    const dir: Point = [d, height];
+    const dir: Point = [d, -height];
     return { atLens, afterDirection: dir };
   }
   if (kind === "convex") {
