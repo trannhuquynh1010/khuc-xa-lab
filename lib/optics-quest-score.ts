@@ -32,7 +32,7 @@ export const opticsQuestAnswerKey: Record<string, AnswerEntry> = {
   "p-white": { answer: "index", explanation: "Mỗi thành phần màu có chiết suất khác nhau nên bị lệch khác nhau." },
   "p-second": { answer: "white", explanation: "Lăng kính thứ hai có thể bù độ lệch và tổng hợp các thành phần màu." },
   "p-red": { answer: "red-only", explanation: "Ánh sáng đơn sắc không bị phân tích thành các màu khác." },
-  "p-violet-speed": { answer: "187500", tolerance: 1, explanation: "v = c/n = 300 000/1,60 = 187 500 km/s." },
+  "p-violet-speed": { answer: "188000", tolerance: 1, explanation: "v = c/n = 300 000/1,60 = 187 500 km/s; làm tròn đến hàng nghìn được 188 000 km/s." },
   "p-color-speed": { answer: "27000", tolerance: 1000, explanation: "vđỏ = 300 000/1,40 ≈ 214 286 km/s; vtím = 300 000/1,60 = 187 500 km/s; chênh lệch ≈ 26 786 km/s, làm tròn đến hàng nghìn ≈ 27 000 km/s." },
   // Trạm 5 · Phòng màu sắc
   "c-red-white": { answer: "reflect-red", explanation: "Màu quan sát phụ thuộc ánh sáng vật phản xạ truyền tới mắt." },
@@ -51,7 +51,7 @@ export const opticsQuestAnswerKey: Record<string, AnswerEntry> = {
 };
 
 function parseDecimal(value: string) {
-  const parsed = Number(value.trim().replace(",", "."));
+  const parsed = Number(value.replace(/\s+/g, "").replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
