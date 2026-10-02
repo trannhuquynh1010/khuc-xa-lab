@@ -10,7 +10,7 @@ export const opticsQuestAnswerKey: Record<string, AnswerEntry> = {
   "r-air-glass": { answer: "toward", explanation: "Thủy tinh chiết quang hơn không khí nên tia khúc xạ lệch về pháp tuyến." },
   "r-water-air": { answer: "greater", explanation: "Sang môi trường chiết quang kém hơn, tia khúc xạ lệch xa pháp tuyến nên r > i." },
   "r-normal": { answer: "0", tolerance: 0.01, explanation: "Tia tới theo pháp tuyến có i = 0° và truyền thẳng với r = 0°." },
-  "r-index": { answer: "1.5", tolerance: 0.01, explanation: "n ≈ sin i/sin r = 0,60/0,40 = 1,50." },
+  "r-index": { answer: "1.50", tolerance: 0.005, explanation: "n ≈ sin i/sin r = 0,60/0,40 = 1,50 (làm tròn đến hai chữ số thập phân)." },
   "r-snell-sine": { answer: "0.5", tolerance: 0.01, explanation: "sin r = 0,75/1,50 = 0,50." },
   "r-speed": { answer: "226000", tolerance: 1000, explanation: "v = 300 000/1,33 ≈ 225 564 km/s, làm tròn đến hàng nghìn ≈ 226 000 km/s." },
   // Trạm 2 · Mắt nhìn dưới nước
