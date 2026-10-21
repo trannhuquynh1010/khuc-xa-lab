@@ -125,7 +125,7 @@ let schemaPromise: Promise<void> | null = null;
  * vận dụng trực tiếp và suy luận ngược từ tính chất ảnh ra vị trí vật/loại
  * thấu kính.
  *
- * Tách riêng khỏi initializeSchema (và chạy ở đầu hàm đó, trước gate "ready")
+ * Tách riêng khỏi initializeSchema (và chạy cả khi gate "ready" trả về sớm)
  * vì gate đó chỉ kiểm tra sự TỒN TẠI của slug 'lens-live-1', không kiểm tra
  * nội dung — nên một khi DB đã có bản ghi, initializeSchema sẽ return sớm và
  * không bao giờ chạm lại đoạn INSERT...ON CONFLICT DO UPDATE nếu nó nằm sau
@@ -292,13 +292,15 @@ async function syncLensLiveQuestions(sql: ReturnType<typeof getSql>) {
 async function initializeSchema() {
   const sql = getSql();
 
-  // Resync the "lenses" live-quiz bank every time the schema check runs, so
-  // editing lensQuestions in code always reaches a DB that already has the
-  // table (the "ready" gate below short-circuits before reaching the seed
-  // block further down, which would otherwise silently stop applying edits).
-  await syncLensLiveQuestions(sql);
-
-  const schemaStatus = await sql`
+  // The readiness query references these tables directly, so only run it
+  // when they exist. A fresh database must reach the CREATE TABLE statements.
+  const existingTables = await sql`
+    SELECT (
+      to_regclass('public.prism_live_questions') IS NOT NULL AND
+      to_regclass('public.activity_settings') IS NOT NULL
+    ) AS present
+  `;
+  const schemaStatus = Boolean(existingTables[0]?.present) ? await sql`
     SELECT (
       to_regclass('public.submissions') IS NOT NULL AND
       to_regclass('public.measurements') IS NOT NULL AND
@@ -427,9 +429,10 @@ async function initializeSchema() {
         SELECT 1 FROM activity_settings WHERE activity_key = 'dragonfly-balance'
       )
     ) AS ready
-  `;
+  ` : [];
 
   if (Boolean(schemaStatus[0]?.ready)) {
+    await syncLensLiveQuestions(sql);
     return;
   }
 
@@ -985,6 +988,8 @@ async function initializeSchema() {
         updated_at = NOW()
     `;
   }
+
+  await syncLensLiveQuestions(sql);
 
   const legacyQuestions = await sql`
     SELECT question.*
