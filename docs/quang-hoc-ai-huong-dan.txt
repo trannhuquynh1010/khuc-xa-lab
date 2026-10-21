@@ -1,0 +1,72 @@
+QUANG HỌC: GIẢI THÍCH, NHẬN GỢI Ý VÀ TỰ SỬA
+Bài mới: optics-ai-review | Phiên bản: optics-ai-v1
+
+1. Phạm vi đã thực hiện
+- Bài mới riêng trong menu học sinh và bảng giáo viên. Mặc định đóng.
+- Bài optics-review, Photon Quest và lượt làm cũ giữ nguyên.
+- Có 4 câu chẩn đoán mới và 4 câu vận dụng cuối mới. Chặng giữa chọn 6 câu từ ngân hàng Quang học hiện có, với điều kiện diễn đạt được làm rõ trong bản sao của bài mới.
+- Chỉ dùng bốn chủ đề học sinh đã học: khúc xạ, phản xạ toàn phần, lăng kính và màu sắc. Chưa đưa thấu kính vào.
+- AI phản hồi lời giải thích và chọn câu tiếp từ danh sách giới hạn. Chấm lựa chọn bằng đáp án chuẩn trên máy chủ; AI không quyết định điểm và không chấm lời giải thích.
+- Bài đầu/cuối không hiện gợi ý hay đúng/sai trước khi hoàn thành. Chặng luyện lưu trả lời đầu -> gợi ý -> trả lời sửa; sau sửa có thể đối chiếu kiến thức chuẩn trong nhật ký.
+
+2. Xem thử ngay trên máy
+- Chạy ứng dụng: npm run dev (hoặc dùng Node + node_modules/next/dist/bin/next dev nếu không có npm trên PATH).
+- Mở http://127.0.0.1:3000/on-tap-quang-hoc-ai/xem-thu
+- Bản xem thử luôn dùng quy tắc, không gọi dịch vụ AI, không ghi Neon. Có nút xem thử lại từ đầu. Phiên tồn tại trong bộ nhớ máy chủ tối đa 1 giờ; thay mã/khởi động lại có thể làm mất phiên thử.
+- Trên bản triển khai production, chỉ giáo viên đã đăng nhập được xem thử.
+
+3. Kết nối AI thật và triển khai
+- Thêm OPENAI_API_KEY và OPTICS_AI_MODEL vào môi trường máy chủ/Vercel, không đặt tiền tố NEXT_PUBLIC_. Không gửi khóa qua hội thoại, không commit khóa vào Git.
+- OPTICS_AI_MODEL là ID mô hình mà tài khoản của giáo viên được phép dùng, hỗ trợ Responses API và Structured Outputs. Không gán sẵn mô hình để tránh tự chọn gói chi phí khi chưa biết tài khoản.
+- DATABASE_URL và AUTH_SECRET tiếp tục dùng cấu hình máy chủ hiện tại.
+- Kết nối AI dùng https://api.openai.com/v1/responses, store:false, đầu ra JSON Schema. Mỗi phản hồi giới hạn 1.800 token đầu ra, thời gian chờ 18 giây. Tối đa 6 phản hồi AI được lưu cho một lượt học hoàn chỉnh; lỗi mạng phát sinh sau khi nhà cung cấp xử lý vẫn có thể tính phí. Đặt ngân sách dự án API phù hợp.
+- Kiểm thử bằng tài khoản/số thứ tự thử trên một nhánh Neon thử nghiệm trước khi dùng với lớp thật. Xem ít nhất một phản hồi có nhãn “Gợi ý từ AI” và kiểm tra đúng chủ đề, đúng kiến thức, không bật mí lựa chọn.
+- Sau khi triển khai mã mới và kiểm tra, vào /giao-vien?tab=optics-ai-review, chọn lớp, bấm “Mở bài”. Học sinh vào /?activity=optics-ai-review.
+- Nếu chưa cấu hình AI, hệ thống không cho bắt đầu lượt học thật. Nếu AI lỗi giữa lượt, chuyển sang gợi ý theo quy tắc và lưu rõ lý do; không ghi nhận đó là phản hồi AI.
+
+4. Lưu dữ liệu và các giới hạn hiện tại
+- Bảng riêng optics_ai_sessions được tạo tự động bằng CREATE TABLE IF NOT EXISTS. Bộ lưu mới không gọi các migration/chấm lại của bài cũ.
+- Bản sao ngân hàng có đáp án, lượt trả lời đầu, lần sửa, độ tự tin, mốc giờ, mô hình, phiên bản prompt, lý do chọn câu tiếp và báo lỗi gợi ý được lưu trong lượt học. Xuất giáo viên chỉ gồm nội dung quan sát được, không chứa token thiết bị hoặc toàn bộ đáp án ngân hàng.
+- Một lượt cho mỗi năm học + lớp + STT + phiên bản bài. Không ghi đè lượt đã hoàn thành. Chưa có chức năng làm lại hoặc chuyển thiết bị cho lượt thật.
+- Học sinh cần dùng cùng trình duyệt/thiết bị. Xóa dữ liệu trình duyệt sẽ mất token tiếp tục lượt; giáo viên vẫn xem được bài nhưng cần hỗ trợ phục hồi ở cấp quản trị. Khi có yêu cầu đổi thiết bị, chỉ cập nhật token sau xác minh, không xóa bài làm.
+- Nhận diện bằng lớp/STT theo cơ chế của trang hiện tại, chưa xác minh danh tính bằng tài khoản trường. Giáo viên hướng dẫn chọn đúng STT. Không tự suy ra “chưa làm” từ học sinh chưa xuất hiện trong bảng này nếu chưa đối chiếu sĩ số.
+- Khóa xử lý cùng revision trên máy chủ giúp chống gửi trùng; token ngẫu nhiên riêng bảo vệ việc tiếp tục từng lượt. Khóa API chỉ nằm trên máy chủ.
+- Nội dung lời giải thích luyện tập được gửi tới OpenAI. Không gửi lớp/STT/tên, không gửi dữ liệu Neon lịch sử. Email và chuỗi số liên hệ thường gặp được che trước khi gửi; đây không phải bộ khử định danh hoàn hảo. Học sinh chỉ nhập kiến thức vật lí. Thông tin này được nêu ở màn hình bắt đầu.
+- Các nút reset dữ liệu năm học/bài cũ không xóa bảng mới. Nếu cần chính sách lưu/xóa dữ liệu AI, xử lý riêng theo quyết định nhà trường.
+- Đổi nội dung quan trọng phải tăng phiên bản bài và giữ luồng/ID câu hỏi của phiên bản đang có dữ liệu. Snapshot giữ đáp án cũ, nhưng không tự giải quyết thay đổi định nghĩa các chặng trong mã.
+
+5. Gợi ý tổ chức một tiết 45 phút
+Mục tiêu: phân biệt mối quan hệ biến số với tỉ lệ thuận; kiểm tra đồng thời hai điều kiện phản xạ toàn phần; giải thích lăng kính tách các thành phần màu; phân biệt lọc nối tiếp với cộng các chùm màu.
+- 3 phút: nêu mục tiêu và cách dùng gợi ý. Nhắc rằng AI có thể sai; học sinh phải đối chiếu quy luật.
+- 6 phút: 4 câu chẩn đoán độc lập, chưa hiện đúng/sai, không thảo luận đáp án lúc này.
+- 22 phút: 10 câu luyện tập. Chọn đúng thì đi tiếp ngay; chọn sai thì đọc gợi ý rồi chọn lại một lần. Giáo viên hỗ trợ từ bảng nhật ký, đặc biệt các gợi ý bị báo lỗi.
+- 7 phút: 4 câu vận dụng cuối, làm độc lập không có gợi ý.
+- 7 phút: chọn 2–3 câu sai phổ biến để thảo luận; chốt quy luật và tình huống áp dụng.
+Tổng 18 câu. Đây là mức kín thời gian: nếu lớp làm chậm, cứ để học sinh dừng giữa bài và tiếp tục trên cùng thiết bị, đừng cắt chặng vận dụng cuối.
+Nếu chưa đủ thời gian, dừng và tiếp tục trên cùng thiết bị; không ép coi mọi lượt đang dở là đã hoàn thành.
+
+6. Rubric giáo viên cho lời giải thích (AI không tự chấm)
+0: Không nêu lập luận liên quan hoặc dùng quy luật sai.
+1: Nhắc được một ý đúng nhưng thiếu điều kiện hoặc chưa nối với dữ kiện.
+2: Dùng quy luật đúng, nêu điều kiện và liên hệ được với tình huống cụ thể.
+3: Ngoài mức 2, phân biệt rõ phương án sai hoặc chỉ ra bằng chứng/giới hạn của kết luận.
+Chấm lần đầu và lần sửa bằng cùng rubric, giữ cả trường hợp không cải thiện. Nếu nhiều người chấm, thống nhất ví dụ trước khi chấm và kiểm tra chéo một phần mẫu.
+
+7. Minh chứng dự thi
+- Tải JSON từ bảng giáo viên theo lớp/năm học, lưu bản gốc nội bộ. Ẩn lớp/STT, định danh lượt và nội dung riêng tư trước khi đưa vào slide/video hay gửi hội đồng.
+- Báo cáo số bắt đầu, số hoàn thành và số làm dở; tách lượt nhận AI thật với gợi ý dự phòng.
+- Có thể thống kê thay đổi lựa chọn và rubric của từng học sinh trước/sau gợi ý; đó là cải thiện ngay trong hoạt động, chưa chứng minh ghi nhớ bền vững hay tác động nhân quả của AI.
+- Hai bộ đầu/cuối nhắm ý tưởng tương tự nhưng chưa chuẩn hóa độ khó tương đương. Không dùng chênh lệch 0–4 làm bằng chứng độc lập về hiệu quả AI. Có thể thêm kiểm tra chuyển giao sau 3–7 ngày với công cụ chung cho tất cả học sinh.
+- Lưu ví dụ AI chưa phù hợp, cách giáo viên xử lý và số phản hồi bị báo lỗi. Minh chứng cho thấy vai trò giám sát của giáo viên.
+
+8. Kiểm tra kỹ thuật
+node --test tests/optics-ai.test.cjs
+node node_modules/typescript/bin/tsc --noEmit --incremental false
+node node_modules/eslint/bin/eslint.js lib/optics-ai-*.ts app/OpticsAiReview.tsx app/giao-vien/OpticsAiDashboard.tsx app/api/optics-ai/route.ts app/api/teacher-optics-ai/route.ts app/on-tap-quang-hoc-ai/xem-thu/page.tsx tests/optics-ai.test.cjs
+Các kiểm thử tự động dùng mô hình giả lập và phiên xem thử, không gọi AI thật/Neon thật. Bản xem thử không xác nhận kết nối production hoặc chất lượng mô hình thật.
+
+Kết quả kiểm tra ngày 03/10/2026: 6 kiểm thử tự động đạt; TypeScript và ESLint các tệp thay đổi đạt; giao diện đã chạy qua chẩn đoán, nhận gợi ý quy tắc, báo lỗi và lưu lần sửa. Bản dựng production chưa xác nhận: môi trường kiểm tra không tải được phông Be Vietnam Pro từ Google Fonts; lần thử ngoài sandbox gặp EPERM tại tệp chẩn đoán .next. Cần chạy build trong môi trường triển khai trước khi mở bài thật.
+
+Tham khảo kết nối API:
+https://developers.openai.com/api/docs/guides/structured-outputs
+https://developers.openai.com/api/docs/guides/migrate-to-responses

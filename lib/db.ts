@@ -2,13 +2,21 @@ import "server-only";
 
 import { neon } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { activityDefinitions, type ActivityKey } from "@/lib/activities";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactorsPayload } from "@/lib/experiments";
 import type { RefractionQuizAnswers } from "@/lib/refraction-quiz";
 import { scoreRefractionQuiz, type RefractionQuizEvaluation } from "@/lib/refraction-quiz-score";
 import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
-import { formatStudentNumber } from "@/lib/classes";
+import { formatStudentNumber, groupNames } from "@/lib/classes";
+import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
+import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
+import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
+import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
+import { getOpticsQuestQuestion, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestQuestionStat, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
+import { gradeOpticsQuest } from "@/lib/optics-quest-score";
+import { computePrismLiveBonusPoint, normalizePrismLiveAnswer, prismLiveBonusConfigs, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
 
 export type Measurement = {
   sequence: number;
@@ -40,7 +48,17 @@ export type ActivitySetting = {
   colorOpen: boolean;
   iuPracticeOpen: boolean;
   ohmLawPracticeOpen: boolean;
+  ohmRaceOpen: boolean;
+  ohmRaceRunning: boolean;
+  ohmRaceRound: number;
+  ohmRaceStartedAt: string | null;
   resistivityOpen: boolean;
+  resistanceFactorsPracticeOpen: boolean;
+  imageConstructionOpen: boolean;
+  opticsGameRunning: boolean;
+  opticsGameRound: number;
+  opticsGameStartedAt: string | null;
+  opticsGameEndedAt: string | null;
   updatedAt: string;
 };
 
@@ -55,6 +73,17 @@ export type RefractionQuizSubmission = {
   totalItems: number;
   releasedAt: string | null;
   createdAt: string;
+  forced: boolean;
+  completedCount: number;
+  completionState: "no-data" | "partial" | "complete";
+};
+
+export type RefractionQuizClassSummary = {
+  submittedCount: number;
+  releasedCount: number;
+  completeCount: number;
+  partialCount: number;
+  noDataCount: number;
 };
 
 export type RefractionQuizSubmissionStatus =
@@ -69,6 +98,16 @@ export class DuplicateRefractionQuizSubmissionError extends Error {
   }
 }
 
+const ACTIVITY_SETTINGS_CACHE_TAG = "activity-settings";
+const SCHOOL_YEARS_CACHE_TAG = "school-years";
+const TEACHER_PROGRESS_CACHE_TAG = "teacher-progress";
+const REFRACTION_QUIZ_CACHE_TAG = "refraction-quiz-submissions";
+const PRACTICE_ATTEMPTS_CACHE_TAG = "practice-attempts";
+
+function expireCacheTag(tag: string) {
+  revalidateTag(tag, { expire: 0 });
+}
+
 function getSql() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -79,8 +118,185 @@ function getSql() {
 
 let schemaPromise: Promise<void> | null = null;
 
+/**
+ * Bộ câu hỏi vận dụng tính chất ảnh của thấu kính: dùng SAU khi học sinh đã
+ * rút ra được tính chất ảnh của thấu kính hội tụ (5 vị trí vật) và thấu kính
+ * phân kì, nên không hỏi lại định nghĩa (quang tâm, trục chính...) mà bắt
+ * vận dụng trực tiếp và suy luận ngược từ tính chất ảnh ra vị trí vật/loại
+ * thấu kính.
+ *
+ * Tách riêng khỏi initializeSchema (và chạy ở đầu hàm đó, trước gate "ready")
+ * vì gate đó chỉ kiểm tra sự TỒN TẠI của slug 'lens-live-1', không kiểm tra
+ * nội dung — nên một khi DB đã có bản ghi, initializeSchema sẽ return sớm và
+ * không bao giờ chạm lại đoạn INSERT...ON CONFLICT DO UPDATE nếu nó nằm sau
+ * gate đó. Gọi hàm này độc lập đảm bảo sửa nội dung câu hỏi trong code luôn
+ * được đồng bộ xuống DB mỗi khi ensureSchema() chạy, bất kể gate "ready".
+ */
+async function syncLensLiveQuestions(sql: ReturnType<typeof getSql>) {
+  const lensQuestions = [
+    {
+      slug: "lens-live-1",
+      type: "single",
+      prompt: "Thấu kính hội tụ có thể cho mấy loại ảnh của một vật thật?",
+      options: [
+        "Chỉ cho ảnh thật, không bao giờ cho ảnh ảo",
+        "Có thể cho ảnh thật hoặc ảnh ảo tùy vị trí vật; ảnh thật luôn ngược chiều với vật",
+        "Có thể cho ảnh thật hoặc ảnh ảo tùy vị trí vật; ảnh thật luôn cùng chiều với vật",
+        "Chỉ cho ảnh ảo, giống thấu kính phân kì",
+      ],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "lens-live-2",
+      type: "single",
+      prompt: "Một vật đặt trước thấu kính hội tụ cho ảnh thật. Nhận định nào chắc chắn đúng về ảnh này?",
+      options: [
+        "Ảnh chắc chắn lớn hơn vật",
+        "Ảnh chắc chắn nhỏ hơn vật",
+        "Ảnh chắc chắn ngược chiều với vật, còn lớn hơn hay nhỏ hơn thì tùy vị trí vật",
+        "Ảnh chắc chắn cùng chiều với vật",
+      ],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "lens-live-3",
+      type: "single",
+      prompt: "Vật đặt trước thấu kính hội tụ, cách thấu kính trong khoảng tiêu cự (d < f). Ảnh thu được có tính chất nào?",
+      options: [
+        "Ảnh thật, ngược chiều, nhỏ hơn vật",
+        "Ảnh ảo, cùng chiều, lớn hơn vật",
+        "Ảnh thật, cùng chiều, lớn hơn vật",
+        "Không tạo được ảnh vì vật quá gần thấu kính",
+      ],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "lens-live-4",
+      type: "single",
+      prompt: "Muốn chụp ảnh thật của một người (như máy ảnh vẫn làm), nên dùng loại thấu kính nào, vì sao?",
+      options: [
+        "Thấu kính phân kì, vì nó luôn cho ảnh rõ nét hơn",
+        "Thấu kính hội tụ, vì chỉ thấu kính hội tụ mới có thể cho ảnh thật với vật thật",
+        "Cả hai loại đều dùng được, vì loại nào cũng cho ảnh thật",
+        "Thấu kính phân kì, vì ảnh của nó luôn lớn hơn vật",
+      ],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "lens-live-5",
+      type: "single",
+      prompt: "Với thấu kính phân kì, khi đặt một vật thật (ở bất kỳ vị trí nào trước thấu kính), ảnh thu được luôn có tính chất gì?",
+      options: [
+        "Ảnh thật, ngược chiều, nhỏ hơn vật",
+        "Ảnh ảo, cùng chiều, nhỏ hơn vật, nằm trong khoảng tiêu cự",
+        "Ảnh ảo, ngược chiều, lớn hơn vật",
+        "Tùy vị trí vật mà có thể là ảnh thật hoặc ảnh ảo",
+      ],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "lens-live-6",
+      type: "single",
+      prompt: "Điểm khác biệt rõ nhất giữa ảnh của thấu kính hội tụ và thấu kính phân kì (với cùng một vật thật) là gì?",
+      options: [
+        "Thấu kính phân kì luôn cho ảnh lớn hơn vật, còn thấu kính hội tụ luôn cho ảnh nhỏ hơn vật",
+        "Thấu kính hội tụ luôn cho ảnh ảo, còn thấu kính phân kì luôn cho ảnh thật",
+        "Thấu kính phân kì luôn cho ảnh ảo với mọi vị trí vật, còn thấu kính hội tụ có thể cho ảnh thật hoặc ảnh ảo tùy vị trí vật",
+        "Hai loại thấu kính luôn cho cùng loại ảnh, chỉ khác về độ lớn",
+      ],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 80,
+    },
+    {
+      slug: "lens-live-7",
+      type: "single",
+      prompt: "Một học sinh dựng ảnh của vật qua một thấu kính và thấy ảnh là ảnh ảo, cùng chiều, nhỏ hơn vật. Thấu kính đó là loại gì?",
+      options: [
+        "Thấu kính hội tụ, với vật đặt trong khoảng tiêu cự",
+        "Có thể là thấu kính hội tụ hoặc phân kì, không xác định được",
+        "Thấu kính hội tụ, với vật đặt ngoài khoảng hai lần tiêu cự",
+        "Thấu kính phân kì",
+      ],
+      correctAnswer: { type: "single", selected: 3 },
+      durationSeconds: 75,
+    },
+    {
+      slug: "lens-live-8",
+      type: "single",
+      prompt: "Một học sinh dựng ảnh của vật qua một thấu kính và thấy ảnh là ảnh ảo, cùng chiều và lớn hơn vật. Thấu kính đó là loại gì, vật đặt ở đâu?",
+      options: [
+        "Thấu kính phân kì, vật đặt ở vị trí bất kỳ",
+        "Thấu kính hội tụ, vật đặt trong khoảng tiêu cự (d < f)",
+        "Thấu kính hội tụ, vật đặt ngoài hai lần tiêu cự (d > 2f)",
+        "Không thể xảy ra, vì ảnh lớn hơn vật thì phải là ảnh thật",
+      ],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 80,
+    },
+    {
+      slug: "lens-live-9",
+      type: "single",
+      prompt: "Kính lúp hoạt động dựa trên tính chất ảnh nào, và vật cần được đặt ở đâu để dùng được như kính lúp?",
+      options: [
+        "Dùng thấu kính hội tụ, đặt vật ngoài hai lần tiêu cự (d > 2f) để được ảnh thật nhỏ hơn vật",
+        "Dùng thấu kính phân kì, đặt vật ở vị trí bất kỳ để được ảnh ảo lớn hơn vật",
+        "Dùng thấu kính hội tụ, đặt vật trong khoảng tiêu cự (d < f) để được ảnh ảo, cùng chiều, lớn hơn vật",
+        "Dùng thấu kính phân kì, đặt vật trong khoảng tiêu cự để được ảnh thật lớn hơn vật",
+      ],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 80,
+    },
+    {
+      slug: "lens-live-10",
+      type: "single",
+      prompt: "Nhận định nào sau đây về ảnh thật của thấu kính hội tụ là ĐÚNG?",
+      options: [
+        "Ảnh thật luôn lớn hơn vật",
+        "Ảnh thật luôn nhỏ hơn vật",
+        "Ảnh thật luôn ngược chiều với vật; có thể lớn hơn, nhỏ hơn hoặc bằng vật tùy vị trí vật",
+        "Ảnh thật luôn cùng chiều với vật",
+      ],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 75,
+    },
+  ] as const;
+  for (const [index, question] of lensQuestions.entries()) {
+    await sql`
+      INSERT INTO prism_live_questions (
+        id, school_year, class_name, activity_key, question_type, prompt, options, content, correct_answer,
+        quiz_set, quiz_order, slug, duration_seconds
+      ) VALUES (
+        ${randomUUID()}, '26-27', 'NGAN-HANG', 'lenses', ${question.type}, ${question.prompt},
+        ${JSON.stringify(question.options)}::jsonb, '{}'::jsonb, ${JSON.stringify(question.correctAnswer)}::jsonb,
+        'lens-live', ${index + 1}, ${question.slug}, ${question.durationSeconds}
+      )
+      ON CONFLICT (slug) DO UPDATE SET
+        activity_key = EXCLUDED.activity_key,
+        question_type = EXCLUDED.question_type,
+        prompt = EXCLUDED.prompt,
+        options = EXCLUDED.options,
+        correct_answer = EXCLUDED.correct_answer,
+        quiz_set = EXCLUDED.quiz_set,
+        quiz_order = EXCLUDED.quiz_order,
+        duration_seconds = EXCLUDED.duration_seconds,
+        updated_at = NOW()
+    `;
+  }
+}
+
 async function initializeSchema() {
   const sql = getSql();
+
+  // Resync the "lenses" live-quiz bank every time the schema check runs, so
+  // editing lensQuestions in code always reaches a DB that already has the
+  // table (the "ready" gate below short-circuits before reaching the seed
+  // block further down, which would otherwise silently stop applying edits).
+  await syncLensLiveQuestions(sql);
 
   const schemaStatus = await sql`
     SELECT (
@@ -89,12 +305,49 @@ async function initializeSchema() {
       to_regclass('public.activity_settings') IS NOT NULL AND
       to_regclass('public.experiment_submissions') IS NOT NULL AND
       to_regclass('public.refraction_quiz_submissions') IS NOT NULL AND
+      to_regclass('public.practice_attempts') IS NOT NULL AND
+      to_regclass('public.prism_live_questions') IS NOT NULL AND
+      to_regclass('public.prism_live_responses') IS NOT NULL AND
+      to_regclass('public.prism_live_sessions') IS NOT NULL AND
+      to_regclass('public.prism_live_session_responses') IS NOT NULL AND
       to_regclass('public.submissions_year_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_group_unique_idx') IS NOT NULL AND
       to_regclass('public.refraction_quiz_year_class_number_unique_idx') IS NOT NULL AND
       to_regclass('public.submissions_school_year_class_created_idx') IS NOT NULL AND
       to_regclass('public.experiment_submissions_year_activity_class_created_idx') IS NOT NULL AND
       to_regclass('public.refraction_quiz_year_class_created_idx') IS NOT NULL AND
+      to_regclass('public.practice_attempts_year_key_class_status_idx') IS NOT NULL AND
+      to_regclass('public.practice_attempts_year_key_class_student_unique_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_questions_year_class_created_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_responses_question_student_unique_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_sessions_year_class_created_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_sessions_one_running_per_class_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_session_responses_session_student_unique_idx') IS NOT NULL AND
+      to_regclass('public.prism_live_questions_slug_unique_idx') IS NOT NULL AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'correct_answer'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'content'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'quiz_set'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_questions' AND column_name = 'activity_key'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_session_responses' AND column_name = 'is_correct'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'prism_live_sessions' AND column_name = 'results_published'
+      ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'construction_open'
@@ -117,7 +370,47 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_running'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_round'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_started_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'resistivity_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'resistance_factors_practice_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'image_construction_open'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_running'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_round'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_started_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'optics_game_ended_at'
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -126,18 +419,17 @@ async function initializeSchema() {
       EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'refraction_quiz_submissions' AND column_name = 'released_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM prism_live_questions WHERE slug = 'lens-live-1'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM activity_settings WHERE activity_key = 'dragonfly-balance'
       )
     ) AS ready
   `;
 
   if (Boolean(schemaStatus[0]?.ready)) {
-    for (const activity of activityDefinitions) {
-      await sql`
-        INSERT INTO activity_settings (activity_key, is_open)
-        VALUES (${activity.key}, ${activity.key === "refraction"})
-        ON CONFLICT (activity_key) DO NOTHING
-      `;
-    }
     return;
   }
 
@@ -222,7 +514,17 @@ async function initializeSchema() {
       color_open BOOLEAN NOT NULL DEFAULT FALSE,
       iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_race_open BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_race_running BOOLEAN NOT NULL DEFAULT FALSE,
+      ohm_race_round INTEGER NOT NULL DEFAULT 1,
+      ohm_race_started_at TIMESTAMPTZ,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
+      resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+      image_construction_open BOOLEAN NOT NULL DEFAULT FALSE,
+      optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
+      optics_game_round INTEGER NOT NULL DEFAULT 1,
+      optics_game_started_at TIMESTAMPTZ,
+      optics_game_ended_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -234,7 +536,17 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS color_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS iu_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS ohm_law_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE
+    ADD COLUMN IF NOT EXISTS ohm_race_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS ohm_race_running BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS ohm_race_round INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS ohm_race_started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS image_construction_open BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS optics_game_running BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS optics_game_round INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS optics_game_started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS optics_game_ended_at TIMESTAMPTZ
   `;
 
   for (const activity of activityDefinitions) {
@@ -327,11 +639,395 @@ async function initializeSchema() {
     CREATE INDEX IF NOT EXISTS refraction_quiz_year_class_created_idx
     ON refraction_quiz_submissions (school_year, class_name, created_at DESC)
   `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS practice_attempts (
+      id UUID PRIMARY KEY,
+      school_year VARCHAR(5) NOT NULL,
+      practice_key VARCHAR(50) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      student_number SMALLINT NOT NULL,
+      answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+      completed_count INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER NOT NULL DEFAULT 0,
+      total_items INTEGER NOT NULL,
+      bonus_point INTEGER NOT NULL DEFAULT 0,
+      status VARCHAR(12) NOT NULL DEFAULT 'draft',
+      forced BOOLEAN NOT NULL DEFAULT FALSE,
+      released_at TIMESTAMPTZ,
+      submitted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT practice_attempts_status_check CHECK (status IN ('draft', 'submitted'))
+    )
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS practice_attempts_year_key_class_student_unique_idx
+    ON practice_attempts (school_year, practice_key, class_name, student_number)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS practice_attempts_year_key_class_status_idx
+    ON practice_attempts (school_year, practice_key, class_name, status, updated_at DESC)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS prism_live_questions (
+      id UUID PRIMARY KEY,
+      school_year VARCHAR(5) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      activity_key VARCHAR(40) NOT NULL DEFAULT 'prism-colors',
+      question_type VARCHAR(12) NOT NULL,
+      prompt VARCHAR(1000) NOT NULL,
+      options JSONB NOT NULL DEFAULT '[]'::jsonb,
+      content JSONB NOT NULL DEFAULT '{}'::jsonb,
+      correct_answer JSONB,
+      quiz_set VARCHAR(60),
+      quiz_order SMALLINT,
+      slug VARCHAR(100),
+      duration_seconds INTEGER NOT NULL,
+      status VARCHAR(10) NOT NULL DEFAULT 'draft',
+      started_at TIMESTAMPTZ,
+      deadline_at TIMESTAMPTZ,
+      closed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT prism_live_questions_type_check CHECK (question_type IN ('single', 'multiple', 'matching', 'short', 'drawing')),
+      CONSTRAINT prism_live_questions_status_check CHECK (status IN ('draft', 'running', 'closed')),
+      CONSTRAINT prism_live_questions_duration_check CHECK (duration_seconds BETWEEN 10 AND 600)
+    )
+  `;
+
+  await sql`
+    ALTER TABLE prism_live_questions
+      ADD COLUMN IF NOT EXISTS content JSONB NOT NULL DEFAULT '{}'::jsonb,
+      ADD COLUMN IF NOT EXISTS correct_answer JSONB,
+      ADD COLUMN IF NOT EXISTS quiz_set VARCHAR(60),
+      ADD COLUMN IF NOT EXISTS quiz_order SMALLINT,
+      ADD COLUMN IF NOT EXISTS slug VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS activity_key VARCHAR(40) NOT NULL DEFAULT 'prism-colors'
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS prism_live_responses (
+      id UUID PRIMARY KEY,
+      question_id UUID NOT NULL REFERENCES prism_live_questions(id) ON DELETE CASCADE,
+      student_number SMALLINT NOT NULL,
+      answer JSONB NOT NULL,
+      is_correct BOOLEAN,
+      graded_at TIMESTAMPTZ,
+      submitted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT prism_live_responses_student_check CHECK (student_number BETWEEN 1 AND 33)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS prism_live_questions_year_class_created_idx
+    ON prism_live_questions (school_year, class_name, created_at DESC)
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_responses_question_student_unique_idx
+    ON prism_live_responses (question_id, student_number)
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS prism_live_sessions (
+      id UUID PRIMARY KEY,
+      question_id UUID NOT NULL REFERENCES prism_live_questions(id) ON DELETE CASCADE,
+      school_year VARCHAR(5) NOT NULL,
+      class_name VARCHAR(30) NOT NULL,
+      duration_seconds INTEGER NOT NULL,
+      status VARCHAR(10) NOT NULL DEFAULT 'running',
+      results_published BOOLEAN NOT NULL DEFAULT FALSE,
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deadline_at TIMESTAMPTZ NOT NULL,
+      closed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT prism_live_sessions_status_check CHECK (status IN ('running', 'closed')),
+      CONSTRAINT prism_live_sessions_duration_check CHECK (duration_seconds BETWEEN 10 AND 600)
+    )
+  `;
+
+  await sql`
+    ALTER TABLE prism_live_sessions
+      ADD COLUMN IF NOT EXISTS results_published BOOLEAN NOT NULL DEFAULT FALSE
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS prism_live_session_responses (
+      id UUID PRIMARY KEY,
+      session_id UUID NOT NULL REFERENCES prism_live_sessions(id) ON DELETE CASCADE,
+      student_number SMALLINT NOT NULL,
+      answer JSONB NOT NULL,
+      is_correct BOOLEAN,
+      graded_at TIMESTAMPTZ,
+      submitted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT prism_live_session_responses_student_check CHECK (student_number BETWEEN 1 AND 33)
+    )
+  `;
+
+  await sql`
+    ALTER TABLE prism_live_session_responses
+      ADD COLUMN IF NOT EXISTS is_correct BOOLEAN,
+      ADD COLUMN IF NOT EXISTS graded_at TIMESTAMPTZ
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS prism_live_sessions_year_class_created_idx
+    ON prism_live_sessions (school_year, class_name, created_at DESC)
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_sessions_one_running_per_class_idx
+    ON prism_live_sessions (school_year, class_name)
+    WHERE status = 'running'
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_session_responses_session_student_unique_idx
+    ON prism_live_session_responses (session_id, student_number)
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS prism_live_questions_slug_unique_idx
+    ON prism_live_questions (slug)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS prism_live_questions_quiz_set_order_idx
+    ON prism_live_questions (quiz_set, quiz_order)
+  `;
+
+  const builtInPrismQuestions = [
+    {
+      slug: "prism-color-five-1",
+      type: "matching",
+      prompt: "Ghép mỗi tình huống với màu mà mắt quan sát được.",
+      options: ["Màu xanh", "Màu đỏ", "Màu trắng", "Màu đen"],
+      content: { items: ["Quyển sách màu đỏ đặt ngoài trời", "Cánh cửa màu xanh đặt trong ánh sáng xanh", "Áo trắng đặt trong ánh sáng xanh", "Quả bóng màu xanh đặt trong ánh sáng đỏ"] },
+      correctAnswer: { type: "matching", selected: [1, 0, 0, 3] },
+      durationSeconds: 100,
+    },
+    {
+      slug: "prism-color-five-2",
+      type: "multiple",
+      prompt: "Chọn tất cả nhận định đúng về màu sắc của vật.",
+      options: [
+        "Ta nhìn thấy vật có màu nào thì có ánh sáng màu đó truyền từ vật đến mắt ta.",
+        "Vật màu đen hấp thụ hầu hết ánh sáng màu chiếu vào nó.",
+        "Vật trông có màu đen vì nó phản xạ ánh sáng màu đen đến mắt ta.",
+        "Lá cây trông có màu lục vì phản xạ ánh sáng màu lục nhiều nhất khi được ánh sáng Mặt Trời chiếu vào.",
+        "Tấm lọc màu lục hấp thụ hầu hết ánh sáng màu khác và cho ánh sáng màu lục truyền qua.",
+      ],
+      content: {},
+      correctAnswer: { type: "multiple", selected: [0, 1, 3, 4] },
+      durationSeconds: 100,
+    },
+    {
+      slug: "prism-color-five-3",
+      type: "short",
+      prompt: "Có một tấm kính lọc A màu đỏ và một tấm kính lọc B màu lục. Nhìn tờ giấy trắng qua đồng thời cả hai tấm kính lọc, em thấy tờ giấy màu gì? Giải thích.",
+      options: [],
+      content: {},
+      correctAnswer: null,
+      durationSeconds: 120,
+    },
+    {
+      slug: "prism-color-five-4",
+      type: "single",
+      prompt: "Hình nào mô tả đúng đường truyền của một tia sáng qua lăng kính?",
+      options: ["Hình A", "Hình B", "Hình C", "Hình D"],
+      content: { visualKey: "prism-path" },
+      correctAnswer: { type: "single", selected: 3 },
+      durationSeconds: 75,
+    },
+    {
+      slug: "prism-color-five-5",
+      type: "single",
+      prompt: "Hình nào mô tả đúng sự tán sắc ánh sáng trắng qua lăng kính?",
+      options: ["Hình A", "Hình B", "Hình C", "Hình D"],
+      content: { visualKey: "prism-dispersion" },
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 75,
+    },
+  ] as const;
+  for (const [index, question] of builtInPrismQuestions.entries()) {
+    await sql`
+      INSERT INTO prism_live_questions (
+        id, school_year, class_name, activity_key, question_type, prompt, options, content, correct_answer,
+        quiz_set, quiz_order, slug, duration_seconds
+      ) VALUES (
+        ${randomUUID()}, '26-27', 'NGAN-HANG', 'prism-colors', ${question.type}, ${question.prompt},
+        ${JSON.stringify(question.options)}::jsonb, ${JSON.stringify(question.content)}::jsonb,
+        ${question.correctAnswer ? JSON.stringify(question.correctAnswer) : null}::jsonb,
+        'prism-color-five', ${index + 1}, ${question.slug}, ${question.durationSeconds}
+      )
+      ON CONFLICT (slug) DO UPDATE SET
+        question_type = EXCLUDED.question_type,
+        prompt = EXCLUDED.prompt,
+        options = EXCLUDED.options,
+        content = EXCLUDED.content,
+        correct_answer = EXCLUDED.correct_answer,
+        quiz_set = EXCLUDED.quiz_set,
+        quiz_order = EXCLUDED.quiz_order,
+        duration_seconds = EXCLUDED.duration_seconds,
+        updated_at = NOW()
+    `;
+  }
+
+  const totalReflectionQuestions = [
+    {
+      slug: "tir-live-1",
+      type: "single",
+      prompt: "Điều kiện đầu tiên để có thể xảy ra phản xạ toàn phần là ánh sáng truyền theo hướng nào?",
+      options: ["Từ môi trường có chiết suất nhỏ sang môi trường có chiết suất lớn", "Từ môi trường có chiết suất lớn sang môi trường có chiết suất nhỏ", "Chỉ từ không khí sang nước", "Giữa hai môi trường có cùng chiết suất"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "tir-live-2",
+      type: "single",
+      prompt: "Góc giới hạn phản xạ toàn phần được xác định như thế nào?",
+      options: ["Là góc tạo bởi tia phản xạ và pháp tuyến", "Là góc khúc xạ lớn nhất trong môi trường thứ hai", "Là góc tới trong môi trường có chiết suất lớn hơn khi tia khúc xạ đi sát mặt phân cách", "Là góc tạo bởi tia tới và mặt phân cách"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 70,
+    },
+    {
+      slug: "tir-live-3",
+      type: "single",
+      prompt: "Phản xạ toàn phần không thể xảy ra trong trường hợp nào?",
+      options: ["Từ thủy tinh sang không khí", "Từ nước sang không khí", "Từ không khí sang nước", "Từ kim cương sang không khí"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "tir-live-4",
+      type: "single",
+      prompt: "Dụng cụ nào không chủ yếu hoạt động dựa trên phản xạ toàn phần?",
+      options: ["Cáp quang", "Kính lúp", "Lăng kính phản xạ", "Ống nội soi dùng sợi quang"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 55,
+    },
+    {
+      slug: "tir-live-5",
+      type: "single",
+      prompt: "Tia sáng truyền từ nước (n = 1,33) ra không khí (n = 1,00). Góc giới hạn gần nhất với giá trị nào?",
+      options: ["41,8°", "45,0°", "48,8°", "56,3°"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 90,
+    },
+    {
+      slug: "tir-live-6",
+      type: "single",
+      prompt: "Với ánh sáng truyền từ môi trường 1 sang môi trường 2 và n₁ > n₂, góc giới hạn phụ thuộc trực tiếp vào đại lượng nào?",
+      options: ["Cường độ của chùm sáng", "Chiết suất của hai môi trường", "Màu của vật đặt gần mặt phân cách", "Khoảng cách từ nguồn sáng đến mặt phân cách"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 60,
+    },
+    {
+      slug: "tir-live-7",
+      type: "multiple",
+      prompt: "Chọn tất cả nhận định đúng về phản xạ toàn phần.",
+      options: ["Từ không khí vào nước, với góc tới nhỏ hơn 90°, luôn có tia khúc xạ", "Từ nước ra không khí luôn có tia khúc xạ", "Từ không khí vào thủy tinh có thể phản xạ toàn phần nếu góc tới đủ lớn", "Từ thủy tinh ra không khí luôn phản xạ toàn phần", "Khi góc tới bằng góc giới hạn, tia khúc xạ đi sát mặt phân cách", "Khi truyền từ môi trường có chiết suất lớn sang nhỏ và góc tới lớn hơn góc giới hạn, phản xạ toàn phần xảy ra"],
+      correctAnswer: { type: "multiple", selected: [0, 4, 5] },
+      durationSeconds: 100,
+    },
+    {
+      slug: "tir-live-8",
+      type: "single",
+      prompt: "Tia sáng truyền từ thủy tinh (n = 1,50) ra không khí với góc tới 40°. Biết góc giới hạn xấp xỉ 41,8°. Điều gì xảy ra?",
+      options: ["Phản xạ toàn phần", "Có tia khúc xạ và tia phản xạ", "Tia khúc xạ đi sát mặt phân cách", "Tia sáng không đổi hướng"],
+      correctAnswer: { type: "single", selected: 1 },
+      durationSeconds: 75,
+    },
+    {
+      slug: "tir-live-9",
+      type: "single",
+      prompt: "Hai môi trường A (n = 1,60) và B (n = 1,40) đều truyền ánh sáng ra không khí. Môi trường nào có góc giới hạn nhỏ hơn?",
+      options: ["Môi trường A", "Môi trường B", "Hai góc giới hạn bằng nhau", "Không đủ dữ kiện"],
+      correctAnswer: { type: "single", selected: 0 },
+      durationSeconds: 80,
+    },
+    {
+      slug: "tir-live-10",
+      type: "single",
+      prompt: "Lõi sợi quang có n = 1,48, lớp vỏ có n = 1,46; góc giới hạn xấp xỉ 80,6°. Tia sáng gặp mặt lõi–vỏ với góc tới 82°. Kết luận đúng là gì?",
+      options: ["Tia truyền thẳng qua lớp vỏ", "Tia khúc xạ đi sát mặt phân cách", "Phản xạ toàn phần xảy ra trong lõi", "Không thể xác định"],
+      correctAnswer: { type: "single", selected: 2 },
+      durationSeconds: 90,
+    },
+  ] as const;
+  for (const [index, question] of totalReflectionQuestions.entries()) {
+    await sql`
+      INSERT INTO prism_live_questions (
+        id, school_year, class_name, activity_key, question_type, prompt, options, content, correct_answer,
+        quiz_set, quiz_order, slug, duration_seconds
+      ) VALUES (
+        ${randomUUID()}, '26-27', 'NGAN-HANG', 'total-internal-reflection', ${question.type}, ${question.prompt},
+        ${JSON.stringify(question.options)}::jsonb, '{}'::jsonb, ${JSON.stringify(question.correctAnswer)}::jsonb,
+        'tir-live', ${index + 1}, ${question.slug}, ${question.durationSeconds}
+      )
+      ON CONFLICT (slug) DO UPDATE SET
+        activity_key = EXCLUDED.activity_key,
+        question_type = EXCLUDED.question_type,
+        prompt = EXCLUDED.prompt,
+        options = EXCLUDED.options,
+        correct_answer = EXCLUDED.correct_answer,
+        quiz_set = EXCLUDED.quiz_set,
+        quiz_order = EXCLUDED.quiz_order,
+        duration_seconds = EXCLUDED.duration_seconds,
+        updated_at = NOW()
+    `;
+  }
+
+  const legacyQuestions = await sql`
+    SELECT question.*
+    FROM prism_live_questions question
+    WHERE question.started_at IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM prism_live_sessions session WHERE session.question_id = question.id)
+  `;
+  for (const question of legacyQuestions) {
+    const sessionId = String(question.id);
+    await sql`
+      INSERT INTO prism_live_sessions (
+        id, question_id, school_year, class_name, duration_seconds, status,
+        started_at, deadline_at, closed_at, created_at, updated_at
+      ) VALUES (
+        ${sessionId}, ${String(question.id)}, ${String(question.school_year)}, ${String(question.class_name)},
+        ${Number(question.duration_seconds)}, 'closed',
+        ${new Date(String(question.started_at)).toISOString()},
+        ${question.deadline_at ? new Date(String(question.deadline_at)).toISOString() : new Date(String(question.started_at)).toISOString()},
+        ${question.closed_at ? new Date(String(question.closed_at)).toISOString() : question.deadline_at ? new Date(String(question.deadline_at)).toISOString() : new Date(String(question.started_at)).toISOString()},
+        ${new Date(String(question.created_at)).toISOString()}, ${new Date(String(question.updated_at)).toISOString()}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await sql`
+      INSERT INTO prism_live_session_responses (
+        id, session_id, student_number, answer, submitted_at, created_at, updated_at
+      )
+      SELECT id, ${sessionId}, student_number, answer, submitted_at, created_at, updated_at
+      FROM prism_live_responses
+      WHERE question_id = ${String(question.id)}
+      ON CONFLICT DO NOTHING
+    `;
+  }
 }
+
+const ensureSchemaAcrossInstances = unstable_cache(async () => {
+  await initializeSchema();
+  return true;
+}, ["physics-lab-schema-live-topics-v4"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
-    schemaPromise = initializeSchema().catch((error) => {
+    schemaPromise = ensureSchemaAcrossInstances().then(() => undefined).catch((error) => {
       schemaPromise = null;
       throw error;
     });
@@ -339,11 +1035,14 @@ export async function ensureSchema() {
   await schemaPromise;
 }
 
-export async function listActivitySettings(): Promise<ActivitySetting[]> {
+const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetting[]> => {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open, resistivity_open, updated_at
+    SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
+      ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
+      resistivity_open, resistance_factors_practice_open, image_construction_open,
+      optics_game_running, optics_game_round, optics_game_started_at, optics_game_ended_at, updated_at
     FROM activity_settings
   `;
   const settings = new Map(rows.map((row) => [String(row.activity_key), row]));
@@ -358,10 +1057,24 @@ export async function listActivitySettings(): Promise<ActivitySetting[]> {
       colorOpen: Boolean(row?.color_open),
       iuPracticeOpen: Boolean(row?.iu_practice_open),
       ohmLawPracticeOpen: Boolean(row?.ohm_law_practice_open),
+      ohmRaceOpen: Boolean(row?.ohm_race_open),
+      ohmRaceRunning: Boolean(row?.ohm_race_running),
+      ohmRaceRound: Math.max(1, Number(row?.ohm_race_round ?? 1)),
+      ohmRaceStartedAt: row?.ohm_race_started_at ? new Date(String(row.ohm_race_started_at)).toISOString() : null,
       resistivityOpen: Boolean(row?.resistivity_open),
+      resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
+      imageConstructionOpen: Boolean(row?.image_construction_open),
+      opticsGameRunning: Boolean(row?.optics_game_running),
+      opticsGameRound: Math.max(1, Number(row?.optics_game_round ?? 1)),
+      opticsGameStartedAt: row?.optics_game_started_at ? new Date(String(row.optics_game_started_at)).toISOString() : null,
+      opticsGameEndedAt: row?.optics_game_ended_at ? new Date(String(row.optics_game_ended_at)).toISOString() : null,
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
+}, ["activity-settings-v10"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+
+export async function listActivitySettings(): Promise<ActivitySetting[]> {
+  return getCachedActivitySettings();
 }
 
 export async function isActivityOpen(key: ActivityKey) {
@@ -376,8 +1089,57 @@ export async function setActivityOpen(key: ActivityKey, isOpen: boolean) {
     INSERT INTO activity_settings (activity_key, is_open, updated_at)
     VALUES (${key}, ${isOpen}, NOW())
     ON CONFLICT (activity_key)
-    DO UPDATE SET is_open = EXCLUDED.is_open, updated_at = NOW()
+    DO UPDATE SET is_open = EXCLUDED.is_open,
+      optics_game_running = CASE WHEN ${key} = 'optics-game' AND NOT ${isOpen} THEN FALSE ELSE activity_settings.optics_game_running END,
+      updated_at = NOW()
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setOpticsGameRunning(isRunning: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET optics_game_running = ${isRunning},
+      optics_game_started_at = CASE
+        WHEN ${isRunning} THEN COALESCE(optics_game_started_at, NOW() + INTERVAL '5 seconds')
+        ELSE optics_game_started_at
+      END,
+      optics_game_ended_at = CASE WHEN ${isRunning} THEN NULL ELSE optics_game_ended_at END,
+      updated_at = NOW()
+    WHERE activity_key = 'optics-game' AND (is_open = TRUE OR ${isRunning} = FALSE)
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+// Kết thúc & công bố: dừng game, ghi mốc kết thúc (dùng làm thời gian chốt cho HS chưa nộp và làm tín hiệu công bố đáp án).
+export async function endOpticsGame() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET optics_game_running = FALSE,
+      optics_game_ended_at = COALESCE(optics_game_ended_at, NOW()),
+      updated_at = NOW()
+    WHERE activity_key = 'optics-game'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function advanceOpticsGameRound() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET optics_game_round = optics_game_round + 1,
+      optics_game_running = FALSE,
+      optics_game_started_at = NULL,
+      optics_game_ended_at = NULL,
+      updated_at = NOW()
+    WHERE activity_key = 'optics-game'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setRefractionConstructionOpen(isOpen: boolean) {
@@ -388,6 +1150,7 @@ export async function setRefractionConstructionOpen(isOpen: boolean) {
     SET construction_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'refraction'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setRefractionApplicationOpen(isOpen: boolean) {
@@ -398,6 +1161,7 @@ export async function setRefractionApplicationOpen(isOpen: boolean) {
     SET application_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'refraction'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setPrismColorOpen(isOpen: boolean) {
@@ -408,6 +1172,7 @@ export async function setPrismColorOpen(isOpen: boolean) {
     SET color_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'prism-colors'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setCurrentVoltagePracticeOpen(isOpen: boolean) {
@@ -418,6 +1183,7 @@ export async function setCurrentVoltagePracticeOpen(isOpen: boolean) {
     SET iu_practice_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'ohm'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setOhmsLawPracticeOpen(isOpen: boolean) {
@@ -428,6 +1194,50 @@ export async function setOhmsLawPracticeOpen(isOpen: boolean) {
     SET ohm_law_practice_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'ohm'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setOhmRaceOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_open = ${isOpen},
+      ohm_race_running = CASE WHEN ${isOpen} THEN ohm_race_running ELSE FALSE END,
+      updated_at = NOW()
+    WHERE activity_key = 'ohm'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setOhmRaceRunning(isRunning: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_running = ${isRunning},
+      ohm_race_started_at = CASE
+        WHEN ${isRunning} THEN COALESCE(ohm_race_started_at, NOW() + INTERVAL '5 seconds')
+        ELSE ohm_race_started_at
+      END,
+      updated_at = NOW()
+    WHERE activity_key = 'ohm' AND (ohm_race_open = TRUE OR ${isRunning} = FALSE)
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function advanceOhmRaceRound() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_round = ohm_race_round + 1,
+      ohm_race_running = FALSE,
+      ohm_race_started_at = NULL,
+      updated_at = NOW()
+    WHERE activity_key = 'ohm'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
 export async function setResistivityOpen(isOpen: boolean) {
@@ -438,9 +1248,32 @@ export async function setResistivityOpen(isOpen: boolean) {
     SET resistivity_open = ${isOpen}, updated_at = NOW()
     WHERE activity_key = 'resistance-factors'
   `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
 
-export async function listSchoolYears() {
+export async function setImageConstructionOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET image_construction_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'lenses'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+export async function setResistanceFactorsPracticeOpen(isOpen: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET resistance_factors_practice_open = ${isOpen}, updated_at = NOW()
+    WHERE activity_key = 'resistance-factors'
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+const getCachedSchoolYears = unstable_cache(async () => {
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
@@ -449,10 +1282,20 @@ export async function listSchoolYears() {
     SELECT school_year FROM experiment_submissions
     UNION
     SELECT school_year FROM refraction_quiz_submissions
+    UNION
+    SELECT school_year FROM practice_attempts
+    UNION
+    SELECT school_year FROM prism_live_questions
+    UNION
+    SELECT school_year FROM prism_live_sessions
   `;
   const years = new Set(rows.map((row) => String(row.school_year)));
   years.add(getCurrentSchoolYear());
   return [...years].sort((left, right) => right.localeCompare(left));
+}, ["school-years-v2"], { tags: [SCHOOL_YEARS_CACHE_TAG], revalidate: 3600 });
+
+export async function listSchoolYears() {
+  return getCachedSchoolYears();
 }
 
 export async function resetSchoolYearData(schoolYear: string) {
@@ -461,6 +1304,512 @@ export async function resetSchoolYearData(schoolYear: string) {
   await sql`DELETE FROM submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM experiment_submissions WHERE school_year = ${schoolYear}`;
   await sql`DELETE FROM refraction_quiz_submissions WHERE school_year = ${schoolYear}`;
+  await sql`DELETE FROM practice_attempts WHERE school_year = ${schoolYear}`;
+  await sql`DELETE FROM prism_live_sessions WHERE school_year = ${schoolYear}`;
+  expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
+  expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
+  expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+}
+
+function rowToPrismLiveQuestion(row: Record<string, unknown>): PrismLiveQuestion {
+  const rawOptions = Array.isArray(row.options) ? row.options : [];
+  const rawContent = row.content && typeof row.content === "object" && !Array.isArray(row.content)
+    ? row.content as Record<string, unknown>
+    : {};
+  const visualKey = rawContent.visualKey === "prism-path" || rawContent.visualKey === "prism-dispersion" ? rawContent.visualKey : undefined;
+  return {
+    id: String(row.id),
+    runId: row.run_id ? String(row.run_id) : null,
+    schoolYear: String(row.school_year),
+    className: String(row.class_name),
+    type: String(row.question_type) as PrismLiveQuestionType,
+    prompt: String(row.prompt),
+    options: rawOptions.filter((option): option is string => typeof option === "string"),
+    content: {
+      items: Array.isArray(rawContent.items) ? rawContent.items.filter((item): item is string => typeof item === "string") : undefined,
+      visualKey,
+    },
+    isAutoGraded: Boolean(row.is_auto_graded),
+    quizSet: row.quiz_set ? String(row.quiz_set) : null,
+    quizOrder: row.quiz_order === null || row.quiz_order === undefined ? null : Number(row.quiz_order),
+    configuredDurationSeconds: Number(row.configured_duration_seconds ?? row.duration_seconds),
+    durationSeconds: Number(row.duration_seconds),
+    status: String(row.status) as PrismLiveQuestionStatus,
+    resultsPublished: Boolean(row.results_published),
+    startedAt: row.started_at ? new Date(String(row.started_at)).toISOString() : null,
+    deadlineAt: row.deadline_at ? new Date(String(row.deadline_at)).toISOString() : null,
+    closedAt: row.closed_at ? new Date(String(row.closed_at)).toISOString() : null,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    responseCount: Number(row.response_count ?? 0),
+    submittedCount: Number(row.submitted_count ?? 0),
+  };
+}
+
+function rowToPrismLiveResponse(row: Record<string, unknown>): PrismLiveResponse {
+  return {
+    studentNumber: Number(row.student_number),
+    answer: row.answer as PrismLiveAnswer,
+    isCorrect: typeof row.is_correct === "boolean" ? row.is_correct : null,
+    submittedAt: row.submitted_at ? new Date(String(row.submitted_at)).toISOString() : null,
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+function normalizePrismLiveCorrectAnswer(value: unknown, type: PrismLiveQuestionType, optionCount: number): PrismLiveCorrectAnswer | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (type === "single" && record.type === "single") {
+    const selected = Number(record.selected);
+    return Number.isInteger(selected) && selected >= 0 && selected < optionCount ? { type, selected } : null;
+  }
+  if (type === "multiple" && record.type === "multiple" && Array.isArray(record.selected)) {
+    const selected = [...new Set(record.selected.map(Number))].sort((left, right) => left - right);
+    if (!selected.length || selected.some((index) => !Number.isInteger(index) || index < 0 || index >= optionCount)) return null;
+    return { type, selected };
+  }
+  return null;
+}
+
+function scorePrismLiveAnswer(answer: PrismLiveAnswer, correctAnswer: unknown): boolean | null {
+  if (!correctAnswer || typeof correctAnswer !== "object" || Array.isArray(correctAnswer)) return null;
+  const correct = correctAnswer as Record<string, unknown>;
+  if (answer.type === "single" && correct.type === "single") return answer.selected === Number(correct.selected);
+  if (answer.type === "multiple" && correct.type === "multiple" && Array.isArray(correct.selected)) {
+    const expected = correct.selected.map(Number).sort((left, right) => left - right);
+    return answer.selected.length === expected.length && answer.selected.every((selected, index) => selected === expected[index]);
+  }
+  if (answer.type === "matching" && correct.type === "matching" && Array.isArray(correct.selected)) {
+    const expected = correct.selected.map(Number);
+    return answer.selected.length === expected.length && answer.selected.every((selected, index) => selected === expected[index]);
+  }
+  return null;
+}
+
+async function closeExpiredPrismLiveQuestions() {
+  const sql = getSql();
+  const expiredRows = await sql`
+    UPDATE prism_live_sessions
+    SET status = 'closed', closed_at = COALESCE(deadline_at, NOW()), updated_at = NOW()
+    WHERE status = 'running' AND deadline_at IS NOT NULL AND deadline_at <= NOW()
+    RETURNING id
+  `;
+  if (!expiredRows.length) return;
+  await sql`
+    UPDATE prism_live_session_responses response
+    SET submitted_at = COALESCE(response.submitted_at, session.deadline_at, NOW()), updated_at = NOW()
+    FROM prism_live_sessions session
+    WHERE response.session_id = session.id
+      AND session.status = 'closed'
+      AND response.submitted_at IS NULL
+  `;
+}
+
+export async function createPrismLiveQuestion(input: {
+  schoolYear: string;
+  className: string;
+  activityKey: ActivityKey;
+  type: PrismLiveQuestionType;
+  prompt: string;
+  options: string[];
+  correctAnswer: unknown;
+  durationSeconds: number;
+}) {
+  await ensureSchema();
+  const sql = getSql();
+  const prompt = input.prompt.trim();
+  const options = input.options.map((option) => option.trim()).filter(Boolean);
+  const durationSeconds = Math.trunc(input.durationSeconds);
+  if (!prompt || prompt.length > 1000) throw new Error("Nội dung câu hỏi chưa hợp lệ.");
+  if (!Number.isInteger(durationSeconds) || durationSeconds < 10 || durationSeconds > 600) throw new Error("Thời gian phải từ 10 giây đến 10 phút.");
+  if ((input.type === "single" || input.type === "multiple") && (options.length < 2 || options.length > 6)) {
+    throw new Error("Câu trắc nghiệm cần từ 2 đến 6 đáp án.");
+  }
+  if (options.some((option) => option.length > 180)) throw new Error("Mỗi đáp án tối đa 180 ký tự.");
+  if (new Set(options.map((option) => option.toLocaleLowerCase("vi"))).size !== options.length) throw new Error("Các đáp án không được trùng nhau.");
+  const correctAnswer = input.type === "single" || input.type === "multiple"
+    ? normalizePrismLiveCorrectAnswer(input.correctAnswer, input.type, options.length)
+    : null;
+  if ((input.type === "single" || input.type === "multiple") && !correctAnswer) throw new Error("Hãy chọn đáp án đúng để hệ thống tự chấm.");
+
+  const id = randomUUID();
+  const rows = await sql`
+    INSERT INTO prism_live_questions (
+      id, school_year, class_name, activity_key, question_type, prompt, options, correct_answer, duration_seconds
+    ) VALUES (
+      ${id}, ${input.schoolYear}, 'NGAN-HANG', ${input.activityKey}, ${input.type}, ${prompt},
+      ${JSON.stringify(input.type === "single" || input.type === "multiple" ? options : [])}::jsonb,
+      ${correctAnswer ? JSON.stringify(correctAnswer) : null}::jsonb,
+      ${durationSeconds}
+    )
+    RETURNING *, (correct_answer IS NOT NULL) AS is_auto_graded,
+      NULL::UUID AS run_id, 'draft'::TEXT AS status,
+      NULL::TIMESTAMPTZ AS started_at, NULL::TIMESTAMPTZ AS deadline_at,
+      NULL::TIMESTAMPTZ AS closed_at, 0::INTEGER AS response_count, 0::INTEGER AS submitted_count
+  `;
+  expireCacheTag(SCHOOL_YEARS_CACHE_TAG);
+  return rowToPrismLiveQuestion(rows[0] as Record<string, unknown>);
+}
+
+export async function updatePrismLiveQuestionDuration(questionId: string, activityKey: ActivityKey, durationSecondsInput: number) {
+  await ensureSchema();
+  const durationSeconds = Math.trunc(durationSecondsInput);
+  if (!Number.isInteger(durationSeconds) || durationSeconds < 10 || durationSeconds > 600) {
+    throw new Error("Thời gian phải từ 10 giây đến 10 phút.");
+  }
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_questions
+    SET duration_seconds = ${durationSeconds}
+    WHERE id = ${questionId} AND activity_key = ${activityKey}
+    RETURNING duration_seconds
+  `;
+  if (!rows[0]) throw new Error("Không tìm thấy câu hỏi.");
+  return Number(rows[0].duration_seconds);
+}
+
+export async function listPrismLiveQuestions(schoolYear: string, className: string, activityKey: ActivityKey) {
+  await ensureSchema();
+  await closeExpiredPrismLiveQuestions();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT question.id, question.question_type, question.prompt, question.options, question.content,
+      question.quiz_set, question.quiz_order, question.duration_seconds AS configured_duration_seconds,
+      (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
+      ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
+      COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
+      session.id AS run_id, COALESCE(session.status, 'draft') AS status,
+      COALESCE(session.results_published, FALSE) AS results_published,
+      session.started_at, session.deadline_at, session.closed_at,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id AND response.submitted_at IS NOT NULL), 0) AS submitted_count
+    FROM prism_live_questions question
+    LEFT JOIN LATERAL (
+      SELECT current_session.*
+      FROM prism_live_sessions current_session
+      WHERE current_session.question_id = question.id
+        AND current_session.school_year = ${schoolYear} AND current_session.class_name = ${className}
+      ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
+      LIMIT 1
+    ) session ON TRUE
+    WHERE question.activity_key = ${activityKey}
+    ORDER BY question.quiz_set NULLS LAST, question.quiz_order ASC NULLS LAST, question.created_at DESC
+    LIMIT 100
+  `;
+  return rows.map((row) => rowToPrismLiveQuestion(row as Record<string, unknown>));
+}
+
+export async function getPrismLiveQuestionResults(schoolYear: string, className: string, questionId: string, activityKey: ActivityKey) {
+  await ensureSchema();
+  await closeExpiredPrismLiveQuestions();
+  const sql = getSql();
+  const questionRows = await sql`
+    SELECT question.id, question.question_type, question.prompt, question.options, question.content,
+      question.quiz_set, question.quiz_order, question.correct_answer, question.duration_seconds AS configured_duration_seconds,
+      (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
+      ${schoolYear}::TEXT AS school_year, ${className}::TEXT AS class_name,
+      COALESCE(session.duration_seconds, question.duration_seconds) AS duration_seconds,
+      session.id AS run_id, COALESCE(session.status, 'draft') AS status,
+      COALESCE(session.results_published, FALSE) AS results_published,
+      session.started_at, session.deadline_at, session.closed_at,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id), 0) AS response_count,
+      COALESCE((SELECT COUNT(*)::INTEGER FROM prism_live_session_responses response WHERE response.session_id = session.id AND response.submitted_at IS NOT NULL), 0) AS submitted_count
+    FROM prism_live_questions question
+    LEFT JOIN LATERAL (
+      SELECT current_session.*
+      FROM prism_live_sessions current_session
+      WHERE current_session.question_id = question.id
+        AND current_session.school_year = ${schoolYear} AND current_session.class_name = ${className}
+      ORDER BY CASE WHEN current_session.status = 'running' THEN 0 ELSE 1 END, current_session.created_at DESC
+      LIMIT 1
+    ) session ON TRUE
+    WHERE question.id = ${questionId} AND question.activity_key = ${activityKey}
+    LIMIT 1
+  `;
+  if (!questionRows[0]) return null;
+  const runId = questionRows[0].run_id ? String(questionRows[0].run_id) : null;
+  const responseRows = runId ? await sql`
+      SELECT student_number, answer, is_correct, submitted_at, updated_at
+      FROM prism_live_session_responses
+      WHERE session_id = ${runId}
+      ORDER BY student_number ASC
+    ` : [];
+  return {
+    question: rowToPrismLiveQuestion(questionRows[0] as Record<string, unknown>),
+    responses: responseRows.map((row) => rowToPrismLiveResponse(row as Record<string, unknown>)),
+    correctAnswer: (questionRows[0].correct_answer ?? null) as PrismLiveCorrectAnswer | null,
+  };
+}
+
+export async function startPrismLiveQuestion(schoolYear: string, className: string, questionId: string, activityKey: ActivityKey) {
+  await ensureSchema();
+  const sql = getSql();
+  await closeExpiredPrismLiveQuestions();
+  const closedSessions = await sql`
+    UPDATE prism_live_sessions
+    SET status = 'closed', closed_at = NOW(), updated_at = NOW()
+    WHERE school_year = ${schoolYear} AND class_name = ${className} AND status = 'running'
+    RETURNING id
+  `;
+  if (closedSessions.length) await sql`
+    UPDATE prism_live_session_responses response
+    SET submitted_at = COALESCE(response.submitted_at, NOW()), updated_at = NOW()
+    FROM prism_live_sessions session
+    WHERE response.session_id = session.id AND session.school_year = ${schoolYear}
+      AND session.class_name = ${className} AND session.status = 'closed' AND response.submitted_at IS NULL
+  `;
+  const sessionId = randomUUID();
+  const rows = await sql`
+    INSERT INTO prism_live_sessions (
+      id, question_id, school_year, class_name, duration_seconds, status,
+      started_at, deadline_at, created_at, updated_at
+    )
+    SELECT ${sessionId}, question.id, ${schoolYear}, ${className}, question.duration_seconds, 'running',
+      NOW(), NOW() + (question.duration_seconds * INTERVAL '1 second'), NOW(), NOW()
+    FROM prism_live_questions question
+    WHERE question.id = ${questionId} AND question.activity_key = ${activityKey}
+    RETURNING id
+  `;
+  if (!rows[0]) return null;
+  const result = await getPrismLiveQuestionResults(schoolYear, className, questionId, activityKey);
+  return result?.question ?? null;
+}
+
+export async function closePrismLiveQuestion(schoolYear: string, className: string, questionId: string) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_sessions
+    SET status = 'closed', closed_at = NOW(), deadline_at = LEAST(COALESCE(deadline_at, NOW()), NOW()), updated_at = NOW()
+    WHERE question_id = ${questionId} AND school_year = ${schoolYear} AND class_name = ${className} AND status = 'running'
+    RETURNING id
+  `;
+  if (rows[0]) await sql`
+    UPDATE prism_live_session_responses
+    SET submitted_at = COALESCE(submitted_at, NOW()), updated_at = NOW()
+    WHERE session_id = ${String(rows[0].id)} AND submitted_at IS NULL
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Công bố (hoặc thu hồi) kết quả cho học sinh: cập nhật cờ results_published trên
+ * phiên chạy mới nhất của câu hỏi trong lớp đang chọn. Khi published = true, học sinh
+ * mới nhìn thấy mình làm đúng hay sai.
+ */
+export async function setPrismLiveResultsPublished(schoolYear: string, className: string, questionId: string, published: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_sessions
+    SET results_published = ${published}, updated_at = NOW()
+    WHERE id = (
+      SELECT session.id
+      FROM prism_live_sessions session
+      WHERE session.question_id = ${questionId}
+        AND session.school_year = ${schoolYear}
+        AND session.class_name = ${className}
+      ORDER BY CASE WHEN session.status = 'running' THEN 0 ELSE 1 END, session.created_at DESC
+      LIMIT 1
+    )
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Xóa toàn bộ lượt chạy (session) và bài làm của học sinh cho một hoạt động ở một lớp.
+ * Ngân hàng câu hỏi (prism_live_questions) được giữ nguyên; chỉ xóa dữ liệu phiên chạy.
+ * Dùng để làm sạch dữ liệu test trước khi cho học sinh làm thật.
+ */
+export async function resetPrismLiveClass(schoolYear: string, className: string, activityKey: ActivityKey) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM prism_live_sessions session
+    USING prism_live_questions question
+    WHERE session.question_id = question.id
+      AND question.activity_key = ${activityKey}
+      AND session.school_year = ${schoolYear}
+      AND session.class_name = ${className}
+    RETURNING session.id
+  `;
+  return rows.length;
+}
+
+export async function deletePrismLiveQuestion(questionId: string) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    DELETE FROM prism_live_questions question
+    WHERE question.id = ${questionId}
+      AND NOT EXISTS (
+        SELECT 1 FROM prism_live_sessions session
+        WHERE session.question_id = question.id AND session.status = 'running'
+      )
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+export async function getPrismLiveStudentQuestion(className: string, studentNumber: number, activityKey: ActivityKey, schoolYear = getCurrentSchoolYear()) {
+  await ensureSchema();
+  const sql = getSql();
+  const questionRows = await sql`
+    SELECT question.id, question.question_type, question.prompt, question.options, question.content,
+      question.quiz_set, question.quiz_order, (question.correct_answer IS NOT NULL) AS is_auto_graded, question.created_at,
+      session.id AS run_id, session.school_year, session.class_name, session.duration_seconds,
+      CASE WHEN session.status = 'running' AND session.deadline_at <= NOW() THEN 'closed' ELSE session.status END AS status,
+      COALESCE(session.results_published, FALSE) AS results_published,
+      session.started_at, session.deadline_at, session.closed_at,
+      0::INTEGER AS response_count, 0::INTEGER AS submitted_count,
+      response.student_number AS response_student_number,
+      response.answer AS response_answer,
+      response.is_correct AS response_is_correct,
+      response.submitted_at AS response_submitted_at,
+      response.updated_at AS response_updated_at
+    FROM prism_live_sessions session
+    JOIN prism_live_questions question ON question.id = session.question_id
+    LEFT JOIN prism_live_session_responses response
+      ON response.session_id = session.id AND response.student_number = ${studentNumber}
+    WHERE session.school_year = ${schoolYear} AND session.class_name = ${className}
+      AND question.activity_key = ${activityKey}
+      AND session.status IN ('running', 'closed')
+    ORDER BY CASE WHEN session.status = 'running' THEN 0 ELSE 1 END, session.started_at DESC
+    LIMIT 1
+  `;
+  if (!questionRows[0]) return { question: null, response: null };
+  const row = questionRows[0] as Record<string, unknown>;
+  const question = rowToPrismLiveQuestion(row);
+  // Chỉ tiết lộ đúng/sai cho học sinh sau khi giáo viên bấm "Công bố kết quả".
+  const revealCorrect = question.resultsPublished;
+  return {
+    question,
+    response: row.response_student_number === null || row.response_student_number === undefined ? null : rowToPrismLiveResponse({
+      student_number: row.response_student_number,
+      answer: row.response_answer,
+      is_correct: revealCorrect ? row.response_is_correct : null,
+      submitted_at: row.response_submitted_at,
+      updated_at: row.response_updated_at,
+    }),
+  };
+}
+
+export async function savePrismLiveResponse(input: {
+  questionId: string;
+  runId: string;
+  activityKey: ActivityKey;
+  className: string;
+  studentNumber: number;
+  answer: unknown;
+  submit?: boolean;
+}) {
+  await ensureSchema();
+  await closeExpiredPrismLiveQuestions();
+  const sql = getSql();
+  const schoolYear = getCurrentSchoolYear();
+  const questionRows = await sql`
+    SELECT question.question_type, question.options, question.content, question.correct_answer
+    FROM prism_live_sessions session
+    JOIN prism_live_questions question ON question.id = session.question_id
+    WHERE session.id = ${input.runId} AND question.id = ${input.questionId}
+      AND session.school_year = ${schoolYear} AND session.class_name = ${input.className}
+      AND question.activity_key = ${input.activityKey}
+      AND session.status = 'running' AND session.deadline_at > NOW()
+    LIMIT 1
+  `;
+  const questionRow = questionRows[0];
+  if (!questionRow) throw new Error("Câu hỏi đã hết giờ hoặc không còn mở.");
+  const type = String(questionRow.question_type) as PrismLiveQuestionType;
+  const optionCount = Array.isArray(questionRow.options) ? questionRow.options.length : 0;
+  const content = questionRow.content && typeof questionRow.content === "object" && !Array.isArray(questionRow.content)
+    ? questionRow.content as Record<string, unknown>
+    : {};
+  const itemCount = Array.isArray(content.items) ? content.items.length : 0;
+  const answer = normalizePrismLiveAnswer(input.answer, type, optionCount, itemCount);
+  if (!answer) throw new Error("Câu trả lời chưa hợp lệ.");
+  const isCorrect = scorePrismLiveAnswer(answer, questionRow.correct_answer);
+
+  const submittedAt = input.submit ? new Date().toISOString() : null;
+  const rows = await sql`
+    INSERT INTO prism_live_session_responses (id, session_id, student_number, answer, is_correct, graded_at, submitted_at, updated_at)
+    VALUES (${randomUUID()}, ${input.runId}, ${input.studentNumber}, ${JSON.stringify(answer)}::jsonb,
+      ${isCorrect}, ${isCorrect === null ? null : new Date().toISOString()}, ${submittedAt}, NOW())
+    ON CONFLICT (session_id, student_number)
+    DO UPDATE SET answer = EXCLUDED.answer, is_correct = EXCLUDED.is_correct, graded_at = EXCLUDED.graded_at,
+      submitted_at = EXCLUDED.submitted_at, updated_at = NOW()
+    WHERE prism_live_session_responses.submitted_at IS NULL
+    RETURNING student_number, answer, is_correct, submitted_at, updated_at
+  `;
+  if (!rows[0]) throw new Error("Câu trả lời đã được nộp và không thể sửa.");
+  return rowToPrismLiveResponse(rows[0] as Record<string, unknown>);
+}
+
+export async function gradePrismLiveShortResponse(input: {
+  schoolYear: string;
+  className: string;
+  questionId: string;
+  runId: string;
+  activityKey: ActivityKey;
+  studentNumber: number;
+  isCorrect: boolean;
+}) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE prism_live_session_responses response
+    SET is_correct = ${input.isCorrect}, graded_at = NOW(), updated_at = NOW()
+    FROM prism_live_sessions session, prism_live_questions question
+    WHERE response.session_id = session.id
+      AND session.question_id = question.id
+      AND question.question_type = 'short'
+      AND question.id = ${input.questionId}
+      AND question.activity_key = ${input.activityKey}
+      AND session.id = ${input.runId}
+      AND session.school_year = ${input.schoolYear}
+      AND session.class_name = ${input.className}
+      AND response.student_number = ${input.studentNumber}
+    RETURNING response.id
+  `;
+  return rows.length > 0;
+}
+
+export async function getPrismLiveBonusSummary(schoolYear: string, className: string, activityKey: ActivityKey): Promise<PrismLiveBonusStudent[]> {
+  const config = prismLiveBonusConfigs[activityKey];
+  if (!config) return [];
+  await ensureSchema();
+  await closeExpiredPrismLiveQuestions();
+  const sql = getSql();
+  const rows = await sql`
+    WITH quiz_questions AS (
+      SELECT id FROM prism_live_questions WHERE quiz_set = ${config.quizSet}
+    ), latest_sessions AS (
+      SELECT DISTINCT ON (session.question_id) session.id, session.question_id
+      FROM prism_live_sessions session
+      JOIN quiz_questions question ON question.id = session.question_id
+      WHERE session.school_year = ${schoolYear} AND session.class_name = ${className}
+      ORDER BY session.question_id, session.created_at DESC
+    )
+    SELECT response.student_number,
+      COUNT(*)::INTEGER AS answered_count,
+      COUNT(*) FILTER (WHERE response.is_correct IS NOT NULL)::INTEGER AS graded_count,
+      COUNT(*) FILTER (WHERE response.is_correct = TRUE)::INTEGER AS correct_count
+    FROM latest_sessions session
+    JOIN prism_live_session_responses response ON response.session_id = session.id
+    GROUP BY response.student_number
+    ORDER BY response.student_number ASC
+  `;
+  return rows.map((row) => {
+    const gradedCount = Number(row.graded_count);
+    const correctCount = Number(row.correct_count);
+    return {
+      studentNumber: Number(row.student_number),
+      answeredCount: Number(row.answered_count),
+      gradedCount,
+      correctCount,
+      bonusPoint: computePrismLiveBonusPoint(gradedCount, correctCount, config),
+    };
+  });
 }
 
 export async function createRefractionQuizSubmission(input: {
@@ -489,29 +1838,48 @@ export async function createRefractionQuizSubmission(input: {
     RETURNING id, created_at
   `;
   if (!rows[0]) throw new DuplicateRefractionQuizSubmissionError();
+  expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
   return { id: String(rows[0].id), createdAt: new Date(String(rows[0].created_at)).toISOString() };
 }
 
-export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 500): Promise<RefractionQuizSubmission[]> {
+const getCachedRefractionQuizSubmissions = unstable_cache(async (schoolYear: string, className: string | undefined, limit: number): Promise<RefractionQuizSubmission[]> => {
   await ensureSchema();
   const sql = getSql();
   const rows = className
     ? await sql`
-        SELECT id, school_year, class_name, student_name, student_number, answers, released_at, created_at
-        FROM refraction_quiz_submissions
-        WHERE school_year = ${schoolYear} AND class_name = ${className}
-        ORDER BY created_at DESC
+        SELECT quiz.id, quiz.school_year, quiz.class_name, quiz.student_name, quiz.student_number, quiz.answers,
+          quiz.released_at, quiz.created_at, COALESCE(attempt.forced, FALSE) AS forced,
+          COALESCE(attempt.completed_count, quiz.total_items) AS completed_count,
+          COALESCE(attempt.total_items, quiz.total_items) AS practice_total_items
+        FROM refraction_quiz_submissions quiz
+        LEFT JOIN practice_attempts attempt
+          ON attempt.school_year = quiz.school_year
+          AND attempt.practice_key = 'refraction-application'
+          AND attempt.class_name = quiz.class_name
+          AND attempt.student_number = quiz.student_number
+        WHERE quiz.school_year = ${schoolYear} AND quiz.class_name = ${className}
+        ORDER BY quiz.created_at DESC
         LIMIT ${limit}
       `
     : await sql`
-        SELECT id, school_year, class_name, student_name, student_number, answers, released_at, created_at
-        FROM refraction_quiz_submissions
-        WHERE school_year = ${schoolYear}
-        ORDER BY created_at DESC
+        SELECT quiz.id, quiz.school_year, quiz.class_name, quiz.student_name, quiz.student_number, quiz.answers,
+          quiz.released_at, quiz.created_at, COALESCE(attempt.forced, FALSE) AS forced,
+          COALESCE(attempt.completed_count, quiz.total_items) AS completed_count,
+          COALESCE(attempt.total_items, quiz.total_items) AS practice_total_items
+        FROM refraction_quiz_submissions quiz
+        LEFT JOIN practice_attempts attempt
+          ON attempt.school_year = quiz.school_year
+          AND attempt.practice_key = 'refraction-application'
+          AND attempt.class_name = quiz.class_name
+          AND attempt.student_number = quiz.student_number
+        WHERE quiz.school_year = ${schoolYear}
+        ORDER BY quiz.created_at DESC
         LIMIT ${limit}
       `;
   return rows.map((row) => {
     const evaluation = scoreRefractionQuiz(row.answers as RefractionQuizAnswers);
+    const completedCount = Number(row.completed_count ?? evaluation.totalItems);
+    const totalItems = Number(row.practice_total_items ?? evaluation.totalItems);
     return {
       id: String(row.id),
       schoolYear: String(row.school_year),
@@ -520,11 +1888,69 @@ export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoo
       studentNumber: row.student_number === null ? null : Number(row.student_number),
       bonusPoint: evaluation.bonusPoint,
       correctCount: evaluation.correctCount,
-      totalItems: evaluation.totalItems,
+      totalItems,
       releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
       createdAt: new Date(String(row.created_at)).toISOString(),
+      forced: Boolean(row.forced),
+      completedCount,
+      completionState: getPracticeCompletionState(completedCount, totalItems),
     };
   });
+}, ["refraction-quiz-submissions-v2"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+
+export async function listRefractionQuizSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 500): Promise<RefractionQuizSubmission[]> {
+  return getCachedRefractionQuizSubmissions(schoolYear, className, limit);
+}
+
+const getCachedRefractionQuizSummaries = unstable_cache(async (schoolYear: string) => {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT
+      quiz.class_name,
+      COUNT(*) FILTER (WHERE quiz.student_number IS NOT NULL)::INTEGER AS submitted_count,
+      COUNT(*) FILTER (WHERE quiz.student_number IS NOT NULL AND quiz.released_at IS NOT NULL)::INTEGER AS released_count,
+      COUNT(*) FILTER (
+        WHERE quiz.student_number IS NOT NULL
+          AND COALESCE(attempt.completed_count, quiz.total_items) >= COALESCE(attempt.total_items, quiz.total_items)
+      )::INTEGER AS complete_count,
+      COUNT(*) FILTER (
+        WHERE quiz.student_number IS NOT NULL
+          AND COALESCE(attempt.completed_count, quiz.total_items) > 0
+          AND COALESCE(attempt.completed_count, quiz.total_items) < COALESCE(attempt.total_items, quiz.total_items)
+      )::INTEGER AS partial_count,
+      COUNT(*) FILTER (
+        WHERE quiz.student_number IS NOT NULL
+          AND COALESCE(attempt.completed_count, quiz.total_items) = 0
+      )::INTEGER AS no_data_count
+    FROM refraction_quiz_submissions quiz
+    LEFT JOIN practice_attempts attempt
+      ON attempt.school_year = quiz.school_year
+      AND attempt.practice_key = 'refraction-application'
+      AND attempt.class_name = quiz.class_name
+      AND attempt.student_number = quiz.student_number
+    WHERE quiz.school_year = ${schoolYear}
+    GROUP BY quiz.class_name
+  `;
+  return rows.map((row) => ({
+    className: String(row.class_name),
+    submittedCount: Number(row.submitted_count ?? 0),
+    releasedCount: Number(row.released_count ?? 0),
+    completeCount: Number(row.complete_count ?? 0),
+    partialCount: Number(row.partial_count ?? 0),
+    noDataCount: Number(row.no_data_count ?? 0),
+  }));
+}, ["refraction-quiz-class-summaries-v2"], { tags: [REFRACTION_QUIZ_CACHE_TAG], revalidate: 3600 });
+
+export async function getRefractionQuizClassSummary(schoolYear: string, className: string): Promise<RefractionQuizClassSummary> {
+  const summary = (await getCachedRefractionQuizSummaries(schoolYear)).find((item) => item.className === className);
+  return {
+    submittedCount: summary?.submittedCount ?? 0,
+    releasedCount: summary?.releasedCount ?? 0,
+    completeCount: summary?.completeCount ?? 0,
+    partialCount: summary?.partialCount ?? 0,
+    noDataCount: summary?.noDataCount ?? 0,
+  };
 }
 
 export async function getRefractionQuizSubmissionStatus(
@@ -569,7 +1995,512 @@ export async function setRefractionQuizScoresReleased(schoolYear: string, classN
       AND student_number IS NOT NULL
     RETURNING id
   `;
+  expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
   return rows.length;
+}
+
+type PracticeAttemptInput = {
+  practiceKey: PracticeKey;
+  className: string;
+  studentNumber: number;
+  answers: unknown;
+};
+
+function rowToPracticeStatus(row: Record<string, unknown> | undefined): PracticeAttemptStatus {
+  if (!row) return { submitted: false, forced: false, released: false, completedCount: 0, totalItems: 0, completionState: "no-data" };
+  const submitted = row.status === "submitted";
+  const released = submitted && row.released_at !== null;
+  const completedCount = Number(row.completed_count ?? 0);
+  const totalItems = Number(row.total_items ?? 0);
+  return {
+    submitted,
+    forced: Boolean(row.forced),
+    released,
+    completedCount,
+    totalItems,
+    completionState: getPracticeCompletionState(completedCount, totalItems),
+    ...(released ? {
+      correctCount: Number(row.correct_count ?? 0),
+      bonusPoint: Number(row.bonus_point ?? 0),
+    } : {}),
+  };
+}
+
+async function savePracticeAttempt(input: PracticeAttemptInput, submit: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  const schoolYear = getCurrentSchoolYear();
+  const evaluation = scorePracticeAttempt(input.practiceKey, input.answers);
+  const id = randomUUID();
+  const nextStatus = submit ? "submitted" : "draft";
+  const rows = await sql`
+    INSERT INTO practice_attempts (
+      id, school_year, practice_key, class_name, student_number, answers,
+      completed_count, correct_count, total_items, bonus_point, status, forced, submitted_at, updated_at
+    )
+    VALUES (
+      ${id}, ${schoolYear}, ${input.practiceKey}, ${input.className}, ${input.studentNumber}, ${JSON.stringify(input.answers)}::jsonb,
+      ${evaluation.completedCount}, ${evaluation.correctCount}, ${evaluation.totalItems}, ${evaluation.bonusPoint}, ${nextStatus}, FALSE,
+      ${submit ? new Date().toISOString() : null}, NOW()
+    )
+    ON CONFLICT (school_year, practice_key, class_name, student_number)
+    DO UPDATE SET
+      answers = EXCLUDED.answers,
+      completed_count = EXCLUDED.completed_count,
+      correct_count = EXCLUDED.correct_count,
+      total_items = EXCLUDED.total_items,
+      bonus_point = EXCLUDED.bonus_point,
+      status = EXCLUDED.status,
+      submitted_at = CASE WHEN EXCLUDED.status = 'submitted' THEN NOW() ELSE practice_attempts.submitted_at END,
+      updated_at = NOW()
+    WHERE practice_attempts.status = 'draft'
+    RETURNING status, forced, released_at, completed_count, correct_count, total_items, bonus_point
+  `;
+  const row = rows[0] ?? (await sql`
+    SELECT status, forced, released_at, completed_count, correct_count, total_items, bonus_point
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = ${input.practiceKey}
+      AND class_name = ${input.className} AND student_number = ${input.studentNumber}
+    LIMIT 1
+  `)[0];
+  if (submit) expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return rowToPracticeStatus(row as Record<string, unknown> | undefined);
+}
+
+export async function savePracticeDraft(input: PracticeAttemptInput) {
+  return savePracticeAttempt(input, false);
+}
+
+export async function submitPracticeAttempt(input: PracticeAttemptInput) {
+  return savePracticeAttempt(input, true);
+}
+
+export async function getPracticeAttemptStatus(practiceKey: PracticeKey, className: string, studentNumber: number, schoolYear = getCurrentSchoolYear()) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT status, forced, released_at, completed_count, correct_count, total_items, bonus_point, answers
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND student_number = ${studentNumber}
+    LIMIT 1
+  `;
+  const row = rows[0] as Record<string, unknown> | undefined;
+  if (!row || practiceKey !== "optics-review") return rowToPracticeStatus(row);
+  const evaluation = scorePracticeAttempt(practiceKey, row.answers);
+  return rowToPracticeStatus({
+    ...row,
+    completed_count: evaluation.completedCount,
+    correct_count: evaluation.correctCount,
+    total_items: evaluation.totalItems,
+    bonus_point: evaluation.bonusPoint,
+  });
+}
+
+export async function getOhmRaceSnapshot(schoolYear: string, className: string): Promise<OhmRaceSnapshot> {
+  await ensureSchema();
+  const sql = getSql();
+  const settingsPromise = listActivitySettings();
+  const rowsPromise = sql`
+    SELECT student_number, correct_count, status, answers, submitted_at, created_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = 'ohm-race' AND class_name = ${className}
+  `;
+  const [settings, rows] = await Promise.all([settingsPromise, rowsPromise]);
+  const setting = settings.find((item) => item.key === "ohm");
+  const sharedStartTime = setting?.ohmRaceStartedAt ? new Date(setting.ohmRaceStartedAt).getTime() : null;
+
+  const racers: OhmRaceRacer[] = rows.map((row) => {
+    const answerData = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers)
+      ? row.answers as Record<string, unknown>
+      : {};
+    const rawWrongCount = Number(answerData.wrongCount ?? 0);
+    const wrongCount = Number.isFinite(rawWrongCount) ? Math.min(99, Math.max(0, Math.trunc(rawWrongCount))) : 0;
+    const finished = row.status === "submitted";
+    const submittedTime = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+    const fallbackStartTime = row.created_at ? new Date(String(row.created_at)).getTime() : null;
+    const startTime = sharedStartTime ?? fallbackStartTime;
+    const adjustedSeconds = finished && submittedTime !== null && startTime !== null
+      ? Math.max(0, Math.round((submittedTime - startTime) / 1000)) + wrongCount * OHM_RACE_PENALTY_SECONDS
+      : null;
+    return {
+      studentNumber: Number(row.student_number),
+      progress: Math.min(6, Math.max(0, Number(row.correct_count ?? 0))),
+      finished,
+      wrongCount,
+      adjustedSeconds,
+      rank: null,
+    };
+  });
+
+  const finishers = racers
+    .filter((racer) => racer.finished)
+    .sort((left, right) => (left.adjustedSeconds ?? Number.MAX_SAFE_INTEGER) - (right.adjustedSeconds ?? Number.MAX_SAFE_INTEGER) || left.studentNumber - right.studentNumber);
+  const rankByStudent = new Map(finishers.map((racer, index) => [racer.studentNumber, index + 1]));
+  racers.forEach((racer) => {
+    racer.rank = rankByStudent.get(racer.studentNumber) ?? null;
+  });
+
+  return {
+    round: setting?.ohmRaceRound ?? 1,
+    isOpen: setting?.ohmRaceOpen ?? false,
+    isRunning: setting?.ohmRaceRunning ?? false,
+    startedAt: setting?.ohmRaceStartedAt ?? null,
+    readyCount: racers.length,
+    finishedCount: finishers.length,
+    racers: racers.sort((left, right) => left.studentNumber - right.studentNumber),
+  };
+}
+
+function readStringMap(value: unknown): Record<string, string> {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const result: Record<string, string> = {};
+  for (const [key, item] of Object.entries(source)) {
+    if (typeof item === "string") result[key] = item;
+  }
+  return result;
+}
+
+export async function getOpticsQuestSnapshot(schoolYear: string, className: string): Promise<OpticsQuestSnapshot> {
+  await ensureSchema();
+  const sql = getSql();
+  const [settings, rows] = await Promise.all([
+    listActivitySettings(),
+    sql`
+      SELECT student_number, status, answers, submitted_at
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'optics-quest' AND class_name = ${className}
+    `,
+  ]);
+  const setting = settings.find((item) => item.key === "optics-game");
+  const round = setting?.opticsGameRound ?? 1;
+  const startedAtMs = setting?.opticsGameStartedAt ? new Date(setting.opticsGameStartedAt).getTime() : null;
+  const endedAtMs = setting?.opticsGameEndedAt ? new Date(setting.opticsGameEndedAt).getTime() : null;
+  const cutoffMs = endedAtMs ?? Date.now();
+
+  // Thống kê theo từng câu (đúng/sai/đã trả lời) trên toàn lớp, gộp từ mọi học sinh đã tham gia.
+  const questionStatMap = new Map<string, { answeredCount: number; correctCount: number; attemptedCount: number }>();
+  function recordQuestionStat(questionId: string, answered: boolean, correct: boolean) {
+    const current = questionStatMap.get(questionId) ?? { answeredCount: 0, correctCount: 0, attemptedCount: 0 };
+    current.attemptedCount += 1;
+    if (answered) current.answeredCount += 1;
+    if (correct) current.correctCount += 1;
+    questionStatMap.set(questionId, current);
+  }
+
+  const players: OpticsQuestPlayer[] = rows.flatMap((row) => {
+    const data = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
+    const groupName = typeof data.groupName === "string" && groupNames.includes(data.groupName as (typeof groupNames)[number]) ? data.groupName : "";
+    if (!groupName) return [];
+    const studentNumber = Number(row.student_number);
+    const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
+    const graded = gradeOpticsQuest(studentNumber, round, questionIds, readStringMap(data.responses));
+    for (const item of graded.items) recordQuestionStat(item.id, item.answered, item.correct);
+    const finished = row.status === "submitted";
+    const submittedMs = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+    const effectiveEnd = finished && submittedMs !== null ? submittedMs : cutoffMs;
+    const elapsedSeconds = startedAtMs !== null ? Math.max(0, Math.round((effectiveEnd - startedAtMs) / 1000)) : null;
+    return [{
+      studentNumber,
+      groupName,
+      answeredCount: graded.answeredCount,
+      correctCount: graded.correctCount,
+      finished,
+      elapsedSeconds,
+    }];
+  }).sort((left, right) => left.studentNumber - right.studentNumber);
+
+  const questionStats: OpticsQuestQuestionStat[] = [...questionStatMap.entries()]
+    .map(([id, stat]) => {
+      const question = getOpticsQuestQuestion(id);
+      return {
+        id,
+        title: question?.title ?? id,
+        stationLabel: question?.stationLabel ?? "",
+        station: question?.station ?? 0,
+        answeredCount: stat.answeredCount,
+        correctCount: stat.correctCount,
+        wrongCount: stat.attemptedCount - stat.correctCount,
+        attemptedCount: stat.attemptedCount,
+      };
+    })
+    .sort((left, right) => left.station - right.station || left.title.localeCompare(right.title));
+
+  const groups: OpticsQuestGroup[] = groupNames.map((groupName) => {
+    const members = players.filter((player) => player.groupName === groupName);
+    const participantCount = members.length;
+    const averageScore = participantCount ? Math.round(members.reduce((sum, player) => sum + player.correctCount, 0) / participantCount * 10) / 10 : 0;
+    const totalTimeSeconds = members.reduce((sum, player) => sum + (player.elapsedSeconds ?? 0), 0);
+    return { groupName, participantCount, averageScore, totalTimeSeconds, rank: null };
+  });
+  // Xếp hạng: điểm trung bình cao hơn xếp trước; đồng điểm thì tổng thời gian nhỏ hơn xếp trước.
+  const ranked = groups
+    .filter((group) => group.participantCount > 0)
+    .sort((left, right) => right.averageScore - left.averageScore || left.totalTimeSeconds - right.totalTimeSeconds || left.groupName.localeCompare(right.groupName));
+  const rankMap = new Map(ranked.map((group, index) => [group.groupName, index + 1]));
+  groups.forEach((group) => { group.rank = rankMap.get(group.groupName) ?? null; });
+
+  const totalCorrect = players.reduce((sum, player) => sum + player.correctCount, 0);
+  const classCorrectRate = players.length ? totalCorrect / (players.length * OPTICS_QUEST_QUESTION_COUNT) : 0;
+
+  return {
+    round,
+    isOpen: setting?.isOpen ?? false,
+    isRunning: setting?.opticsGameRunning ?? false,
+    ended: Boolean(endedAtMs),
+    endedAt: setting?.opticsGameEndedAt ?? null,
+    startedAt: setting?.opticsGameStartedAt ?? null,
+    participantCount: players.length,
+    submittedCount: players.filter((player) => player.finished).length,
+    classCorrectRate,
+    players,
+    groups,
+    questionStats,
+  };
+}
+
+// Kết quả cá nhân cho học sinh — chỉ trả về chi tiết đúng/sai sau khi giáo viên kết thúc & công bố.
+export async function getOpticsQuestReveal(schoolYear: string, className: string, studentNumber: number): Promise<OpticsQuestReveal> {
+  await ensureSchema();
+  const sql = getSql();
+  const settings = await listActivitySettings();
+  const setting = settings.find((item) => item.key === "optics-game");
+  const round = setting?.opticsGameRound ?? 1;
+  const ended = Boolean(setting?.opticsGameEndedAt);
+  const rows = await sql`
+    SELECT status, answers, submitted_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = 'optics-quest' AND class_name = ${className} AND student_number = ${studentNumber}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  const submitted = row?.status === "submitted";
+  if (!ended) {
+    return { ended: false, submitted, correctCount: 0, totalItems: OPTICS_QUEST_QUESTION_COUNT, elapsedSeconds: null, items: [] };
+  }
+  const data = row?.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
+  const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
+  const graded = gradeOpticsQuest(studentNumber, round, questionIds, readStringMap(data.responses));
+  const startedAtMs = setting?.opticsGameStartedAt ? new Date(setting.opticsGameStartedAt).getTime() : null;
+  const endedAtMs = setting?.opticsGameEndedAt ? new Date(setting.opticsGameEndedAt).getTime() : null;
+  const submittedMs = row?.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+  const effectiveEnd = submitted && submittedMs !== null ? submittedMs : (endedAtMs ?? Date.now());
+  const elapsedSeconds = startedAtMs !== null ? Math.max(0, Math.round((effectiveEnd - startedAtMs) / 1000)) : null;
+  return { ended: true, submitted, correctCount: graded.correctCount, totalItems: graded.totalItems, elapsedSeconds, items: graded.items };
+}
+
+const getCachedPracticeAttempts = unstable_cache(async (schoolYear: string, practiceKey: PracticeKey, className: string): Promise<TeacherPracticeAttempt[]> => {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, class_name, student_number, completed_count, correct_count, total_items, bonus_point,
+      forced, released_at, submitted_at, answers
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND status = 'submitted'
+    ORDER BY student_number ASC
+  `;
+  return rows.map((row) => {
+    const currentEvaluation = practiceKey === "optics-review" ? scorePracticeAttempt(practiceKey, row.answers) : null;
+    const completedCount = currentEvaluation?.completedCount ?? Number(row.completed_count);
+    const totalItems = currentEvaluation?.totalItems ?? Number(row.total_items);
+    return {
+      id: String(row.id),
+      className: String(row.class_name),
+      studentNumber: Number(row.student_number),
+      completedCount,
+      correctCount: currentEvaluation?.correctCount ?? Number(row.correct_count),
+      totalItems,
+      bonusPoint: currentEvaluation?.bonusPoint ?? Number(row.bonus_point),
+      forced: Boolean(row.forced),
+      releasedAt: row.released_at === null ? null : new Date(String(row.released_at)).toISOString(),
+      submittedAt: row.submitted_at === null ? null : new Date(String(row.submitted_at)).toISOString(),
+      masteryLevel: practiceKey === "optics-review" ? getOpticsReviewMasteryLabel(row.answers) : null,
+      completionState: getPracticeCompletionState(completedCount, totalItems),
+    };
+  });
+}, ["practice-attempts-v4"], { tags: [PRACTICE_ATTEMPTS_CACHE_TAG], revalidate: 3600 });
+
+export async function listPracticeAttempts(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  return getCachedPracticeAttempts(schoolYear, practiceKey, className);
+}
+
+/**
+ * Every submitted practice attempt of a school year, across all classes and all
+ * practice keys. Feeds the aggregate analytics view; deliberately uncached so the
+ * teacher always reads current figures, and deliberately without `answers` so no
+ * answer payload is shipped where it is not needed.
+ */
+export async function listPracticeAttemptsForYear(schoolYear: string) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT practice_key, class_name, student_number, completed_count, correct_count, total_items,
+      bonus_point, forced, released_at, submitted_at, created_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND status = 'submitted'
+    ORDER BY class_name, student_number, practice_key
+  `;
+  return rows.map((row) => ({
+    practiceKey: String(row.practice_key),
+    className: String(row.class_name),
+    studentNumber: Number(row.student_number),
+    completedCount: Number(row.completed_count ?? 0),
+    correctCount: Number(row.correct_count ?? 0),
+    totalItems: Number(row.total_items ?? 0),
+    bonusPoint: Number(row.bonus_point ?? 0),
+    forced: Boolean(row.forced),
+    releasedAt: row.released_at ? new Date(String(row.released_at)).toISOString() : null,
+    submittedAt: row.submitted_at ? new Date(String(row.submitted_at)).toISOString() : new Date(String(row.created_at)).toISOString(),
+  }));
+}
+
+export async function getPracticeAttemptSummary(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  const attempts = await listPracticeAttempts(schoolYear, practiceKey, className);
+  return {
+    submittedCount: attempts.length,
+    releasedCount: attempts.filter((attempt) => attempt.releasedAt !== null).length,
+    forcedCount: attempts.filter((attempt) => attempt.forced).length,
+    completeCount: attempts.filter((attempt) => attempt.completionState === "complete").length,
+    partialCount: attempts.filter((attempt) => attempt.completionState === "partial").length,
+    noDataCount: attempts.filter((attempt) => attempt.completionState === "no-data").length,
+  };
+}
+
+export async function forceSubmitPracticeClass(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  await ensureSchema();
+  const sql = getSql();
+  if (practiceKey === "refraction-application") {
+    await sql`
+      INSERT INTO practice_attempts (
+        id, school_year, practice_key, class_name, student_number, answers,
+        completed_count, correct_count, total_items, bonus_point, status, forced,
+        released_at, submitted_at, created_at, updated_at
+      )
+      SELECT id, school_year, ${practiceKey}, class_name, student_number, answers,
+        total_items, correct_count, total_items, score, 'submitted', FALSE,
+        released_at, created_at, created_at, NOW()
+      FROM refraction_quiz_submissions
+      WHERE school_year = ${schoolYear} AND class_name = ${className} AND student_number IS NOT NULL
+      ON CONFLICT (school_year, practice_key, class_name, student_number) DO NOTHING
+    `;
+  }
+  await sql`
+    UPDATE practice_attempts
+    SET status = 'submitted', forced = TRUE, submitted_at = NOW(), updated_at = NOW()
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND status = 'draft'
+  `;
+
+  const emptyAnswers = emptyPracticeAnswers(practiceKey);
+  const evaluation = scorePracticeAttempt(practiceKey, emptyAnswers);
+  const placeholders = Array.from({ length: 33 }, (_, index) => ({
+    id: randomUUID(),
+    student_number: index + 1,
+    answers: emptyAnswers,
+  }));
+  await sql`
+    INSERT INTO practice_attempts (
+      id, school_year, practice_key, class_name, student_number, answers,
+      completed_count, correct_count, total_items, bonus_point, status, forced, submitted_at, updated_at
+    )
+    SELECT
+      item.id::uuid, ${schoolYear}, ${practiceKey}, ${className}, item.student_number, item.answers,
+      ${evaluation.completedCount}, ${evaluation.correctCount}, ${evaluation.totalItems}, ${evaluation.bonusPoint},
+      'submitted', TRUE, NOW(), NOW()
+    FROM jsonb_to_recordset(${JSON.stringify(placeholders)}::jsonb) AS item(id TEXT, student_number SMALLINT, answers JSONB)
+    ON CONFLICT (school_year, practice_key, class_name, student_number) DO NOTHING
+  `;
+
+  if (practiceKey === "refraction-application") {
+    const attempts = await sql`
+      SELECT student_number, answers, correct_count, total_items, bonus_point
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+        AND class_name = ${className} AND status = 'submitted'
+    `;
+    const quizRows = attempts.map((row) => {
+      const studentNumber = Number(row.student_number);
+      const formatted = formatStudentNumber(studentNumber);
+      return {
+        id: randomUUID(),
+        student_number: studentNumber,
+        student_name: `STT ${formatted}`,
+        student_key: `stt-${formatted}`,
+        answers: row.answers,
+        score: Number(row.bonus_point),
+        correct_count: Number(row.correct_count),
+        total_items: Number(row.total_items),
+      };
+    });
+    await sql`
+      INSERT INTO refraction_quiz_submissions (
+        id, school_year, class_name, student_name, student_key, student_number,
+        answers, score, correct_count, total_items, created_at
+      )
+      SELECT item.id::uuid, ${schoolYear}, ${className}, item.student_name, item.student_key,
+        item.student_number, item.answers, item.score, item.correct_count, item.total_items, NOW()
+      FROM jsonb_to_recordset(${JSON.stringify(quizRows)}::jsonb) AS item(
+        id TEXT, student_name TEXT, student_key TEXT, student_number SMALLINT,
+        answers JSONB, score NUMERIC, correct_count INTEGER, total_items INTEGER
+      )
+      ON CONFLICT (school_year, class_name, student_number) DO NOTHING
+    `;
+    expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  }
+
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return 33;
+}
+
+export async function setPracticeScoresReleased(schoolYear: string, practiceKey: PracticeKey, className: string, released: boolean) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE practice_attempts
+    SET released_at = CASE WHEN ${released} THEN COALESCE(released_at, NOW()) ELSE NULL END,
+      updated_at = NOW()
+    WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+      AND class_name = ${className} AND status = 'submitted'
+    RETURNING id
+  `;
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return rows.length;
+}
+
+export async function resetPracticeClass(schoolYear: string, practiceKey: PracticeKey, className: string) {
+  await ensureSchema();
+  const sql = getSql();
+  let deletedCount = 0;
+
+  if (practiceKey === "refraction-application") {
+    const rows = await sql`
+      WITH deleted_attempts AS (
+        DELETE FROM practice_attempts
+        WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey} AND class_name = ${className}
+        RETURNING id
+      ), deleted_legacy_quizzes AS (
+        DELETE FROM refraction_quiz_submissions
+        WHERE school_year = ${schoolYear} AND class_name = ${className} AND student_number IS NOT NULL
+        RETURNING id
+      )
+      SELECT
+        (SELECT COUNT(*)::INTEGER FROM deleted_attempts) AS attempt_count,
+        (SELECT COUNT(*)::INTEGER FROM deleted_legacy_quizzes) AS legacy_count
+    `;
+    deletedCount = Math.max(Number(rows[0]?.attempt_count ?? 0), Number(rows[0]?.legacy_count ?? 0));
+    expireCacheTag(REFRACTION_QUIZ_CACHE_TAG);
+  } else {
+    const rows = await sql`
+      DELETE FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey} AND class_name = ${className}
+      RETURNING id
+    `;
+    deletedCount = rows.length;
+  }
+
+  expireCacheTag(PRACTICE_ATTEMPTS_CACHE_TAG);
+  return deletedCount;
 }
 
 type NewExperimentInput =
@@ -591,6 +2522,8 @@ export async function createExperimentSubmission(input: NewExperimentInput) {
     RETURNING id, created_at
   `;
 
+  expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
+
   return {
     id: String(rows[0].id),
     createdAt: new Date(String(rows[0].created_at)).toISOString(),
@@ -601,6 +2534,10 @@ export async function listExperimentSubmissions(key: "ohm", schoolYear?: string,
 export async function listExperimentSubmissions(key: "resistance-factors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<ResistanceFactorsPayload>[]>;
 export async function listExperimentSubmissions(key: "prism-colors", schoolYear?: string, className?: string, limit?: number): Promise<ExperimentSubmission<PrismColorPayload>[]>;
 export async function listExperimentSubmissions(key: "ohm" | "resistance-factors" | "prism-colors", schoolYear = getCurrentSchoolYear(), className?: string, limit = 200) {
+  return getCachedExperimentSubmissions(key, schoolYear, className, limit);
+}
+
+const getCachedExperimentSubmissions = unstable_cache(async (key: "ohm" | "resistance-factors" | "prism-colors", schoolYear: string, className: string | undefined, limit: number) => {
   await ensureSchema();
   const sql = getSql();
   const rows = className
@@ -627,6 +2564,31 @@ export async function listExperimentSubmissions(key: "ohm" | "resistance-factors
     payload: row.payload,
     createdAt: new Date(String(row.created_at)).toISOString(),
   }));
+}, ["teacher-experiment-submissions-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+
+const getCachedSubmittedGroupsByClass = unstable_cache(async (key: ActivityKey, schoolYear: string) => {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = key === "refraction"
+    ? await sql`
+        SELECT class_name, group_name
+        FROM submissions
+        WHERE school_year = ${schoolYear}
+        ORDER BY created_at DESC
+      `
+    : await sql`
+        SELECT class_name, group_name
+        FROM experiment_submissions
+        WHERE activity_key = ${key} AND school_year = ${schoolYear}
+        ORDER BY created_at DESC
+      `;
+  return rows.map((row) => ({ className: String(row.class_name), groupName: String(row.group_name) }));
+}, ["teacher-submitted-groups-by-class-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+
+export async function listSubmittedGroups(key: ActivityKey, schoolYear: string, className: string) {
+  return (await getCachedSubmittedGroupsByClass(key, schoolYear))
+    .filter((submission) => submission.className === className)
+    .map((submission) => submission.groupName);
 }
 
 export async function createSubmission(input: {
@@ -730,13 +2692,15 @@ export async function createSubmission(input: {
       )
   `;
 
+  expireCacheTag(TEACHER_PROGRESS_CACHE_TAG);
+
   return {
     id: String(rows[0].id),
     createdAt: new Date(String(rows[0].created_at)).toISOString(),
   };
 }
 
-export async function listSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 200): Promise<Submission[]> {
+const getCachedSubmissions = unstable_cache(async (schoolYear: string, className: string | undefined, limit: number): Promise<Submission[]> => {
   await ensureSchema();
   const sql = getSql();
 
@@ -801,4 +2765,8 @@ export async function listSubmissions(schoolYear = getCurrentSchoolYear(), class
     createdAt: new Date(String(row.created_at)).toISOString(),
     measurements: row.measurements as Measurement[],
   }));
+}, ["teacher-refraction-submissions-v1"], { tags: [TEACHER_PROGRESS_CACHE_TAG], revalidate: 3600 });
+
+export async function listSubmissions(schoolYear = getCurrentSchoolYear(), className?: string, limit = 200): Promise<Submission[]> {
+  return getCachedSubmissions(schoolYear, className, limit);
 }

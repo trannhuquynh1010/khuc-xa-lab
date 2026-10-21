@@ -1,21 +1,28 @@
 import type { ActivityKey } from "@/lib/activities";
 import { groupNames } from "@/lib/classes";
 import {
-  listExperimentSubmissions,
-  listSubmissions,
-  type RefractionQuizSubmission,
+  listSubmittedGroups,
+  type RefractionQuizClassSummary,
 } from "@/lib/db";
-import { toggleRefractionQuizScores } from "./actions";
-import { OhmResults, PrismColorResults, RefractionResults, ResistanceFactorsResults } from "./TeacherResults";
+import { getPracticeDefinition, type PracticeKey } from "@/lib/practice-attempt-types";
+import { forceSubmitPractice, resetPracticeAttempts, togglePracticeScores, toggleRefractionQuizScores } from "./actions";
+import ForceSubmitPracticeButton from "./ForceSubmitPracticeButton";
+import PracticeAttemptDisclosure from "./PracticeAttemptDisclosure";
+import ResetPracticeButton from "./ResetPracticeButton";
 import TeacherClassFilter from "./TeacherClassFilter";
 import RefractionQuizDisclosure from "./RefractionQuizDisclosure";
 import ScoreReleaseSubmitButton from "./ScoreReleaseSubmitButton";
+import TeacherSubmissionDisclosure from "./TeacherSubmissionDisclosure";
+
+function collectionBreakdown(completeCount: number, partialCount: number, noDataCount: number) {
+  const parts = [`${completeCount} hoàn thành`];
+  if (partialCount > 0) parts.push(`${partialCount} đang làm dở`);
+  if (noDataCount > 0) parts.push(`${noDataCount} chưa làm`);
+  return parts.join(" · ");
+}
 
 export async function loadTeacherActivityData(activity: ActivityKey, schoolYear: string, className: string) {
-  if (activity === "refraction") return { activity, submissions: await listSubmissions(schoolYear, className, 8) } as const;
-  if (activity === "ohm") return { activity, submissions: await listExperimentSubmissions("ohm", schoolYear, className, 8) } as const;
-  if (activity === "prism-colors") return { activity, submissions: await listExperimentSubmissions("prism-colors", schoolYear, className, 8) } as const;
-  return { activity, submissions: await listExperimentSubmissions("resistance-factors", schoolYear, className, 8) } as const;
+  return { activity, submittedGroups: await listSubmittedGroups(activity, schoolYear, className) } as const;
 }
 
 type TeacherActivityDataProps = {
@@ -32,7 +39,7 @@ export async function TeacherClassProgress({
   selectedKey,
 }: TeacherActivityDataProps) {
   const data = await dataPromise;
-  const submittedGroupSet = new Set(data.submissions.map((submission) => submission.groupName));
+  const submittedGroupSet = new Set(data.submittedGroups);
   const submittedCount = groupNames.filter((group) => submittedGroupSet.has(group)).length;
 
   return (
@@ -51,50 +58,90 @@ export async function TeacherClassProgress({
 export async function TeacherSubmissionData({
   dataPromise,
   selectedClass,
-}: Pick<TeacherActivityDataProps, "dataPromise" | "selectedClass">) {
+  selectedYear,
+  selectedKey,
+}: TeacherActivityDataProps) {
   const data = await dataPromise;
-  const resultContent = data.activity === "refraction"
-    ? <RefractionResults submissions={data.submissions} />
-    : data.activity === "ohm"
-      ? <OhmResults submissions={data.submissions} />
-      : data.activity === "prism-colors"
-        ? <PrismColorResults submissions={data.submissions} />
-        : <ResistanceFactorsResults submissions={data.submissions} />;
-
-  return (
-    <details className="teacher-data-disclosure">
-      <summary><span><small>BÀI NỘP</small><strong>{selectedClass} · {data.submissions.length} nhóm</strong></span><b>Mở / thu gọn</b></summary>
-      <div className="teacher-data-content">{resultContent}</div>
-    </details>
-  );
+  const submittedCount = groupNames.filter((group) => data.submittedGroups.includes(group)).length;
+  return <TeacherSubmissionDisclosure key={`${selectedKey}:${selectedYear}:${selectedClass}`} activity={selectedKey} className={selectedClass} schoolYear={selectedYear} submittedCount={submittedCount} />;
 }
 
-export async function RefractionQuizPanel({ submissionsPromise, selectedClass, selectedYear }: {
-  submissionsPromise: Promise<RefractionQuizSubmission[]>;
+export async function RefractionQuizPanel({ summaryPromise, selectedClass, selectedYear }: {
+  summaryPromise: Promise<RefractionQuizClassSummary>;
   selectedClass: string;
   selectedYear: string;
 }) {
-  const submissions = await submissionsPromise;
-  const rosterSubmissions = submissions.filter((submission) => submission.studentNumber !== null);
-  const submittedCount = rosterSubmissions.length;
-  const releasedCount = rosterSubmissions.filter((submission) => submission.releasedAt !== null).length;
+  const { submittedCount, releasedCount, completeCount, partialCount, noDataCount } = await summaryPromise;
   const allReleased = submittedCount > 0 && releasedCount === submittedCount;
 
   return (
     <section className="activity-control-panel construction-control-panel quiz-release-control-panel">
       <div className="quiz-release-header">
-        <div className="activity-control-title"><span aria-hidden="true">✓</span><div><p className="eyebrow">ĐIỂM CỘNG CÁ NHÂN</p><h2>Công bố kết quả</h2><p>Có thể công bố hoặc thu hồi kết quả của cả lớp.</p></div></div>
+        <div className="activity-control-title"><span aria-hidden="true">✓</span><div><p className="eyebrow">ĐIỂM CỘNG CÁ NHÂN</p><h2>Công bố kết quả</h2><p>{submittedCount}/33 đã thu · {collectionBreakdown(completeCount, partialCount, noDataCount)}</p></div></div>
         <div className="activity-control-actions">
           <span className={`status-badge ${allReleased ? "open" : "closed"}`}>{releasedCount}/{submittedCount} bài đã công bố</span>
+          <form action={forceSubmitPractice}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value="refraction-application" />
+            <ForceSubmitPracticeButton disabled={submittedCount >= 33} />
+          </form>
           <form action={toggleRefractionQuizScores}>
             <input type="hidden" name="schoolYear" value={selectedYear} />
             <input type="hidden" name="className" value={selectedClass} />
             <input type="hidden" name="nextReleased" value={String(!allReleased)} />
             <ScoreReleaseSubmitButton disabled={submittedCount === 0} released={allReleased} pendingCount={submittedCount - releasedCount} />
           </form>
+          <form action={resetPracticeAttempts}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value="refraction-application" />
+            <ResetPracticeButton disabled={submittedCount === 0} className={selectedClass} practiceLabel="bài vận dụng khúc xạ" />
+          </form>
         </div>
       </div>
-      <RefractionQuizDisclosure submissions={rosterSubmissions} className={selectedClass} />
+      <RefractionQuizDisclosure key={`${selectedYear}:${selectedClass}:${submittedCount}:${releasedCount}`} submittedCount={submittedCount} className={selectedClass} schoolYear={selectedYear} />
+    </section>
+  );
+}
+
+export async function PracticeCollectionPanel({ summaryPromise, practiceKey, selectedClass, selectedYear }: {
+  summaryPromise: Promise<{ submittedCount: number; releasedCount: number; forcedCount: number; completeCount: number; partialCount: number; noDataCount: number }>;
+  practiceKey: PracticeKey;
+  selectedClass: string;
+  selectedYear: string;
+}) {
+  const { submittedCount, releasedCount, forcedCount, completeCount, partialCount, noDataCount } = await summaryPromise;
+  const definition = getPracticeDefinition(practiceKey);
+  const allReleased = submittedCount > 0 && releasedCount === submittedCount;
+
+  return (
+    <section className="activity-control-panel construction-control-panel quiz-release-control-panel practice-collection-panel">
+      <div className="quiz-release-header">
+        <div className="activity-control-title"><span aria-hidden="true">⇥</span><div><p className="eyebrow">THU BÀI CÁ NHÂN</p><h2>{definition.label}</h2><p>{submittedCount}/33 đã thu · {collectionBreakdown(completeCount, partialCount, noDataCount)}{forcedCount ? ` · ${forcedCount} bài thu tự động` : ""}</p></div></div>
+        <div className="activity-control-actions">
+          <form action={forceSubmitPractice}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value={practiceKey} />
+            <ForceSubmitPracticeButton disabled={submittedCount >= 33} />
+          </form>
+          <form action={togglePracticeScores}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value={practiceKey} />
+            <input type="hidden" name="nextReleased" value={String(!allReleased)} />
+            <ScoreReleaseSubmitButton disabled={submittedCount === 0} released={allReleased} pendingCount={submittedCount - releasedCount} />
+          </form>
+          <form action={resetPracticeAttempts}>
+            <input type="hidden" name="schoolYear" value={selectedYear} />
+            <input type="hidden" name="className" value={selectedClass} />
+            <input type="hidden" name="practiceKey" value={practiceKey} />
+            <ResetPracticeButton disabled={submittedCount === 0} className={selectedClass} practiceLabel={definition.label} />
+          </form>
+        </div>
+      </div>
+      <PracticeAttemptDisclosure key={`${practiceKey}:${selectedYear}:${selectedClass}:${submittedCount}:${releasedCount}:${forcedCount}`} submittedCount={submittedCount} practiceKey={practiceKey} className={selectedClass} schoolYear={selectedYear} />
     </section>
   );
 }

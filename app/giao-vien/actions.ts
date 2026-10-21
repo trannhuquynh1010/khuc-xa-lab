@@ -2,8 +2,9 @@
 
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
-import { isRefractionQuizClassName } from "@/lib/classes";
-import { resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setOhmsLawPracticeOpen, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistivityOpen } from "@/lib/db";
+import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
+import { advanceOhmRaceRound, advanceOpticsGameRound, endOpticsGame, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setImageConstructionOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setOpticsGameRunning, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
+import { isPracticeKey } from "@/lib/practice-attempt-types";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -26,47 +27,58 @@ export async function toggleActivity(formData: FormData) {
   const key = formData.get("activityKey");
   if (!isActivityKey(key)) return;
   await setActivityOpen(key, formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleRefractionConstruction(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setRefractionConstructionOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleRefractionApplication(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setRefractionApplicationOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function togglePrismColor(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setPrismColorOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleCurrentVoltagePractice(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setCurrentVoltagePracticeOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
 }
 
 export async function toggleOhmsLawPractice(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setOhmsLawPracticeOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
+}
+
+export async function toggleOhmRace(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setOhmRaceOpen(formData.get("nextOpen") === "true");
+}
+
+export async function toggleOhmRaceRunning(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setOhmRaceRunning(formData.get("nextRunning") === "true");
+}
+
+export async function toggleOpticsGameRunning(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+  await setOpticsGameRunning(formData.get("nextRunning") === "true");
+}
+
+export async function finishOpticsGame() {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+  await endOpticsGame();
   revalidatePath("/giao-vien");
 }
 
@@ -74,8 +86,18 @@ export async function toggleResistivity(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setResistivityOpen(formData.get("nextOpen") === "true");
-  revalidatePath("/");
-  revalidatePath("/giao-vien");
+}
+
+export async function toggleResistanceFactorsPractice(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setResistanceFactorsPracticeOpen(formData.get("nextOpen") === "true");
+}
+
+export async function toggleLensImageConstruction(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  await setImageConstructionOpen(formData.get("nextOpen") === "true");
 }
 
 export async function toggleRefractionQuizScores(formData: FormData) {
@@ -85,7 +107,56 @@ export async function toggleRefractionQuizScores(formData: FormData) {
   const className = formData.get("className");
   if (!isSchoolYear(schoolYear) || !isRefractionQuizClassName(className)) return;
 
-  await setRefractionQuizScoresReleased(schoolYear, className, formData.get("nextReleased") === "true");
+  const nextReleased = formData.get("nextReleased") === "true";
+  await Promise.all([
+    setRefractionQuizScoresReleased(schoolYear, className, nextReleased),
+    setPracticeScoresReleased(schoolYear, "refraction-application", className, nextReleased),
+  ]);
+  revalidatePath("/giao-vien");
+}
+
+export async function forceSubmitPractice(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  const schoolYear = formData.get("schoolYear");
+  const className = formData.get("className");
+  const practiceKey = formData.get("practiceKey");
+  if (!isSchoolYear(schoolYear) || !isClassName(className) || !isPracticeKey(practiceKey)) return;
+  if (practiceKey === "refraction-application" && !isRefractionQuizClassName(className)) return;
+
+  await forceSubmitPracticeClass(schoolYear, practiceKey, className);
+  revalidatePath("/giao-vien");
+}
+
+export async function togglePracticeScores(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  const schoolYear = formData.get("schoolYear");
+  const className = formData.get("className");
+  const practiceKey = formData.get("practiceKey");
+  if (!isSchoolYear(schoolYear) || !isClassName(className) || !isPracticeKey(practiceKey)) return;
+  if (practiceKey === "refraction-application" && !isRefractionQuizClassName(className)) return;
+
+  const nextReleased = formData.get("nextReleased") === "true";
+  await setPracticeScoresReleased(schoolYear, practiceKey, className, nextReleased);
+  if (practiceKey === "refraction-application") {
+    await setRefractionQuizScoresReleased(schoolYear, className, nextReleased);
+  }
+  revalidatePath("/giao-vien");
+}
+
+export async function resetPracticeAttempts(formData: FormData) {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+
+  const schoolYear = formData.get("schoolYear");
+  const className = formData.get("className");
+  const practiceKey = formData.get("practiceKey");
+  if (!isSchoolYear(schoolYear) || !isClassName(className) || !isPracticeKey(practiceKey)) return;
+  if (practiceKey === "refraction-application" && !isRefractionQuizClassName(className)) return;
+
+  await resetPracticeClass(schoolYear, practiceKey, className);
+  if (practiceKey === "ohm-race") await advanceOhmRaceRound();
+  if (practiceKey === "optics-quest") await advanceOpticsGameRound();
   revalidatePath("/giao-vien");
 }
 

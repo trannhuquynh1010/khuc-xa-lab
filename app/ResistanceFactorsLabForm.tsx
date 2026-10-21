@@ -12,6 +12,7 @@ import TeamAssignmentsFields from "./TeamAssignmentsFields";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 
 const ResistivitySimulator = dynamic(() => import("./ResistivitySimulator"));
+const ResistanceFactorsPractice = dynamic(() => import("./ResistanceFactorsPractice"));
 
 type FactorRowInput = { id: number; material: string; length: string; area: string; voltage: string; current: string };
 type SampleSelection = number | "";
@@ -100,7 +101,7 @@ function controlStatus(factor: ResistanceFactor, points: ResistanceFactorMeasure
   return hasControlledVariables(factor, points) ? "Điều kiện đối chứng đã được giữ nguyên." : "Kiểm tra lại các đại lượng cần giữ nguyên để so sánh công bằng.";
 }
 
-export default function ResistanceFactorsLabForm({ showResistivity }: { showResistivity: boolean }) {
+export default function ResistanceFactorsLabForm({ showResistivity, showPractice }: { showResistivity: boolean; showPractice: boolean }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [teamAssignments, setTeamAssignments] = useState(createEmptyTeamAssignments);
@@ -330,6 +331,13 @@ export default function ResistanceFactorsLabForm({ showResistivity }: { showResi
         <section aria-labelledby="resistivity-heading">
           <div className="section-heading data-heading"><span>5</span><div><h2 id="resistivity-heading">Khám phá điện trở suất ρ</h2><p>Thay đổi dây dẫn để nhận ra đại lượng đặc trưng cho vật liệu.</p></div></div>
           <ResistivitySimulator />
+        </section>
+      ) : null}
+
+      {showPractice ? (
+        <section aria-labelledby="resistance-factors-practice-heading">
+          <div className="section-heading data-heading"><span>6</span><div><h2 id="resistance-factors-practice-heading">Luyện tập sau bài học</h2><p>Vận dụng quy luật về chất liệu, chiều dài và tiết diện.</p></div></div>
+          <ResistanceFactorsPractice />
         </section>
       ) : null}
 

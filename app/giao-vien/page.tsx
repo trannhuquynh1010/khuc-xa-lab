@@ -1,17 +1,23 @@
 import { isTeacherAuthenticated } from "@/lib/auth";
 import { activityDefinitions, getActivityDefinition, isActivityKey, type ActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { listActivitySettings, listRefractionQuizSubmissions, listSchoolYears } from "@/lib/db";
+import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivitySettings, listSchoolYears } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { login, logout, toggleActivity, toggleCurrentVoltagePractice, toggleOhmsLawPractice, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistivity } from "./actions";
-import { loadTeacherActivityData, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
+import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleLensImageConstruction, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
+import TeacherToggleSubmitButton from "./TeacherToggleSubmitButton";
+import TeacherActivityTabs from "./TeacherActivityTabs";
 import PhysicsBrand from "../PhysicsBrand";
-
-export const dynamic = "force-dynamic";
+import OhmRaceDashboard from "./OhmRaceDashboard";
+import ResetPracticeButton from "./ResetPracticeButton";
+import OpticsQuestDashboard from "./OpticsQuestDashboard";
+import TeacherClassFilter from "./TeacherClassFilter";
+import PrismLiveDashboard from "./PrismLiveDashboard";
+import OpticsAiDashboard from "./OpticsAiDashboard";
 
 export default async function TeacherPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string; class?: string; year?: string }> }) {
   const authenticated = await isTeacherAuthenticated();
@@ -37,9 +43,21 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const activityDataPromise = loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
-  const quizSubmissionsPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
-    ? listRefractionQuizSubmissions(selectedYear, selectedClass, 100)
+  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" || selectedKey === "optics-ai-review" || selectedKey === "lens-ai-review" || selectedKey === "lenses" || selectedKey === "total-internal-reflection" || selectedKey === "dragonfly-balance" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
+    ? getRefractionQuizClassSummary(selectedYear, selectedClass)
+    : null;
+  const currentVoltagePracticeSummaryPromise = selectedKey === "ohm"
+    ? getPracticeAttemptSummary(selectedYear, "current-voltage-practice", selectedClass)
+    : null;
+  const ohmLawPracticeSummaryPromise = selectedKey === "ohm"
+    ? getPracticeAttemptSummary(selectedYear, "ohm-law-practice", selectedClass)
+    : null;
+  const resistanceFactorsPracticeSummaryPromise = selectedKey === "resistance-factors"
+    ? getPracticeAttemptSummary(selectedYear, "resistance-factors-practice", selectedClass)
+    : null;
+  const opticsReviewSummaryPromise = selectedKey === "optics-review"
+    ? getPracticeAttemptSummary(selectedYear, "optics-review", selectedClass)
     : null;
   const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
@@ -48,25 +66,58 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   return (
     <main className="teacher-shell">
       <header className="teacher-header">
-        <div><PhysicsBrand /><p className="eyebrow">GIÁO VIÊN</p><h1>Bảng điều khiển</h1></div>
-        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}&year=${selectedYear}`}>↻ Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Thoát</button></form></div>
+        <div className="teacher-header-copy"><PhysicsBrand /><p className="eyebrow">GIÁO VIÊN</p><h1>Bảng điều khiển</h1><p className="teacher-context"><strong>{selectedYear}</strong><span>{selectedClass}</span><span>{definition.shortLabel}</span></p></div>
+        <div className="teacher-actions"><Link className="secondary-button" href={`/giao-vien/phan-tich?year=${selectedYear}`}>▤ Phân tích</Link><Link className="secondary-button" href={`/giao-vien?tab=${selectedKey}&class=${selectedClass}&year=${selectedYear}`}>↻ Làm mới</Link><form action={logout}><button className="secondary-button" type="submit">Thoát</button></form></div>
       </header>
 
-      <nav className="teacher-tabs" aria-label="Các công cụ thí nghiệm">
-        {activityDefinitions.map((activity) => {
-          const setting = settings.find((item) => item.key === activity.key);
-          return <Link key={activity.key} className={selectedKey === activity.key ? "active" : ""} href={`/giao-vien?tab=${activity.key}&class=${selectedClass}&year=${selectedYear}`}><span className="teacher-tab-label"><b aria-hidden="true">{activity.symbol}</b>{activity.shortLabel}</span><small className={setting?.isOpen ? "open" : "closed"}>{setting?.isOpen ? "Mở" : "Đóng"}</small></Link>;
-        })}
-      </nav>
+      <TeacherActivityTabs
+        items={activityDefinitions.map((activity) => ({ key: activity.key, shortLabel: activity.shortLabel, symbol: activity.symbol, isOpen: settings.find((item) => item.key === activity.key)?.isOpen ?? false }))}
+        selectedKey={selectedKey}
+        selectedClass={selectedClass}
+        selectedYear={selectedYear}
+      />
 
-      <section className="academic-year-panel">
-        <div><p className="eyebrow">NĂM HỌC</p><h2>{selectedYear}</h2></div>
-        <div className="academic-year-actions"><TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} /><ResetYearButton schoolYear={selectedYear} /></div>
+      <section className="teacher-overview">
+        <div className="teacher-overview-head">
+          <div><p className="eyebrow">TỔNG QUAN</p><h2>Tất cả bài học ({activityDefinitions.length})</h2></div>
+          <div className="teacher-overview-counts">
+            <span className="open">● {settings.filter((item) => item.isOpen).length} đang mở</span>
+            <span className="closed">○ {activityDefinitions.length - settings.filter((item) => item.isOpen).length} đang đóng</span>
+          </div>
+        </div>
+        <div className="teacher-overview-grid">
+          {activityDefinitions.map((activity) => {
+            const isOpen = settings.find((item) => item.key === activity.key)?.isOpen ?? false;
+            return (
+              <Link
+                key={activity.key}
+                className={`teacher-overview-card ${isOpen ? "is-open" : ""} ${activity.key === selectedKey ? "selected" : ""}`}
+                href={`/giao-vien?tab=${activity.key}&class=${selectedClass}&year=${selectedYear}`}
+              >
+                <span className="teacher-overview-symbol" aria-hidden="true">{activity.symbol}</span>
+                <span className="teacher-overview-copy">
+                  <strong>{activity.shortLabel}</strong>
+                  <small className={isOpen ? "open" : "closed"}>{isOpen ? "● Đang mở cho học sinh" : "○ Đang đóng"}</small>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
-      <Suspense fallback={<TeacherDataSkeleton />}>
-        <TeacherClassProgress dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} />
-      </Suspense>
+      <section className="academic-year-panel">
+        <div><p className="eyebrow">DỮ LIỆU LỚP HỌC</p><h2>Năm học {selectedYear}</h2></div>
+        <div className="academic-year-actions">
+          <TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} />
+          <TeacherYearFilter schoolYears={schoolYears} selectedYear={selectedYear} selectedClass={selectedClass} activity={selectedKey} />
+          <details className="teacher-danger-menu">
+            <summary>Quản lý dữ liệu</summary>
+            <div><ResetYearButton schoolYear={selectedYear} /></div>
+          </details>
+        </div>
+      </section>
+
+      {activityDataPromise ? <Suspense fallback={<TeacherDataSkeleton />}><TeacherClassProgress dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} /></Suspense> : null}
 
       <section className="activity-control-panel">
         <div className="activity-control-title"><span aria-hidden="true">{definition.symbol}</span><div><p className="eyebrow">HOẠT ĐỘNG</p><h2>{definition.label}</h2></div></div>
@@ -75,11 +126,50 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
           <form action={toggleActivity}>
             <input type="hidden" name="activityKey" value={selectedKey} />
             <input type="hidden" name="nextOpen" value={String(!currentSetting.isOpen)} />
-            <button className={currentSetting.isOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.isOpen ? "Đóng bài" : "Mở bài"}</button>
+            <TeacherToggleSubmitButton isOpen={currentSetting.isOpen} openLabel="Mở bài" closeLabel="Đóng bài" />
           </form>
-          <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link>
+          {selectedKey !== "optics-game" && selectedKey !== "optics-review" && selectedKey !== "optics-ai-review" && selectedKey !== "lens-ai-review" && selectedKey !== "total-internal-reflection" && selectedKey !== "lenses" && selectedKey !== "dragonfly-balance" ? <Link className="presentation-button" href={`/giao-vien/trinh-chieu/${selectedKey}?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu</Link> : null}
         </div>
       </section>
+
+      {selectedKey === "lenses" ? (
+        <section className="class-progress-panel lens-teacher-overview">
+          <div className="class-progress-header">
+            <div><p className="eyebrow">GIÁO VIÊN DẪN DẮT</p><h2>4 chặng từ điểm M đến tiêu điểm</h2><p>Đặt câu hỏi trước, chờ học sinh dự đoán rồi lần lượt mở từng lớp hình. Vùng M được giữ liên tục từ mặt cong đến mảnh gần đúng.</p></div>
+            <span className="mastery-chip">Không thu dữ liệu lớp</span>
+          </div>
+          <div className="lens-teacher-stage-list">
+            {["Chạm mặt cong", "Phóng to vùng M", "Ghép các vùng", "Hình thành tiêu điểm"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
+          </div>
+        </section>
+      ) : null}
+
+      {selectedKey === "lenses" ? <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} activityKey="lenses" title="Bài tập củng cố Thấu kính" /> : null}
+
+      {selectedKey === "lenses" ? (
+        <section className="activity-control-panel construction-control-panel">
+          <div className="activity-control-title"><span aria-hidden="true">▱</span><div><p className="eyebrow">HOẠT ĐỘNG BỔ SUNG</p><h2>Dựng ảnh qua thấu kính</h2><p>Học sinh chọn 2 tia đặc biệt để dựng ảnh trên lưới ô ly.</p></div></div>
+          <div className="activity-control-actions">
+            <span className={`status-badge ${currentSetting.imageConstructionOpen ? "open" : "closed"}`}>{currentSetting.imageConstructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+            <form action={toggleLensImageConstruction}>
+              <input type="hidden" name="nextOpen" value={String(!currentSetting.imageConstructionOpen)} />
+              <TeacherToggleSubmitButton isOpen={currentSetting.imageConstructionOpen} openLabel="Mở dựng ảnh" closeLabel="Đóng dựng ảnh" />
+            </form>
+          </div>
+        </section>
+      ) : null}
+
+      {selectedKey === "dragonfly-balance" ? (
+        <section className="class-progress-panel balance-teacher-overview">
+          <div className="class-progress-header">
+            <div><p className="eyebrow">GIÁO VIÊN DẪN DẮT</p><h2>4 chặng khám phá cân bằng bền</h2><p>Đặt câu hỏi trước, chờ học sinh dự đoán rồi lần lượt mở từng nội dung: điểm tựa → trọng tâm → mô men hồi phục → ứng dụng thực tế.</p></div>
+            <span className="mastery-chip">Không thu dữ liệu lớp</span>
+          </div>
+          <div className="lens-teacher-stage-list">
+            {["Đặt lên điểm tựa", "Tìm trọng tâm", "Vì sao tự hồi phục", "Ứng dụng thực tế"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
+          </div>
+        </section>
+      ) : null}
 
       {selectedKey === "refraction" && (
         <>
@@ -89,85 +179,156 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
               <span className={`status-badge ${currentSetting.applicationOpen ? "open" : "closed"}`}>{currentSetting.applicationOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleRefractionApplication}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.applicationOpen)} />
-                <button className={currentSetting.applicationOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.applicationOpen ? "Đóng vận dụng" : "Mở vận dụng"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.applicationOpen} openLabel="Mở vận dụng" closeLabel="Đóng vận dụng" />
               </form>
             </div>
           </section>
-
           <section className="activity-control-panel construction-control-panel">
             <div className="activity-control-title"><span aria-hidden="true">↘</span><div><p className="eyebrow">BỔ TRỢ</p><h2>Dựng hình khúc xạ</h2><p>Hiện hoặc ẩn riêng phần hướng dẫn dựng tia.</p></div></div>
             <div className="activity-control-actions">
               <span className={`status-badge ${currentSetting.constructionOpen ? "open" : "closed"}`}>{currentSetting.constructionOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleRefractionConstruction}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.constructionOpen)} />
-                <button className={currentSetting.constructionOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.constructionOpen ? "Đóng dựng hình" : "Mở dựng hình"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.constructionOpen} openLabel="Mở dựng hình" closeLabel="Đóng dựng hình" />
               </form>
             </div>
           </section>
         </>
       )}
 
-      {quizSubmissionsPromise && (
+      {quizSummaryPromise && (
         <Suspense fallback={<TeacherDataSkeleton />}>
-          <RefractionQuizPanel submissionsPromise={quizSubmissionsPromise} selectedClass={selectedClass} selectedYear={selectedYear} />
+          <RefractionQuizPanel summaryPromise={quizSummaryPromise} selectedClass={selectedClass} selectedYear={selectedYear} />
         </Suspense>
       )}
 
       {selectedKey === "ohm" && (
         <>
           <section className="activity-control-panel construction-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">I↗</span><div><p className="eyebrow">BỘ BÀI TẬP 1</p><h2>Sự phụ thuộc của I vào U</h2><p>Lắp mạch, dự đoán và đọc đồ thị; chưa dùng khái niệm điện trở.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">I↗</span><div><p className="eyebrow">BỘ BÀI TẬP 1</p><h2>Luyện tập I phụ thuộc vào U</h2><p>Vận dụng sau bài học: lắp mạch, xử lí số liệu và phát hiện sai số.</p></div></div>
             <div className="activity-control-actions">
               <span className={`status-badge ${currentSetting.iuPracticeOpen ? "open" : "closed"}`}>{currentSetting.iuPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
               <form action={toggleCurrentVoltagePractice}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.iuPracticeOpen)} />
-                <button className={currentSetting.iuPracticeOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.iuPracticeOpen ? "Đóng bộ 1" : "Mở bộ 1"}</button>
+                <TeacherToggleSubmitButton isOpen={currentSetting.iuPracticeOpen} openLabel="Mở bộ 1" closeLabel="Đóng bộ 1" />
+              </form>
+            </div>
+          </section>
+          {currentVoltagePracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={currentVoltagePracticeSummaryPromise} practiceKey="current-voltage-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
+
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">Ω</span><div><p className="eyebrow">BỘ BÀI TẬP 2</p><h2>Định luật Ohm</h2><p>Giải mã số liệu, vận dụng định luật và chọn giới hạn an toàn.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.ohmLawPracticeOpen ? "open" : "closed"}`}>{currentSetting.ohmLawPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleOhmsLawPractice}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmLawPracticeOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.ohmLawPracticeOpen} openLabel="Mở bộ 2" closeLabel="Đóng bộ 2" />
+              </form>
+            </div>
+          </section>
+          {ohmLawPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={ohmLawPracticeSummaryPromise} practiceKey="ohm-law-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
+
+          <section className="activity-control-panel construction-control-panel ohm-race-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">ϟ</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.ohmRaceRound}</p><h2>Đường đua Điện học</h2><p>24 câu mới · mỗi học sinh vượt 6 trạm I–U và định luật Ohm.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.ohmRaceRunning ? "open" : "closed"}`}>{currentSetting.ohmRaceRunning ? "● Đang đua" : currentSetting.ohmRaceOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
+              <form action={toggleOhmRace}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmRaceOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.ohmRaceOpen} openLabel="Mở phòng đua" closeLabel="Đóng phòng đua" />
+              </form>
+              {currentSetting.ohmRaceOpen ? (
+                <form action={toggleOhmRaceRunning}>
+                  <input type="hidden" name="nextRunning" value={String(!currentSetting.ohmRaceRunning)} />
+                  <TeacherToggleSubmitButton isOpen={currentSetting.ohmRaceRunning} openLabel="Bắt đầu đua" closeLabel="Tạm dừng" />
+                </form>
+              ) : null}
+              <Link className="presentation-button" href={`/giao-vien/trinh-chieu/ohm-race?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu đua</Link>
+              <form action={resetPracticeAttempts}>
+                <input type="hidden" name="schoolYear" value={selectedYear} />
+                <input type="hidden" name="className" value={selectedClass} />
+                <input type="hidden" name="practiceKey" value="ohm-race" />
+                <ResetPracticeButton className={selectedClass} practiceLabel="đường đua Điện học" />
+              </form>
+            </div>
+          </section>
+          <OhmRaceDashboard className={selectedClass} schoolYear={selectedYear} />
+        </>
+      )}
+
+      {selectedKey === "resistance-factors" && (
+        <>
+          <section className="activity-control-panel construction-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">ρ</span><div><p className="eyebrow">MỤC 5</p><h2>Khám phá điện trở suất ρ</h2><p>Mở sau khi học sinh hoàn thành và tổng hợp ba kết luận.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.resistivityOpen ? "open" : "closed"}`}>{currentSetting.resistivityOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleResistivity}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.resistivityOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.resistivityOpen} openLabel="Mở điện trở suất" closeLabel="Đóng điện trở suất" />
               </form>
             </div>
           </section>
 
           <section className="activity-control-panel construction-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">Ω</span><div><p className="eyebrow">BỘ BÀI TẬP 2</p><h2>Định luật Ohm</h2><p>Ghép công thức, tính nhanh và xử lí tình huống mạch điện.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">R?</span><div><p className="eyebrow">BỘ LUYỆN TẬP</p><h2>Mật mã điện trở</h2><p>Vận dụng sau bài học: kiểm soát biến, suy luận tỉ lệ và bắt lỗi thí nghiệm.</p></div></div>
             <div className="activity-control-actions">
-              <span className={`status-badge ${currentSetting.ohmLawPracticeOpen ? "open" : "closed"}`}>{currentSetting.ohmLawPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-              <form action={toggleOhmsLawPractice}>
-                <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmLawPracticeOpen)} />
-                <button className={currentSetting.ohmLawPracticeOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.ohmLawPracticeOpen ? "Đóng bộ 2" : "Mở bộ 2"}</button>
+              <span className={`status-badge ${currentSetting.resistanceFactorsPracticeOpen ? "open" : "closed"}`}>{currentSetting.resistanceFactorsPracticeOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={toggleResistanceFactorsPractice}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.resistanceFactorsPracticeOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.resistanceFactorsPracticeOpen} openLabel="Mở luyện tập" closeLabel="Đóng luyện tập" />
               </form>
             </div>
           </section>
+          {resistanceFactorsPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={resistanceFactorsPracticeSummaryPromise} practiceKey="resistance-factors-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
         </>
       )}
 
-      {selectedKey === "resistance-factors" && (
-        <section className="activity-control-panel construction-control-panel">
-          <div className="activity-control-title"><span aria-hidden="true">ρ</span><div><p className="eyebrow">MỤC 5</p><h2>Khám phá điện trở suất ρ</h2><p>Mở sau khi học sinh hoàn thành và tổng hợp ba kết luận.</p></div></div>
-          <div className="activity-control-actions">
-            <span className={`status-badge ${currentSetting.resistivityOpen ? "open" : "closed"}`}>{currentSetting.resistivityOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-            <form action={toggleResistivity}>
-              <input type="hidden" name="nextOpen" value={String(!currentSetting.resistivityOpen)} />
-              <button className={currentSetting.resistivityOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.resistivityOpen ? "Đóng điện trở suất" : "Mở điện trở suất"}</button>
-            </form>
-          </div>
-        </section>
-      )}
-
       {selectedKey === "prism-colors" && (
-        <section className="activity-control-panel construction-control-panel color-control-panel">
-          <div className="activity-control-title"><span aria-hidden="true">◉</span><div><p className="eyebrow">NỘI DUNG</p><h2>Màu sắc của vật</h2><p>Hiện hoặc ẩn riêng mô phỏng ánh sáng phản xạ vào mắt.</p></div></div>
-          <div className="activity-control-actions">
-            <span className={`status-badge ${currentSetting.colorOpen ? "open" : "closed"}`}>{currentSetting.colorOpen ? "● Đang mở" : "○ Đang đóng"}</span>
-            <form action={togglePrismColor}>
-              <input type="hidden" name="nextOpen" value={String(!currentSetting.colorOpen)} />
-              <button className={currentSetting.colorOpen ? "secondary-button close-activity" : "primary-button"} type="submit">{currentSetting.colorOpen ? "Đóng màu sắc" : "Mở màu sắc"}</button>
-            </form>
-          </div>
-        </section>
+        <>
+          <section className="activity-control-panel construction-control-panel color-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">◉</span><div><p className="eyebrow">NỘI DUNG</p><h2>Màu sắc của vật</h2><p>Hiện hoặc ẩn riêng mô phỏng ánh sáng phản xạ vào mắt.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.colorOpen ? "open" : "closed"}`}>{currentSetting.colorOpen ? "● Đang mở" : "○ Đang đóng"}</span>
+              <form action={togglePrismColor}>
+                <input type="hidden" name="nextOpen" value={String(!currentSetting.colorOpen)} />
+                <TeacherToggleSubmitButton isOpen={currentSetting.colorOpen} openLabel="Mở màu sắc" closeLabel="Đóng màu sắc" />
+              </form>
+            </div>
+          </section>
+          <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} activityKey="prism-colors" title="Câu hỏi Lăng kính và màu sắc" />
+        </>
       )}
 
-      <Suspense fallback={<TeacherDataSkeleton />}>
-        <TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} />
-      </Suspense>
+      {selectedKey === "total-internal-reflection" ? <PrismLiveDashboard className={selectedClass} schoolYear={selectedYear} isCurrentYear={selectedYear === getCurrentSchoolYear()} activityKey="total-internal-reflection" title="Câu hỏi Phản xạ toàn phần" /> : null}
+
+      {selectedKey === "optics-game" && (
+        <>
+          <section className="activity-control-panel construction-control-panel optics-game-control-panel">
+            <div className="activity-control-title"><span aria-hidden="true">✦</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.opticsGameRound}</p><h2>Giải cứu Hải đăng Ánh sáng</h2><p>12 câu/6 trạm · tự do làm · điểm = số câu đúng · điểm nhóm là trung bình; đồng điểm xét tổng thời gian. Đáp án công bố khi bấm Kết thúc.</p></div></div>
+            <div className="activity-control-actions">
+              <span className={`status-badge ${currentSetting.opticsGameEndedAt ? "closed" : currentSetting.opticsGameRunning ? "open" : "closed"}`}>{currentSetting.opticsGameEndedAt ? "✓ Đã công bố" : currentSetting.opticsGameRunning ? "● Đang chơi" : currentSetting.isOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
+              {currentSetting.isOpen && !currentSetting.opticsGameEndedAt ? <form action={toggleOpticsGameRunning}><input type="hidden" name="nextRunning" value={String(!currentSetting.opticsGameRunning)} /><TeacherToggleSubmitButton isOpen={currentSetting.opticsGameRunning} openLabel="Bắt đầu" closeLabel="Tạm dừng" /></form> : null}
+              {currentSetting.isOpen && !currentSetting.opticsGameEndedAt && (currentSetting.opticsGameRunning || currentSetting.opticsGameStartedAt) ? <form action={finishOpticsGame}><button type="submit" className="primary-button stop">Kết thúc & công bố</button></form> : null}
+              <Link className="presentation-button" href={`/giao-vien/trinh-chieu/optics-game?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu game</Link>
+              <form action={resetPracticeAttempts}><input type="hidden" name="schoolYear" value={selectedYear} /><input type="hidden" name="className" value={selectedClass} /><input type="hidden" name="practiceKey" value="optics-quest" /><ResetPracticeButton className={selectedClass} practiceLabel="Photon Quest" /></form>
+            </div>
+          </section>
+          <OpticsQuestDashboard className={selectedClass} schoolYear={selectedYear} />
+        </>
+      )}
+
+      {selectedKey === "optics-review" && (
+        <>
+          <section className="class-progress-panel optics-review-teacher-overview">
+            <div className="class-progress-header"><div><p className="eyebrow">LỘ TRÌNH THÍCH ỨNG</p><h2>{selectedClass} · 20 câu cá nhân hóa</h2><p>Mỗi học sinh khởi động ở mức Vận dụng; hệ thống tự nâng hoặc hạ độ khó theo kết quả.</p></div><TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} /></div>
+            <div className="adaptive-level-guide"><div className="level-1"><b>1</b><span><strong>Nền tảng</strong><small>Nhận biết và củng cố khái niệm</small></span></div><div className="level-2"><b>2</b><span><strong>Vận dụng</strong><small>Xử lí dữ kiện và tình huống</small></span></div><div className="level-3"><b>3</b><span><strong>Thử thách</strong><small>Suy luận nhiều bước và thiết kế thí nghiệm</small></span></div></div>
+          </section>
+          {opticsReviewSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={opticsReviewSummaryPromise} practiceKey="optics-review" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
+        </>
+      )}
+
+      {selectedKey === "optics-ai-review" && <OpticsAiDashboard key={`optics:${selectedClass}:${selectedYear}`} className={selectedClass} schoolYear={selectedYear} lesson="optics" />}
+      {selectedKey === "lens-ai-review" && <OpticsAiDashboard key={`lens:${selectedClass}:${selectedYear}`} className={selectedClass} schoolYear={selectedYear} lesson="lens" />}
+      {activityDataPromise ? <Suspense fallback={<TeacherDataSkeleton />}><TeacherSubmissionData dataPromise={activityDataPromise} selectedClass={selectedClass} selectedYear={selectedYear} selectedKey={selectedKey} /></Suspense> : null}
     </main>
   );
 }
