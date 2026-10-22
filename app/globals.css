@@ -593,14 +593,6 @@ td input { min-width: 110px; min-height: 38px; border-color: #aaa49a; }
 .increment-story > span { display: grid; place-items: center; gap: 2px; color: #fff; padding: 9px; border-radius: 12px; background: var(--purple); text-align: center; }
 .increment-story > span strong { font-size: .82rem; }
 .increment-story > span small { font-size: .58rem; font-weight: 850; }
-.compact-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.anomaly-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.anomaly-grid button { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; padding: 10px 12px; border: 1.3px solid var(--ink); border-radius: 12px; color: var(--ink); background: var(--paper); cursor: pointer; text-align: left; }
-.anomaly-grid button b { grid-column: 1 / -1; font-size: .78rem; }
-.anomaly-grid button span { color: var(--muted); font-size: .72rem; font-weight: 800; }
-.anomaly-grid button:hover { background: var(--lime); }
-.anomaly-grid button.selected { color: #fff; background: var(--ink); box-shadow: 2px 2px 0 var(--purple); }
-.anomaly-grid button.selected span { color: inherit; }
 .truth-statement-list { display: grid; gap: 8px; }
 .truth-statement { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 10px 12px; border: 1.3px solid #c9c1b4; border-radius: 13px; background: var(--paper); }
 .truth-statement p { margin: 0; font-size: .79rem; font-weight: 750; line-height: 1.45; }
@@ -2002,7 +1994,6 @@ details .table-scroll { margin-top: 12px; }
   .circuit-fixed, .circuit-terminal, .circuit-slot-target { min-height: 66px; }
   .increment-story { grid-template-columns: 1fr; }
   .increment-story > span { width: min(140px, 100%); margin-inline: auto; }
-  .compact-choice-grid, .anomaly-grid { grid-template-columns: 1fr; }
   .truth-statement { grid-template-columns: 1fr; }
   .truth-statement > div { width: 100%; }
   .control-variable-grid > div { grid-template-columns: 1fr; }

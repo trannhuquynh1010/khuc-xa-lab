@@ -12,13 +12,6 @@ type StatementId = "scale" | "origin" | "ammeter" | "increment";
 type TruthChoice = "true" | "false" | "";
 type StatementAnswers = Record<StatementId, TruthChoice>;
 
-const anomalyRows = [
-  { id: "1", voltage: "2,0", current: "0,08" },
-  { id: "2", voltage: "4,0", current: "0,16" },
-  { id: "3", voltage: "6,0", current: "0,31" },
-  { id: "4", voltage: "8,0", current: "0,32" },
-];
-
 const statements: Array<{ id: StatementId; text: string; answer: Exclude<TruthChoice, ""> }> = [
   { id: "scale", text: "Giữ nguyên dây dẫn và điều kiện đo: U tăng gấp 3 thì I cũng tăng gấp 3.", answer: "true" },
   { id: "origin", text: "Đồ thị biểu diễn I theo U là đường thẳng đi qua gốc tọa độ.", answer: "true" },
@@ -63,13 +56,13 @@ function MiniGraph({ kind }: { kind: GraphKind }) {
 export default function CurrentVoltagePractice() {
   const [missingValues, setMissingValues] = useState<MissingValues>(emptyMissingValues);
   const [incrementAnswer, setIncrementAnswer] = useState("");
-  const [anomaly, setAnomaly] = useState("");
+  const [secondVoltageAnswer, setSecondVoltageAnswer] = useState("");
   const [graph, setGraph] = useState<GraphKind | "">("");
   const [statementAnswers, setStatementAnswers] = useState<StatementAnswers>(emptyStatements);
   const [checked, setChecked] = useState(false);
   const { draftStatus } = useDeviceDraft(
-    deviceDraftKey("ohm-current-voltage-practice-v5"),
-    { missingValues, incrementAnswer, anomaly, graph, statementAnswers },
+    deviceDraftKey("ohm-current-voltage-practice-v6"),
+    { missingValues, incrementAnswer, secondVoltageAnswer, graph, statementAnswers },
     (value) => {
       if (!isDraftRecord(value)) return;
       if (isDraftRecord(value.missingValues)) {
@@ -80,7 +73,7 @@ export default function CurrentVoltagePractice() {
         });
       }
       if (typeof value.incrementAnswer === "string") setIncrementAnswer(value.incrementAnswer);
-      if (typeof value.anomaly === "string") setAnomaly(value.anomaly);
+      if (typeof value.secondVoltageAnswer === "string") setSecondVoltageAnswer(value.secondVoltageAnswer);
       if (value.graph === "direct" || value.graph === "offset" || value.graph === "curve") setGraph(value.graph);
       if (isDraftRecord(value.statementAnswers)) {
         setStatementAnswers({
@@ -95,12 +88,12 @@ export default function CurrentVoltagePractice() {
 
   const completedChallenges = Number(Object.values(missingValues).every((value) => Boolean(value.trim())))
     + Number(Boolean(incrementAnswer.trim()))
-    + Number(Boolean(anomaly))
+    + Number(Boolean(secondVoltageAnswer.trim()))
     + Number(Boolean(graph))
     + Number(Object.values(statementAnswers).every(Boolean));
   const completedItems = Object.values(missingValues).filter((value) => Boolean(value.trim())).length
     + Number(Boolean(incrementAnswer.trim()))
-    + Number(Boolean(anomaly))
+    + Number(Boolean(secondVoltageAnswer.trim()))
     + Number(Boolean(graph))
     + Object.values(statementAnswers).filter(Boolean).length;
   const statementScore = statements.filter((statement) => statementAnswers[statement.id] === statement.answer).length;
@@ -108,12 +101,12 @@ export default function CurrentVoltagePractice() {
     + Number(approximately(missingValues.voltageAt012, 3))
     + Number(approximately(missingValues.currentAt45, 0.18))
     + Number(approximately(incrementAnswer, 0.35))
-    + Number(anomaly === "3")
+    + Number(approximately(secondVoltageAnswer, 3))
     + Number(graph === "direct")
     + statementScore;
   const attempt = usePracticeAttempt(
     "current-voltage-practice",
-    { missingValues, incrementAnswer, anomaly, graph, statementAnswers },
+    { missingValues, incrementAnswer, secondVoltageAnswer, graph, statementAnswers },
     completedItems,
   );
 
@@ -135,7 +128,7 @@ export default function CurrentVoltagePractice() {
   function resetPractice() {
     setMissingValues(emptyMissingValues);
     setIncrementAnswer("");
-    setAnomaly("");
+    setSecondVoltageAnswer("");
     setGraph("");
     setStatementAnswers(emptyStatements);
     setChecked(false);
@@ -169,11 +162,10 @@ export default function CurrentVoltagePractice() {
           <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} className={resultClass(approximately(incrementAnswer, 0.35))} onChange={(event) => { setIncrementAnswer(event.target.value); setChecked(false); }} placeholder="0,00" /><span>A</span></div></label>
         </article>
 
-        <article className="practice-card anomaly-card">
-          <div className="practice-card-heading"><span>03</span><div><h4>Truy tìm số liệu bất thường</h4><p>Chọn phép đo cần thực hiện lại.</p></div></div>
-          <div className="anomaly-grid" aria-label="Bốn phép đo U và I">
-            {anomalyRows.map((row) => <button key={row.id} type="button" className={`${anomaly === row.id ? "selected" : ""} ${anomaly === row.id ? resultClass(row.id === "3") : ""}`} onClick={() => updateChoice(setAnomaly, row.id)}><b>Lần {row.id}</b><span>U = {row.voltage} V</span><span>I = {row.current} A</span></button>)}
-          </div>
+        <article className="practice-card increment-challenge-card practice-calculation-card">
+          <div className="practice-card-heading"><span>03</span><div><h4>Tính U khi I thay đổi</h4><p>Tính giá trị mới của hiệu điện thế.</p></div></div>
+          <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 9 V</b><b>I₁ = 0,30 A</b></div><span><strong>-0,20 A</strong><small>Giảm xuống</small></span><div><small>Sau đó</small><b>U₂ = ?</b></div></div>
+          <label>U₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Hiệu điện thế sau khi cường độ dòng điện giảm xuống còn 0,10 A" value={secondVoltageAnswer} className={resultClass(approximately(secondVoltageAnswer, 3))} onChange={(event) => updateChoice(setSecondVoltageAnswer, event.target.value)} placeholder="0,00" /><span>V</span></div></label>
         </article>
 
         <article className="practice-card practice-card-wide">
