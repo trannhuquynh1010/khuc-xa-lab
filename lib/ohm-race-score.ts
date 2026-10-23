@@ -14,11 +14,11 @@ export const ohmRaceAnswerKey: Record<string, AnswerEntry> = {
   "prop-table": { answer: "a", explanation: "Ở bảng A, tỉ số I/U luôn bằng 0,04 nên I tỉ lệ thuận với U. Bảng B có tỉ số thay đổi; bảng C có I không đổi khi U tăng." },
   "prop-scale-down": { answer: "0.15", tolerance: 0.001, explanation: "Hiệu điện thế mới là 3 V, tức U giảm 3 lần so với 9 V, nên I cũng giảm 3 lần: I = 0,45 ÷ 3 = 0,15 A." },
   // Trạm 2 · Dấu vân tay dây dẫn
-  "fingerprint-pair": { answer: "ac", explanation: "A và C có cùng tỉ số U/I = 30 Ω nên có thể là cùng một dây dẫn." },
+  "fingerprint-pair": { answer: "ac", explanation: "Hai phép đo 2,4 V–0,08 A và 7,5 V–0,25 A đều cho U/I = 30 Ω nên có thể thuộc cùng một dây dẫn. Hai cặp còn lại có tỉ số U/I khác nhau (30 Ω với 50 Ω, và 50 Ω với 40 Ω)." },
   "fingerprint-high-r": { answer: "y", explanation: "Cùng U, dòng điện Y nhỏ nhất nên R_Y = U/I_Y lớn nhất." },
   "fingerprint-slope": { answer: "y", explanation: "Độ dốc đồ thị I(U) bằng 1/R; dốc nhỏ hơn ứng với điện trở lớn hơn." },
   "fingerprint-same-i": { answer: "n", explanation: "Cùng I, dây cần U lớn hơn có điện trở lớn hơn (R=U/I)." },
-  "fingerprint-ratio": { answer: "0.3", tolerance: 0.001, explanation: "R = 3/0,12 = 25 Ω không đổi; ở U=7,5 V thì I = 7,5/25 = 0,3 A." },
+  "fingerprint-ratio": { answer: "0.3", tolerance: 0.001, explanation: "Tỉ số U/I không đổi: R = 3/0,12 = 25 Ω. Ở lần đo 2 với U = 7,5 V thì I = 7,5/25 = 0,3 A." },
   "fingerprint-compare-r": { answer: "p", explanation: "Cùng U, dòng điện qua P nhỏ hơn nên R_P = U/I_P lớn hơn." },
   // Trạm 3 · Dòng điện mục tiêu
   "target-6": { answer: "6", tolerance: 0.001, explanation: "U = I×R = 0,15×40 = 6 V." },
