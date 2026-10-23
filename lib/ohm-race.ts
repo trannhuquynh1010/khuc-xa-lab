@@ -112,14 +112,14 @@ const stations: OhmRaceQuestion[][] = [
       { value: "offset", label: "Đường thẳng không đi qua gốc tọa độ" },
       { value: "curve", label: "Đường cong" },
     ] },
-    { id: "prop-scale-up", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Nhân bốn hiệu điện thế", prompt: "Một dây dẫn có I = 0,10 A khi U = 2,5 V. Tăng hiệu điện thế lên 10 V, dây dẫn và nhiệt độ không đổi.", detail: "Tính cường độ dòng điện mới.", kind: "number", unit: "A" },
-    { id: "prop-scale-mid", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Tăng thêm hai vôn", prompt: "Một dây dẫn có I = 0,16 A khi U = 4 V. Hiệu điện thế được tăng lên 6 V, dây dẫn và nhiệt độ không đổi.", detail: "Tính cường độ dòng điện mới.", kind: "number", unit: "A" },
+    { id: "prop-scale-up", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Đổi nguồn thành 10 V", prompt: "Một dây dẫn có I = 0,10 A khi U = 2,5 V. Sau đó hiệu điện thế được điều chỉnh thành 10 V, dây dẫn và nhiệt độ không đổi.", detail: "Tính cường độ dòng điện mới.", kind: "number", unit: "A" },
+    { id: "prop-scale-mid", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Đổi nguồn thành 6 V", prompt: "Một dây dẫn có I = 0,16 A khi U = 4 V. Sau đó hiệu điện thế được điều chỉnh thành 6 V, dây dẫn và nhiệt độ không đổi.", detail: "Tính cường độ dòng điện mới.", kind: "number", unit: "A" },
     { id: "prop-table", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Bảng nào tỉ lệ thuận?", prompt: "Bảng số liệu nào cho thấy I tỉ lệ thuận với U?", kind: "choice", choices: [
       { value: "a", label: "U = 2; 4; 6 V → I = 0,08; 0,16; 0,24 A" },
       { value: "b", label: "U = 2; 4; 6 V → I = 0,08; 0,15; 0,30 A" },
       { value: "c", label: "U = 2; 4; 6 V → I = 0,12; 0,12; 0,12 A" },
     ] },
-    { id: "prop-scale-down", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Hạ hiệu điện thế", prompt: "Một dây dẫn có I = 0,45 A khi U = 9 V. Giảm hiệu điện thế xuống 3 V, dây dẫn và nhiệt độ không đổi.", detail: "Tính cường độ dòng điện mới.", kind: "number", unit: "A" },
+    { id: "prop-scale-down", station: 1, stationLabel: "Cổng tỉ lệ thuận", title: "Đổi nguồn thành 3 V", prompt: "Một dây dẫn có I = 0,45 A khi U = 9 V. Sau đó hiệu điện thế được điều chỉnh thành 3 V, dây dẫn và nhiệt độ không đổi.", detail: "Tính cường độ dòng điện mới.", kind: "number", unit: "A" },
   ],
   [
     { id: "fingerprint-pair", station: 2, stationLabel: "Dấu vân tay dây dẫn", title: "Ghép hai hồ sơ", prompt: "Cặp phép đo nào có thể thuộc cùng một dây dẫn ở nhiệt độ không đổi?", kind: "choice", choices: [
@@ -144,7 +144,7 @@ const stations: OhmRaceQuestion[][] = [
   [
     { id: "target-6", station: 3, stationLabel: "Dòng điện mục tiêu", title: "Căn chỉnh nguồn", prompt: "Dây dẫn có R=40 Ω. Cần tạo dòng điện 0,15 A.", detail: "Đặt hiệu điện thế bằng bao nhiêu?", kind: "number", unit: "V" },
     { id: "target-7", station: 3, stationLabel: "Dòng điện mục tiêu", title: "Nâng dòng đúng mức", prompt: "Một thiết bị có I=0,12 A khi U=3 V. Muốn I=0,28 A và điện trở không đổi.", detail: "Đặt hiệu điện thế bằng bao nhiêu?", kind: "number", unit: "V" },
-    { id: "target-window", station: 3, stationLabel: "Dòng điện mục tiêu", title: "Đưa kim vào vùng xanh", prompt: "Dây dẫn R=30 Ω cần dòng điện từ 0,18 A đến 0,22 A. Chọn một mức nguồn.", kind: "choice", choices: [
+    { id: "target-window", station: 3, stationLabel: "Dòng điện mục tiêu", title: "Chọn nguồn đúng khoảng", prompt: "Một mạch dùng dây dẫn R = 30 Ω chỉ chạy đúng khi cường độ dòng điện nằm trong khoảng từ 0,18 A đến 0,22 A.", detail: "Nhỏ hơn 0,18 A thì mạch không chạy, lớn hơn 0,22 A thì mạch bị quá tải. Chọn mức nguồn phù hợp.", kind: "choice", choices: [
       { value: "4.5", label: "4,5 V" }, { value: "6", label: "6 V" }, { value: "7.5", label: "7,5 V" },
     ] },
     { id: "target-32", station: 3, stationLabel: "Dòng điện mục tiêu", title: "Hạ dòng khi giữ nguồn", prompt: "Nguồn giữ ở 8 V. Muốn dòng điện giảm từ 0,40 A xuống 0,25 A.", detail: "Điện trở mới cần bằng bao nhiêu?", kind: "number", unit: "Ω" },
@@ -167,7 +167,7 @@ const stations: OhmRaceQuestion[][] = [
     { id: "boss-code", station: 5, stationLabel: "Trạm năng lượng", title: "Mã khóa 40–10", prompt: "Thiết bị có U=7,2 V và I=0,18 A. Muốn dòng đạt 0,25 A mà R không đổi. Chọn chuỗi kết quả đúng.", kind: "choice", choices: [
       { value: "40-10", label: "R=40 Ω → đặt U=10 V" }, { value: "25-10", label: "R=25 Ω → đặt U=10 V" }, { value: "40-6.25", label: "R=40 Ω → đặt U=6,25 V" },
     ] },
-    { id: "boss-config", station: 5, stationLabel: "Trạm năng lượng", title: "Chọn cấu hình vận hành", prompt: "Thiết bị yêu cầu 0,18 A ≤ I ≤ 0,22 A. Cấu hình nào đưa dòng điện vào vùng xanh?", kind: "choice", choices: [
+    { id: "boss-config", station: 5, stationLabel: "Trạm năng lượng", title: "Chọn cấu hình vận hành", prompt: "Một thiết bị chỉ chạy đúng khi 0,18 A ≤ I ≤ 0,22 A: thấp hơn thì không đủ dòng, cao hơn thì quá tải.", detail: "Cấu hình nào cho dòng điện nằm đúng trong khoảng này?", kind: "choice", choices: [
       { value: "3-15", label: "U=3 V; R=15 Ω" }, { value: "6-20", label: "U=6 V; R=20 Ω" }, { value: "9-60", label: "U=9 V; R=60 Ω" },
     ] },
     { id: "boss-two-lines", station: 5, stationLabel: "Trạm năng lượng", title: "Hai đường truyền", prompt: "Tại 6 V: dây M có I=0,15 A; N có I=0,24 A. Báo cáo nào đúng?", kind: "choice", choices: [
