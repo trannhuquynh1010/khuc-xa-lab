@@ -71,6 +71,12 @@ export async function POST(request: Request) {
       if (Number(body.answers.round) !== raceSetting?.ohmRaceRound) {
         return NextResponse.json({ error: "Cuộc đua đã chuyển sang vòng mới. Hãy tải lại trang." }, { status: 409 });
       }
+      if (typeof body.answers.groupName !== "string" || !groupNames.includes(body.answers.groupName)) {
+        return NextResponse.json({ error: "Hãy chọn nhóm trước khi chơi." }, { status: 400 });
+      }
+      if (raceSetting?.ohmRaceEndedAt) {
+        return NextResponse.json({ error: "Cuộc đua đã kết thúc và công bố kết quả." }, { status: 403 });
+      }
       if (body.mode === "submit" && !raceSetting?.ohmRaceRunning) {
         return NextResponse.json({ error: "Cuộc đua đang tạm dừng." }, { status: 403 });
       }
@@ -91,12 +97,9 @@ export async function POST(request: Request) {
       }
     }
     const evaluation = scorePracticeAttempt(body.practiceKey, body.answers);
-    // Photon Quest cho phép nộp sớm với số câu bất kỳ (câu bỏ trống tính sai khi chấm).
-    if (body.mode === "submit" && body.practiceKey !== "optics-quest" && evaluation.completedCount < evaluation.totalItems) {
+    // Photon Quest và Đường đua Điện học cho phép nộp sớm với số câu bất kỳ (câu bỏ trống tính sai khi chấm).
+    if (body.mode === "submit" && body.practiceKey !== "optics-quest" && body.practiceKey !== "ohm-race" && evaluation.completedCount < evaluation.totalItems) {
       return NextResponse.json({ error: `Còn ${evaluation.totalItems - evaluation.completedCount} ý chưa hoàn thành.` }, { status: 400 });
-    }
-    if (body.mode === "submit" && body.practiceKey === "ohm-race" && evaluation.correctCount < evaluation.totalItems) {
-      return NextResponse.json({ error: "Hãy vượt qua đủ 6 trạm trước khi về đích." }, { status: 400 });
     }
     const input = { practiceKey: body.practiceKey, className: body.className, studentNumber: body.studentNumber, answers: body.answers };
     if (body.mode === "submit" && body.practiceKey === "refraction-application") {

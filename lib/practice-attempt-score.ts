@@ -8,7 +8,8 @@ import {
 } from "@/lib/refraction-quiz";
 import { scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 import { getPracticeBonusPoint, type PracticeKey } from "@/lib/practice-attempt-types";
-import { createEmptyOhmRaceAnswers, getOhmRaceQuestion, isOhmRaceAnswerCorrect, OHM_RACE_STATION_COUNT } from "@/lib/ohm-race";
+import { createEmptyOhmRaceAnswers, OHM_RACE_QUESTION_COUNT } from "@/lib/ohm-race";
+import { isOhmRaceAnswerCorrect } from "@/lib/ohm-race-score";
 import { createEmptyOpticsQuestAnswers, OPTICS_QUEST_QUESTION_COUNT } from "@/lib/optics-quest";
 import { isOpticsQuestAnswerCorrect } from "@/lib/optics-quest-score";
 import { createEmptyOpticsReviewAnswers, getOpticsReviewQuestion, isOpticsReviewAnswerCorrect, isOpticsReviewResponseAnswered, OPTICS_REVIEW_QUESTION_COUNT } from "@/lib/optics-review";
@@ -93,19 +94,18 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
   }
 
   if (key === "ohm-race") {
+    // Chấm trực tiếp đáp án đã lưu; câu bỏ trống = sai. Không cần làm đúng mới tính.
     const questionIds = Array.isArray(answers.questionIds) ? answers.questionIds.filter((item): item is string => typeof item === "string") : [];
     const responses = record(answers.responses);
-    const clearedIds = new Set(Array.isArray(answers.clearedQuestionIds) ? answers.clearedQuestionIds.filter((item): item is string => typeof item === "string") : []);
-    const selectedQuestions = questionIds.length === OHM_RACE_STATION_COUNT
-      ? questionIds.map(getOhmRaceQuestion)
-      : [];
-    const validStations = selectedQuestions.length === OHM_RACE_STATION_COUNT && selectedQuestions.every((question, index) => question?.station === index + 1);
-    const correctCount = validStations ? selectedQuestions.filter((question) => {
-      if (!question || !clearedIds.has(question.id)) return false;
-      const response = responses[question.id];
-      return typeof response === "string" && isOhmRaceAnswerCorrect(question, response);
-    }).length : 0;
-    return { completedCount: correctCount, correctCount, totalItems: OHM_RACE_STATION_COUNT, bonusPoint: 0 };
+    const ids = questionIds.slice(0, OHM_RACE_QUESTION_COUNT);
+    let answered = 0;
+    let correct = 0;
+    for (const id of ids) {
+      const response = typeof responses[id] === "string" ? responses[id] : "";
+      if (response.trim()) answered += 1;
+      if (isOhmRaceAnswerCorrect(id, response)) correct += 1;
+    }
+    return { completedCount: answered, correctCount: correct, totalItems: OHM_RACE_QUESTION_COUNT, bonusPoint: 0 };
   }
 
   if (key === "optics-quest") {

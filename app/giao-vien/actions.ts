@@ -3,7 +3,7 @@
 import { createTeacherSession, destroyTeacherSession, isCorrectTeacherPassword, isTeacherAuthenticated } from "@/lib/auth";
 import { isActivityKey } from "@/lib/activities";
 import { isClassName, isRefractionQuizClassName } from "@/lib/classes";
-import { advanceOhmRaceRound, advanceOpticsGameRound, endOpticsGame, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setImageConstructionOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setOpticsGameRunning, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
+import { advanceOhmRaceRound, advanceOpticsGameRound, endOhmRace, endOpticsGame, forceSubmitPracticeClass, resetPracticeClass, resetSchoolYearData, setActivityOpen, setCurrentVoltagePracticeOpen, setImageConstructionOpen, setOhmRaceOpen, setOhmRaceRunning, setOhmsLawPracticeOpen, setOpticsGameRunning, setPracticeScoresReleased, setPrismColorOpen, setRefractionApplicationOpen, setRefractionConstructionOpen, setRefractionQuizScoresReleased, setResistanceFactorsPracticeOpen, setResistivityOpen } from "@/lib/db";
 import { isPracticeKey } from "@/lib/practice-attempt-types";
 import { isSchoolYear } from "@/lib/school-years";
 import { redirect } from "next/navigation";
@@ -69,6 +69,12 @@ export async function toggleOhmRaceRunning(formData: FormData) {
   if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
 
   await setOhmRaceRunning(formData.get("nextRunning") === "true");
+}
+
+export async function finishOhmRace() {
+  if (!(await isTeacherAuthenticated())) redirect("/giao-vien");
+  await endOhmRace();
+  revalidatePath("/giao-vien");
 }
 
 export async function toggleOpticsGameRunning(formData: FormData) {

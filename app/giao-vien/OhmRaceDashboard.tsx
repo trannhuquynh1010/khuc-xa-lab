@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { formatStudentNumber, studentNumbers } from "@/lib/classes";
-import { OHM_RACE_STATION_COUNT, type OhmRaceSnapshot } from "@/lib/ohm-race";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { formatStudentNumber } from "@/lib/classes";
+import { getOhmRaceGroupColor, OHM_RACE_QUESTION_COUNT, type OhmRaceSnapshot } from "@/lib/ohm-race";
+
+function groupColorStyle(groupName: string) {
+  return { "--quest-group-color": getOhmRaceGroupColor(groupName) } as CSSProperties;
+}
 
 function formatTime(totalSeconds: number | null) {
   if (totalSeconds === null) return "—";
@@ -13,65 +17,113 @@ function formatTime(totalSeconds: number | null) {
 
 export default function OhmRaceDashboard({ className, schoolYear, presentation = false }: { className: string; schoolYear: string; presentation?: boolean }) {
   const [snapshot, setSnapshot] = useState<OhmRaceSnapshot | null>(null);
-  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    const params = new URLSearchParams({ className, schoolYear });
-    const load = async () => {
-      if (document.hidden) return;
-      try {
-        const response = await fetch(`/api/ohm-race?${params}`, { cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Không thể tải đường đua.");
-        if (active) {
-          setSnapshot(data as OhmRaceSnapshot);
-          setError(false);
-        }
-      } catch {
-        if (active) setError(true);
-      }
-    };
-    void load();
-    const interval = window.setInterval(() => void load(), 3000);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
+  const load = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ className, schoolYear });
+      const response = await fetch(`/api/ohm-race?${params}`, { cache: "no-store" });
+      if (response.ok) setSnapshot(await response.json());
+    } catch {
+      /* giữ dữ liệu cũ khi lỗi mạng tạm thời */
+    }
   }, [className, schoolYear]);
 
-  const racerMap = useMemo(() => new Map(snapshot?.racers.map((racer) => [racer.studentNumber, racer]) ?? []), [snapshot?.racers]);
-  const podium = useMemo(() => (snapshot?.racers ?? []).filter((racer) => racer.rank !== null && racer.rank <= 3).sort((left, right) => (left.rank ?? 99) - (right.rank ?? 99)), [snapshot?.racers]);
+  useEffect(() => {
+    const initial = window.setTimeout(load, 0);
+    const interval = window.setInterval(load, 2500);
+    return () => { window.clearTimeout(initial); window.clearInterval(interval); };
+  }, [load]);
+
+  const playersByGroup = useMemo(() => {
+    const map = new Map<string, OhmRaceSnapshot["players"]>();
+    (snapshot?.players ?? []).forEach((player) => {
+      const list = map.get(player.groupName) ?? [];
+      list.push(player);
+      map.set(player.groupName, list);
+    });
+    return map;
+  }, [snapshot]);
+
+  const rankedGroups = useMemo(() => [...(snapshot?.groups ?? [])].filter((group) => group.participantCount > 0)
+    .sort((left, right) => (left.rank ?? 99) - (right.rank ?? 99)), [snapshot]);
+  const ended = snapshot?.ended ?? false;
+  const classPercent = Math.round((snapshot?.classCorrectRate ?? 0) * 100);
+  const statusLabel = ended ? "✓ Đã công bố" : snapshot?.isRunning ? "● Đang đua" : "○ Đang chờ";
 
   return (
-    <section className={`ohm-race-dashboard ${presentation ? "presentation" : ""}`} aria-live="polite">
-      <div className="race-dashboard-summary">
-        <div><p className="eyebrow">VÒNG {snapshot?.round ?? "—"}</p><h2>{className} · {snapshot?.finishedCount ?? 0}/33 về đích</h2></div>
-        <div className="race-dashboard-stats"><span><b>{snapshot?.readyCount ?? 0}</b> vào làn</span><span><b>{snapshot?.finishedCount ?? 0}</b> hoàn thành</span><span className={snapshot?.isRunning ? "running" : "paused"}><b>{snapshot?.isRunning ? "●" : "○"}</b> {snapshot?.isRunning ? "Đang đua" : "Đang chờ"}</span></div>
-      </div>
-
-      {podium.length ? (
-        <div className="race-podium" aria-label="Ba vị trí dẫn đầu">
-          {podium.map((racer) => <div key={racer.studentNumber} className={`place-${racer.rank}`}><span>{racer.rank === 1 ? "⚡" : racer.rank === 2 ? "Ⅱ" : "Ⅲ"}</span><strong>STT {formatStudentNumber(racer.studentNumber)}</strong><small>{formatTime(racer.adjustedSeconds)}</small></div>)}
+    <section className={`optics-quest-dashboard ohm-race-dashboard ${presentation ? "presentation" : ""}`} aria-live="polite">
+      <div className="quest-dashboard-head">
+        <div><p className="eyebrow">ĐƯỜNG ĐUA ĐIỆN HỌC · VÒNG {snapshot?.round ?? "—"}</p><h2>{className} · % đúng cả lớp: {classPercent}%</h2></div>
+        <div className="quest-dashboard-status">
+          <span><b>{snapshot?.participantCount ?? 0}</b> tham gia</span>
+          <span><b>{snapshot?.submittedCount ?? 0}</b> nộp sớm</span>
+          <span className={ended ? "running" : snapshot?.isRunning ? "running" : "paused"}>{statusLabel}</span>
         </div>
-      ) : (
-        <div className="race-no-finish"><span>ϟ</span><p>Chưa có học sinh về đích.</p></div>
-      )}
-
-      <div className="race-class-grid">
-        {studentNumbers.map((studentNumber) => {
-          const racer = racerMap.get(studentNumber);
-          const state = racer?.finished ? "finished" : racer ? racer.progress > 0 ? "racing" : "ready" : "absent";
-          return (
-            <div key={studentNumber} className={`race-student-card ${state}`} title={racer?.finished ? `Hạng ${racer.rank} · ${formatTime(racer.adjustedSeconds)}` : racer ? `${racer.progress}/${OHM_RACE_STATION_COUNT} trạm` : "Chưa vào làn"}>
-              <div><strong>{formatStudentNumber(studentNumber)}</strong><span>{racer?.finished ? `#${racer.rank}` : racer ? `${racer.progress}/${OHM_RACE_STATION_COUNT}` : "—"}</span></div>
-              <i><span style={{ width: `${(racer?.progress ?? 0) / OHM_RACE_STATION_COUNT * 100}%` }} /></i>
-            </div>
-          );
-        })}
       </div>
-      {error ? <p className="race-dashboard-error">Mất kết nối bảng đua · đang thử lại…</p> : null}
+
+      {rankedGroups.length ? (
+        <ol className="quest-rank-board">
+          {rankedGroups.map((group) => (
+            <li key={group.groupName} style={groupColorStyle(group.groupName)}>
+              <span className="quest-rank-no">{group.rank ? `#${group.rank}` : "—"}</span>
+              <strong>{group.groupName}</strong>
+              <b>{group.averageScore}<small>/{OHM_RACE_QUESTION_COUNT}</small></b>
+              <em>Σt {formatTime(group.totalTimeSeconds)}</em>
+            </li>
+          ))}
+        </ol>
+      ) : <div className="quest-no-rank"><span>ϟ</span><p>Chưa có nhóm nào tham gia. Xếp hạng theo điểm trung bình, đồng điểm xét tổng thời gian.</p></div>}
+
+      <div className="quest-group-grid">
+        {rankedGroups.map((group) => (
+          <article key={group.groupName} className="quest-group-card eligible" style={groupColorStyle(group.groupName)}>
+            <header><div><span>{group.rank ? `#${group.rank}` : "—"}</span><strong>{group.groupName}</strong></div><b>{group.averageScore}<small>/{OHM_RACE_QUESTION_COUNT}</small></b></header>
+            <div className="quest-group-progress"><small>{group.participantCount} thành viên · Σt {formatTime(group.totalTimeSeconds)}</small></div>
+            <div className="quest-member-dots">{(playersByGroup.get(group.groupName) ?? []).map((player) => (
+              <span key={player.studentNumber} className={player.finished ? "finished" : player.answeredCount ? "playing" : "ready"} title={`STT ${formatStudentNumber(player.studentNumber)} · ${player.correctCount}/${OHM_RACE_QUESTION_COUNT} đúng · ${player.answeredCount}/${OHM_RACE_QUESTION_COUNT} đã trả lời · ${formatTime(player.elapsedSeconds)}`}>{formatStudentNumber(player.studentNumber)}</span>
+            ))}</div>
+          </article>
+        ))}
+      </div>
+
+      {!presentation ? (
+        <details className="quest-player-details">
+          <summary>Báo cáo theo từng câu ({(snapshot?.questionStats ?? []).length})</summary>
+          <div className="table-scroll quest-table-scroll"><table>
+            <thead><tr><th>Trạm</th><th>Câu hỏi</th><th>Đã trả lời</th><th>Đúng</th><th>Sai</th><th>% đúng</th></tr></thead>
+            <tbody>{(snapshot?.questionStats ?? []).map((stat) => (
+              <tr key={stat.id}>
+                <td>{stat.station}</td>
+                <td>{stat.stationLabel} · {stat.title}</td>
+                <td>{stat.answeredCount}/{stat.attemptedCount}</td>
+                <td className="quest-stat-correct">{stat.correctCount}</td>
+                <td className="quest-stat-wrong">{stat.wrongCount}</td>
+                <td>{stat.attemptedCount ? Math.round(stat.correctCount / stat.attemptedCount * 100) : 0}%</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </details>
+      ) : null}
+
+      {!presentation ? (
+        <details className="quest-player-details">
+          <summary>Chi tiết học sinh ({snapshot?.participantCount ?? 0})</summary>
+          <div className="table-scroll quest-table-scroll"><table>
+            <thead><tr><th>STT</th><th>Nhóm</th><th>Đã trả lời</th><th>Số câu đúng</th><th>% đúng</th><th>Thời gian</th><th>Trạng thái</th></tr></thead>
+            <tbody>{(snapshot?.players ?? []).map((player) => (
+              <tr key={player.studentNumber}>
+                <td>{formatStudentNumber(player.studentNumber)}</td>
+                <td><span className="quest-table-group" style={groupColorStyle(player.groupName)}><i />{player.groupName}</span></td>
+                <td>{player.answeredCount}/{OHM_RACE_QUESTION_COUNT}</td>
+                <td>{player.correctCount}/{OHM_RACE_QUESTION_COUNT}</td>
+                <td>{Math.round(player.correctCount / OHM_RACE_QUESTION_COUNT * 100)}%</td>
+                <td>{formatTime(player.elapsedSeconds)}</td>
+                <td>{player.finished ? "Đã nộp sớm" : ended ? "Thu khi kết thúc" : "Đang làm"}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </details>
+      ) : null}
     </section>
   );
 }
-

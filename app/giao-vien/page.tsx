@@ -5,7 +5,7 @@ import { getPracticeAttemptSummary, getRefractionQuizClassSummary, listActivityS
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
-import { finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleLensImageConstruction, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
+import { finishOhmRace, finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleLensImageConstruction, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
 import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
@@ -229,19 +229,20 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
           {ohmLawPracticeSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={ohmLawPracticeSummaryPromise} practiceKey="ohm-law-practice" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
 
           <section className="activity-control-panel construction-control-panel ohm-race-control-panel">
-            <div className="activity-control-title"><span aria-hidden="true">ϟ</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.ohmRaceRound}</p><h2>Đường đua Điện học</h2><p>24 câu mới · mỗi học sinh vượt 6 trạm I–U và định luật Ohm.</p></div></div>
+            <div className="activity-control-title"><span aria-hidden="true">ϟ</span><div><p className="eyebrow">GAME CẢ LỚP · VÒNG {currentSetting.ohmRaceRound}</p><h2>Đường đua Điện học</h2><p>15 câu/5 trạm · tự do làm · điểm = số câu đúng · điểm nhóm là trung bình; đồng điểm xét tổng thời gian. Đáp án công bố khi bấm Kết thúc.</p></div></div>
             <div className="activity-control-actions">
-              <span className={`status-badge ${currentSetting.ohmRaceRunning ? "open" : "closed"}`}>{currentSetting.ohmRaceRunning ? "● Đang đua" : currentSetting.ohmRaceOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
+              <span className={`status-badge ${currentSetting.ohmRaceEndedAt ? "closed" : currentSetting.ohmRaceRunning ? "open" : "closed"}`}>{currentSetting.ohmRaceEndedAt ? "✓ Đã công bố" : currentSetting.ohmRaceRunning ? "● Đang đua" : currentSetting.ohmRaceOpen ? "○ Phòng chờ" : "○ Đang đóng"}</span>
               <form action={toggleOhmRace}>
                 <input type="hidden" name="nextOpen" value={String(!currentSetting.ohmRaceOpen)} />
                 <TeacherToggleSubmitButton isOpen={currentSetting.ohmRaceOpen} openLabel="Mở phòng đua" closeLabel="Đóng phòng đua" />
               </form>
-              {currentSetting.ohmRaceOpen ? (
+              {currentSetting.ohmRaceOpen && !currentSetting.ohmRaceEndedAt ? (
                 <form action={toggleOhmRaceRunning}>
                   <input type="hidden" name="nextRunning" value={String(!currentSetting.ohmRaceRunning)} />
                   <TeacherToggleSubmitButton isOpen={currentSetting.ohmRaceRunning} openLabel="Bắt đầu đua" closeLabel="Tạm dừng" />
                 </form>
               ) : null}
+              {currentSetting.ohmRaceOpen && !currentSetting.ohmRaceEndedAt && (currentSetting.ohmRaceRunning || currentSetting.ohmRaceStartedAt) ? <form action={finishOhmRace}><button type="submit" className="primary-button stop">Kết thúc & công bố</button></form> : null}
               <Link className="presentation-button" href={`/giao-vien/trinh-chieu/ohm-race?class=${selectedClass}&year=${selectedYear}`} target="_blank" rel="noreferrer">▣ Trình chiếu đua</Link>
               <form action={resetPracticeAttempts}>
                 <input type="hidden" name="schoolYear" value={selectedYear} />

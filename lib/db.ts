@@ -13,7 +13,8 @@ import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
-import { OHM_RACE_PENALTY_SECONDS, type OhmRaceRacer, type OhmRaceSnapshot } from "@/lib/ohm-race";
+import { getOhmRaceQuestion, OHM_RACE_QUESTION_COUNT, type OhmRaceGroup, type OhmRacePlayer, type OhmRaceQuestionStat, type OhmRaceReveal, type OhmRaceSnapshot } from "@/lib/ohm-race";
+import { gradeOhmRace } from "@/lib/ohm-race-score";
 import { getOpticsQuestQuestion, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestQuestionStat, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
 import { gradeOpticsQuest } from "@/lib/optics-quest-score";
 import { computePrismLiveBonusPoint, normalizePrismLiveAnswer, prismLiveBonusConfigs, type PrismLiveAnswer, type PrismLiveBonusStudent, type PrismLiveCorrectAnswer, type PrismLiveQuestion, type PrismLiveQuestionStatus, type PrismLiveQuestionType, type PrismLiveResponse } from "@/lib/prism-live";
@@ -52,6 +53,7 @@ export type ActivitySetting = {
   ohmRaceRunning: boolean;
   ohmRaceRound: number;
   ohmRaceStartedAt: string | null;
+  ohmRaceEndedAt: string | null;
   resistivityOpen: boolean;
   resistanceFactorsPracticeOpen: boolean;
   imageConstructionOpen: boolean;
@@ -388,6 +390,10 @@ async function initializeSchema() {
       ) AND
       EXISTS (
         SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'ohm_race_ended_at'
+      ) AND
+      EXISTS (
+        SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'activity_settings' AND column_name = 'resistivity_open'
       ) AND
       EXISTS (
@@ -521,6 +527,7 @@ async function initializeSchema() {
       ohm_race_running BOOLEAN NOT NULL DEFAULT FALSE,
       ohm_race_round INTEGER NOT NULL DEFAULT 1,
       ohm_race_started_at TIMESTAMPTZ,
+      ohm_race_ended_at TIMESTAMPTZ,
       resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
       resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
       image_construction_open BOOLEAN NOT NULL DEFAULT FALSE,
@@ -543,6 +550,7 @@ async function initializeSchema() {
     ADD COLUMN IF NOT EXISTS ohm_race_running BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS ohm_race_round INTEGER NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS ohm_race_started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS ohm_race_ended_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS resistivity_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS resistance_factors_practice_open BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS image_construction_open BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1028,7 +1036,7 @@ async function initializeSchema() {
 const ensureSchemaAcrossInstances = unstable_cache(async () => {
   await initializeSchema();
   return true;
-}, ["physics-lab-schema-live-topics-v4"], { revalidate: false });
+}, ["physics-lab-schema-ohm-race-groups-v5"], { revalidate: false });
 
 export async function ensureSchema() {
   if (!schemaPromise) {
@@ -1045,7 +1053,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
   const sql = getSql();
   const rows = await sql`
     SELECT activity_key, is_open, construction_open, application_open, color_open, iu_practice_open, ohm_law_practice_open,
-      ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at,
+      ohm_race_open, ohm_race_running, ohm_race_round, ohm_race_started_at, ohm_race_ended_at,
       resistivity_open, resistance_factors_practice_open, image_construction_open,
       optics_game_running, optics_game_round, optics_game_started_at, optics_game_ended_at, updated_at
     FROM activity_settings
@@ -1066,6 +1074,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       ohmRaceRunning: Boolean(row?.ohm_race_running),
       ohmRaceRound: Math.max(1, Number(row?.ohm_race_round ?? 1)),
       ohmRaceStartedAt: row?.ohm_race_started_at ? new Date(String(row.ohm_race_started_at)).toISOString() : null,
+      ohmRaceEndedAt: row?.ohm_race_ended_at ? new Date(String(row.ohm_race_ended_at)).toISOString() : null,
       resistivityOpen: Boolean(row?.resistivity_open),
       resistanceFactorsPracticeOpen: Boolean(row?.resistance_factors_practice_open),
       imageConstructionOpen: Boolean(row?.image_construction_open),
@@ -1076,7 +1085,7 @@ const getCachedActivitySettings = unstable_cache(async (): Promise<ActivitySetti
       updatedAt: row ? new Date(String(row.updated_at)).toISOString() : new Date(0).toISOString(),
     };
   });
-}, ["activity-settings-v10"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
+}, ["activity-settings-v11"], { tags: [ACTIVITY_SETTINGS_CACHE_TAG], revalidate: 3600 });
 
 export async function listActivitySettings(): Promise<ActivitySetting[]> {
   return getCachedActivitySettings();
@@ -1225,8 +1234,23 @@ export async function setOhmRaceRunning(isRunning: boolean) {
         WHEN ${isRunning} THEN COALESCE(ohm_race_started_at, NOW() + INTERVAL '5 seconds')
         ELSE ohm_race_started_at
       END,
+      ohm_race_ended_at = CASE WHEN ${isRunning} THEN NULL ELSE ohm_race_ended_at END,
       updated_at = NOW()
     WHERE activity_key = 'ohm' AND (ohm_race_open = TRUE OR ${isRunning} = FALSE)
+  `;
+  expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
+}
+
+// Kết thúc & công bố: dừng đua, ghi mốc kết thúc (dùng làm thời gian chốt cho HS chưa nộp và làm tín hiệu công bố đáp án).
+export async function endOhmRace() {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    UPDATE activity_settings
+    SET ohm_race_running = FALSE,
+      ohm_race_ended_at = COALESCE(ohm_race_ended_at, NOW()),
+      updated_at = NOW()
+    WHERE activity_key = 'ohm'
   `;
   expireCacheTag(ACTIVITY_SETTINGS_CACHE_TAG);
 }
@@ -1239,6 +1263,7 @@ export async function advanceOhmRaceRound() {
     SET ohm_race_round = ohm_race_round + 1,
       ohm_race_running = FALSE,
       ohm_race_started_at = NULL,
+      ohm_race_ended_at = NULL,
       updated_at = NOW()
     WHERE activity_key = 'ohm'
   `;
@@ -2105,56 +2130,129 @@ export async function getPracticeAttemptStatus(practiceKey: PracticeKey, classNa
 export async function getOhmRaceSnapshot(schoolYear: string, className: string): Promise<OhmRaceSnapshot> {
   await ensureSchema();
   const sql = getSql();
-  const settingsPromise = listActivitySettings();
-  const rowsPromise = sql`
-    SELECT student_number, correct_count, status, answers, submitted_at, created_at
-    FROM practice_attempts
-    WHERE school_year = ${schoolYear} AND practice_key = 'ohm-race' AND class_name = ${className}
-  `;
-  const [settings, rows] = await Promise.all([settingsPromise, rowsPromise]);
+  const [settings, rows] = await Promise.all([
+    listActivitySettings(),
+    sql`
+      SELECT student_number, status, answers, submitted_at
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'ohm-race' AND class_name = ${className}
+    `,
+  ]);
   const setting = settings.find((item) => item.key === "ohm");
-  const sharedStartTime = setting?.ohmRaceStartedAt ? new Date(setting.ohmRaceStartedAt).getTime() : null;
+  const round = setting?.ohmRaceRound ?? 1;
+  const startedAtMs = setting?.ohmRaceStartedAt ? new Date(setting.ohmRaceStartedAt).getTime() : null;
+  const endedAtMs = setting?.ohmRaceEndedAt ? new Date(setting.ohmRaceEndedAt).getTime() : null;
+  const cutoffMs = endedAtMs ?? Date.now();
 
-  const racers: OhmRaceRacer[] = rows.map((row) => {
-    const answerData = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers)
-      ? row.answers as Record<string, unknown>
-      : {};
-    const rawWrongCount = Number(answerData.wrongCount ?? 0);
-    const wrongCount = Number.isFinite(rawWrongCount) ? Math.min(99, Math.max(0, Math.trunc(rawWrongCount))) : 0;
+  // Thống kê theo từng câu (đúng/sai/đã trả lời) trên toàn lớp, gộp từ mọi học sinh đã tham gia.
+  const questionStatMap = new Map<string, { answeredCount: number; correctCount: number; attemptedCount: number }>();
+  function recordQuestionStat(questionId: string, answered: boolean, correct: boolean) {
+    const current = questionStatMap.get(questionId) ?? { answeredCount: 0, correctCount: 0, attemptedCount: 0 };
+    current.attemptedCount += 1;
+    if (answered) current.answeredCount += 1;
+    if (correct) current.correctCount += 1;
+    questionStatMap.set(questionId, current);
+  }
+
+  const players: OhmRacePlayer[] = rows.flatMap((row) => {
+    const data = row.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
+    const groupName = typeof data.groupName === "string" && groupNames.includes(data.groupName as (typeof groupNames)[number]) ? data.groupName : "";
+    if (!groupName) return [];
+    const studentNumber = Number(row.student_number);
+    const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
+    const graded = gradeOhmRace(studentNumber, round, questionIds, readStringMap(data.responses));
+    for (const item of graded.items) recordQuestionStat(item.id, item.answered, item.correct);
     const finished = row.status === "submitted";
-    const submittedTime = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
-    const fallbackStartTime = row.created_at ? new Date(String(row.created_at)).getTime() : null;
-    const startTime = sharedStartTime ?? fallbackStartTime;
-    const adjustedSeconds = finished && submittedTime !== null && startTime !== null
-      ? Math.max(0, Math.round((submittedTime - startTime) / 1000)) + wrongCount * OHM_RACE_PENALTY_SECONDS
-      : null;
-    return {
-      studentNumber: Number(row.student_number),
-      progress: Math.min(6, Math.max(0, Number(row.correct_count ?? 0))),
+    const submittedMs = row.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+    const effectiveEnd = finished && submittedMs !== null ? submittedMs : cutoffMs;
+    const elapsedSeconds = startedAtMs !== null ? Math.max(0, Math.round((effectiveEnd - startedAtMs) / 1000)) : null;
+    return [{
+      studentNumber,
+      groupName,
+      answeredCount: graded.answeredCount,
+      correctCount: graded.correctCount,
       finished,
-      wrongCount,
-      adjustedSeconds,
-      rank: null,
-    };
-  });
+      elapsedSeconds,
+    }];
+  }).sort((left, right) => left.studentNumber - right.studentNumber);
 
-  const finishers = racers
-    .filter((racer) => racer.finished)
-    .sort((left, right) => (left.adjustedSeconds ?? Number.MAX_SAFE_INTEGER) - (right.adjustedSeconds ?? Number.MAX_SAFE_INTEGER) || left.studentNumber - right.studentNumber);
-  const rankByStudent = new Map(finishers.map((racer, index) => [racer.studentNumber, index + 1]));
-  racers.forEach((racer) => {
-    racer.rank = rankByStudent.get(racer.studentNumber) ?? null;
+  const questionStats: OhmRaceQuestionStat[] = [...questionStatMap.entries()]
+    .map(([id, stat]) => {
+      const question = getOhmRaceQuestion(id);
+      return {
+        id,
+        title: question?.title ?? id,
+        stationLabel: question?.stationLabel ?? "",
+        station: question?.station ?? 0,
+        answeredCount: stat.answeredCount,
+        correctCount: stat.correctCount,
+        wrongCount: stat.attemptedCount - stat.correctCount,
+        attemptedCount: stat.attemptedCount,
+      };
+    })
+    .sort((left, right) => left.station - right.station || left.title.localeCompare(right.title));
+
+  const groups: OhmRaceGroup[] = groupNames.map((groupName) => {
+    const members = players.filter((player) => player.groupName === groupName);
+    const participantCount = members.length;
+    const averageScore = participantCount ? Math.round(members.reduce((sum, player) => sum + player.correctCount, 0) / participantCount * 10) / 10 : 0;
+    const totalTimeSeconds = members.reduce((sum, player) => sum + (player.elapsedSeconds ?? 0), 0);
+    return { groupName, participantCount, averageScore, totalTimeSeconds, rank: null };
   });
+  // Xếp hạng: điểm trung bình cao hơn xếp trước; đồng điểm thì tổng thời gian nhỏ hơn xếp trước.
+  const ranked = groups
+    .filter((group) => group.participantCount > 0)
+    .sort((left, right) => right.averageScore - left.averageScore || left.totalTimeSeconds - right.totalTimeSeconds || left.groupName.localeCompare(right.groupName));
+  const rankMap = new Map(ranked.map((group, index) => [group.groupName, index + 1]));
+  groups.forEach((group) => { group.rank = rankMap.get(group.groupName) ?? null; });
+
+  const totalCorrect = players.reduce((sum, player) => sum + player.correctCount, 0);
+  const classCorrectRate = players.length ? totalCorrect / (players.length * OHM_RACE_QUESTION_COUNT) : 0;
 
   return {
-    round: setting?.ohmRaceRound ?? 1,
+    round,
     isOpen: setting?.ohmRaceOpen ?? false,
     isRunning: setting?.ohmRaceRunning ?? false,
+    ended: Boolean(endedAtMs),
+    endedAt: setting?.ohmRaceEndedAt ?? null,
     startedAt: setting?.ohmRaceStartedAt ?? null,
-    readyCount: racers.length,
-    finishedCount: finishers.length,
-    racers: racers.sort((left, right) => left.studentNumber - right.studentNumber),
+    participantCount: players.length,
+    submittedCount: players.filter((player) => player.finished).length,
+    classCorrectRate,
+    players,
+    groups,
+    questionStats,
   };
+}
+
+// Kết quả cá nhân cho học sinh — chỉ trả về chi tiết đúng/sai sau khi giáo viên kết thúc & công bố.
+export async function getOhmRaceReveal(schoolYear: string, className: string, studentNumber: number): Promise<OhmRaceReveal> {
+  await ensureSchema();
+  const sql = getSql();
+  const settings = await listActivitySettings();
+  const setting = settings.find((item) => item.key === "ohm");
+  const round = setting?.ohmRaceRound ?? 1;
+  const ended = Boolean(setting?.ohmRaceEndedAt);
+  const rows = await sql`
+    SELECT status, answers, submitted_at
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = 'ohm-race' AND class_name = ${className} AND student_number = ${studentNumber}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  const submitted = row?.status === "submitted";
+  if (!ended) {
+    return { ended: false, submitted, correctCount: 0, totalItems: OHM_RACE_QUESTION_COUNT, elapsedSeconds: null, items: [] };
+  }
+  const data = row?.answers && typeof row.answers === "object" && !Array.isArray(row.answers) ? row.answers as Record<string, unknown> : {};
+  const questionIds = Array.isArray(data.questionIds) ? data.questionIds.filter((item): item is string => typeof item === "string") : [];
+  const graded = gradeOhmRace(studentNumber, round, questionIds, readStringMap(data.responses));
+  const startedAtMs = setting?.ohmRaceStartedAt ? new Date(setting.ohmRaceStartedAt).getTime() : null;
+  const endedAtMs = setting?.ohmRaceEndedAt ? new Date(setting.ohmRaceEndedAt).getTime() : null;
+  const submittedMs = row?.submitted_at ? new Date(String(row.submitted_at)).getTime() : null;
+  const effectiveEnd = submitted && submittedMs !== null ? submittedMs : (endedAtMs ?? Date.now());
+  const elapsedSeconds = startedAtMs !== null ? Math.max(0, Math.round((effectiveEnd - startedAtMs) / 1000)) : null;
+  return { ended: true, submitted, correctCount: graded.correctCount, totalItems: graded.totalItems, elapsedSeconds, items: graded.items };
 }
 
 function readStringMap(value: unknown): Record<string, string> {

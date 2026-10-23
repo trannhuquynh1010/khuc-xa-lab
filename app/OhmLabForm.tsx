@@ -39,13 +39,14 @@ function rowsToMeasurements(rows: InputRow[]): OhmMeasurement[] {
   });
 }
 
-export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPractice, showRace, raceRunning, raceRound, raceStartedAt }: {
+export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPractice, showRace, raceRunning, raceRound, raceStartedAt, raceEndedAt }: {
   showCurrentVoltagePractice: boolean;
   showOhmsLawPractice: boolean;
   showRace: boolean;
   raceRunning: boolean;
   raceRound: number;
   raceStartedAt: string | null;
+  raceEndedAt: string | null;
 }) {
   const [className, setClassName] = useState("");
   const [groupName, setGroupName] = useState("");
@@ -187,8 +188,8 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
 
       {showRace && (
         <section aria-labelledby="ohm-race-heading">
-          <div className="section-heading data-heading"><span>{3 + Number(showCurrentVoltagePractice) + Number(showOhmsLawPractice)}</span><div><h2 id="ohm-race-heading">Đường đua Điện học</h2><p>Vượt 6 trạm bằng kiến thức I–U và định luật Ohm.</p></div></div>
-          <OhmRaceGame round={raceRound} running={raceRunning} startedAt={raceStartedAt} />
+          <div className="section-heading data-heading"><span>{3 + Number(showCurrentVoltagePractice) + Number(showOhmsLawPractice)}</span><div><h2 id="ohm-race-heading">Đường đua Điện học</h2><p>Thi đua theo nhóm bằng kiến thức I–U và định luật Ohm.</p></div></div>
+          <OhmRaceGame round={raceRound} running={raceRunning} startedAt={raceStartedAt} endedAt={raceEndedAt} />
         </section>
       )}
 

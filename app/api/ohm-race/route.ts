@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { isClassName } from "@/lib/classes";
-import { getOhmRaceSnapshot } from "@/lib/db";
+import { isClassName, isStudentNumber } from "@/lib/classes";
+import { getOhmRaceReveal, getOhmRaceSnapshot } from "@/lib/db";
 import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 
 export const runtime = "nodejs";
@@ -15,6 +15,13 @@ export async function GET(request: Request) {
     if (!isClassName(className)) {
       return NextResponse.json({ error: "Lớp chưa hợp lệ." }, { status: 400 });
     }
+    // Kết quả cá nhân cho học sinh (chỉ có chi tiết đúng/sai sau khi giáo viên công bố).
+    const rawStudentNumber = searchParams.get("studentNumber");
+    if (rawStudentNumber !== null) {
+      const studentNumber = Number(rawStudentNumber);
+      if (!isStudentNumber(studentNumber)) return NextResponse.json({ error: "STT chưa hợp lệ." }, { status: 400 });
+      return NextResponse.json(await getOhmRaceReveal(schoolYear, className, studentNumber), { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
     const snapshot = await getOhmRaceSnapshot(schoolYear, className);
     return NextResponse.json(snapshot, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
@@ -22,4 +29,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Chưa thể tải đường đua." }, { status: 500 });
   }
 }
-

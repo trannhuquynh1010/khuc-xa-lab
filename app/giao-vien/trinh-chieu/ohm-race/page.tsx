@@ -18,7 +18,7 @@ export default async function OhmRacePresentationPage({ searchParams }: { search
   return (
     <main className="presentation-shell ohm-race-presentation-shell">
       <header className="presentation-header race-presentation-header">
-        <div><PhysicsBrand inverse /><p className="eyebrow">{selectedClass} · {selectedYear}</p><h1>Đường đua Điện học</h1><p>Khôi phục trạm năng lượng</p></div>
+        <div><PhysicsBrand inverse /><p className="eyebrow">{selectedClass} · {selectedYear}</p><h1>Đường đua Điện học</h1><p>Thi đua theo nhóm · I–U và định luật Ohm</p></div>
         <div><PresentationToolbar /><Link href={`/giao-vien?tab=ohm&class=${selectedClass}&year=${selectedYear}`}>← Bảng giáo viên</Link></div>
       </header>
       <OhmRaceDashboard className={selectedClass} schoolYear={selectedYear} presentation />
