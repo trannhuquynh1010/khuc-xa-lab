@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatStudentNumber } from "@/lib/classes";
 import {
+  CURRENT_VOLTAGE_BONUS_MIN_CORRECT,
   CURRENT_VOLTAGE_BONUS_POINT,
   CURRENT_VOLTAGE_BONUS_SLOTS,
   CURRENT_VOLTAGE_TOTAL_ITEMS,
@@ -158,6 +159,8 @@ export default function CurrentVoltagePractice() {
   const shownResult = attempt.locked && result?.identity === identityKey ? result.data : null;
   const wrongItems = shownResult?.items.filter((item) => !item.correct) ?? [];
   const perfect = shownResult !== null && shownResult.correctCount >= shownResult.totalItems;
+  // Đạt mức xét điểm cộng nhưng lớp đã hết suất.
+  const eligible = shownResult !== null && shownResult.correctCount >= CURRENT_VOLTAGE_BONUS_MIN_CORRECT;
 
   return (
     <div className="electric-practice current-voltage-practice">
@@ -165,7 +168,7 @@ export default function CurrentVoltagePractice() {
         <div>
           <p className="eyebrow">LUYỆN TẬP I – U</p>
           <h3>Thử thách phòng thí nghiệm</h3>
-          <p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ. Em tự kiểm tra lại rồi mới nộp, vì mỗi bạn chỉ nộp một lần. {CURRENT_VOLTAGE_BONUS_SLOTS} bạn đầu tiên làm đúng cả {CURRENT_VOLTAGE_TOTAL_ITEMS} ý được +{CURRENT_VOLTAGE_BONUS_POINT} điểm cộng.</p>
+          <p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ. Em tự kiểm tra lại rồi mới nộp, vì mỗi bạn chỉ nộp một lần. Lớp có {CURRENT_VOLTAGE_BONUS_SLOTS} suất +{CURRENT_VOLTAGE_BONUS_POINT} điểm cộng, dành cho những bạn nộp sớm nhất mà làm đúng từ {CURRENT_VOLTAGE_BONUS_MIN_CORRECT}/{CURRENT_VOLTAGE_TOTAL_ITEMS} ý trở lên.</p>
         </div>
         <strong>{completedChallenges}/5</strong>
       </div>
@@ -174,7 +177,7 @@ export default function CurrentVoltagePractice() {
 
       {shownResult ? (
         <section className="cv-result" aria-live="polite">
-          <div className={`cv-result-head ${shownResult.bonusPoint > 0 ? "earned" : perfect ? "missed-slot" : "no-bonus"}`}>
+          <div className={`cv-result-head ${shownResult.bonusPoint > 0 ? "earned" : eligible ? "missed-slot" : "no-bonus"}`}>
             <span aria-hidden="true">{shownResult.bonusPoint > 0 ? "★" : perfect ? "✓" : "↺"}</span>
             <div>
               <p className="eyebrow">ĐÃ NỘP BÀI</p>
@@ -187,10 +190,10 @@ export default function CurrentVoltagePractice() {
               </h4>
               <p>
                 {shownResult.bonusPoint > 0
-                  ? `${attempt.className} · STT ${formatStudentNumber(Number(attempt.studentNumber))} · em là bạn thứ ${shownResult.rank} của lớp làm đúng trọn bài.`
-                  : perfect
+                  ? `${attempt.className} · STT ${formatStudentNumber(Number(attempt.studentNumber))} · em là bạn thứ ${shownResult.rank} của lớp đạt mức xét điểm cộng.`
+                  : eligible
                     ? `Rất tiếc, ${shownResult.bonusSlots} suất điểm cộng của lớp đã có bạn nhận trước. Kết quả của em vẫn được ghi nhận đầy đủ.`
-                    : `Chưa đạt điểm cộng lần này. Điểm cộng dành cho ${shownResult.bonusSlots} bạn đầu tiên làm đúng cả ${shownResult.totalItems} ý.`}
+                    : `Chưa đạt điểm cộng lần này. Điểm cộng dành cho những bạn nộp sớm nhất mà làm đúng từ ${CURRENT_VOLTAGE_BONUS_MIN_CORRECT}/${shownResult.totalItems} ý trở lên.`}
               </p>
             </div>
             <b>{shownResult.correctCount}/{shownResult.totalItems}</b>

@@ -13,7 +13,7 @@ import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
-import { CURRENT_VOLTAGE_BONUS_POINT, CURRENT_VOLTAGE_BONUS_SLOTS, CURRENT_VOLTAGE_TOTAL_ITEMS, type CurrentVoltageResult } from "@/lib/current-voltage-practice";
+import { CURRENT_VOLTAGE_BONUS_MIN_CORRECT, CURRENT_VOLTAGE_BONUS_POINT, CURRENT_VOLTAGE_BONUS_SLOTS, CURRENT_VOLTAGE_TOTAL_ITEMS, type CurrentVoltageResult } from "@/lib/current-voltage-practice";
 import { gradeCurrentVoltagePractice } from "@/lib/current-voltage-practice-score";
 import { getOhmRaceQuestion, OHM_RACE_QUESTION_COUNT, type OhmRaceGroup, type OhmRacePlayer, type OhmRaceQuestionStat, type OhmRaceReveal, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { gradeOhmRace } from "@/lib/ohm-race-score";
@@ -2067,7 +2067,7 @@ async function savePracticeAttempt(input: PracticeAttemptInput, submit: boolean)
   // Bài "Luyện tập I phụ thuộc vào U": điểm cộng theo thứ hạng, +1 cho những
   // bạn đầu tiên làm đúng trọn bài. Đếm số suất đã trao để chốt ngay lúc nộp,
   // nhờ vậy học sinh biết kết quả liền và suất đã trao không bị đổi về sau.
-  if (submit && input.practiceKey === "current-voltage-practice" && evaluation.correctCount >= evaluation.totalItems) {
+  if (submit && input.practiceKey === "current-voltage-practice" && evaluation.correctCount >= CURRENT_VOLTAGE_BONUS_MIN_CORRECT) {
     const awarded = await sql`
       SELECT COUNT(*)::int AS count
       FROM practice_attempts
@@ -2181,14 +2181,17 @@ export async function getCurrentVoltagePracticeResult(schoolYear: string, classN
     };
   }
   const graded = gradeCurrentVoltagePractice(row.answers);
+  // Thứ hạng tính trong số các bạn đủ điều kiện xét điểm cộng (đúng từ 9/10),
+  // theo thời điểm nộp.
   let rank: number | null = null;
-  if (graded.correctCount >= graded.totalItems && row.submitted_at) {
+  if (graded.correctCount >= CURRENT_VOLTAGE_BONUS_MIN_CORRECT && row.submitted_at) {
     const earlier = await sql`
       SELECT COUNT(*)::int AS count
       FROM practice_attempts
       WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
         AND class_name = ${className} AND status = 'submitted'
-        AND correct_count >= total_items AND submitted_at < ${String(row.submitted_at)}
+        AND correct_count >= ${CURRENT_VOLTAGE_BONUS_MIN_CORRECT}
+        AND submitted_at < ${String(row.submitted_at)}
     `;
     rank = Number(earlier[0]?.count ?? 0) + 1;
   }

@@ -4,10 +4,16 @@
 // xuất hiện trong trình duyệt của học sinh.
 
 export const CURRENT_VOLTAGE_TOTAL_ITEMS = 10;
-/** Số học sinh đầu tiên làm đúng trọn bài được cộng điểm. */
+/** Số suất điểm cộng của mỗi lớp. */
 export const CURRENT_VOLTAGE_BONUS_SLOTS = 10;
 /** Số điểm cộng cho mỗi suất. */
 export const CURRENT_VOLTAGE_BONUS_POINT = 1;
+/**
+ * Số ý đúng tối thiểu để được xét điểm cộng. Ưu tiên theo thời điểm nộp: mỗi
+ * bạn nộp mà đạt mức này sẽ nhận một suất nếu lớp còn suất trống, nên bài làm
+ * đúng 9/10 nộp sớm vẫn được xét khi 10 suất chưa có ai nhận hết.
+ */
+export const CURRENT_VOLTAGE_BONUS_MIN_CORRECT = CURRENT_VOLTAGE_TOTAL_ITEMS - 1;
 
 export type CurrentVoltageItemId =
   | "currentAt15"
