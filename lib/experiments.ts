@@ -1,3 +1,4 @@
+import type { OhmReview } from "@/lib/ohm-experiment-review";
 import type { TeamAssignments } from "@/lib/team";
 
 export type OhmMeasurement = {
@@ -10,6 +11,11 @@ export type OhmPayload = {
   teamAssignments?: TeamAssignments;
   measurements: OhmMeasurement[];
   conclusion: string;
+  /**
+   * Nhận xét tự động sinh lúc nhóm nộp bài. Bài nộp cũ không có khoá này, nên
+   * phía giáo viên tính lại từ số liệu khi thiếu.
+   */
+  review?: OhmReview;
 };
 
 export type ResistanceFactor = "material" | "length" | "area";

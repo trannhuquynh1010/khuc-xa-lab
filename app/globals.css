@@ -838,6 +838,32 @@ details .table-scroll { margin-top: 12px; }
 .race-detail { margin: 0 0 14px; color: var(--muted); }
 .ohm-race-game > .form-message { margin: 0; padding: 10px 24px; }
 
+/* Nhận xét tự động cho phần thí nghiệm I–U */
+.ohm-review-card { margin: 18px 0 0; padding: 20px; border: 1.5px solid var(--ink); border-radius: 20px; background: #f3fbff; box-shadow: 4px 4px 0 var(--purple); }
+.ohm-review-head { display: flex; gap: 15px; align-items: flex-start; }
+.ohm-review-head > span { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%; color: #fff; background: var(--purple); font-size: 1.4rem; }
+.ohm-review-head h3 { margin: 2px 0 5px; font-size: 1.25rem; }
+.ohm-review-head p:last-child { margin: 0; color: var(--muted); font-size: .82rem; font-weight: 800; }
+.ohm-review-notes { display: grid; gap: 9px; margin: 16px 0 0; padding: 0; list-style: none; }
+.ohm-review-notes li { padding: 12px 14px; border: 1.3px solid #c9d8e4; border-radius: 13px; background: #fff; }
+.ohm-review-notes li.conclusion { border-color: #d8cde4; background: #fdfaff; }
+.ohm-review-notes li b { display: block; margin-bottom: 4px; color: var(--purple); font-size: .68rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.ohm-review-notes li.conclusion b { color: #7a4fa3; }
+.ohm-review-notes li p { margin: 0; font-weight: 750; line-height: 1.55; }
+.ohm-review-foot { margin: 14px 0 0; color: var(--muted); font-size: .8rem; font-weight: 800; line-height: 1.5; }
+
+.ohm-review-teacher { margin-top: 14px; padding: 14px 16px; border: 1.3px solid #c9d8e4; border-radius: 15px; background: #f6fbff; }
+.ohm-review-teacher-head { display: flex; gap: 12px; align-items: center; }
+.ohm-review-teacher-head > span { padding: 5px 10px; border-radius: 999px; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.ohm-review-teacher-head > span.ok { color: #14532d; background: #dcfce7; }
+.ohm-review-teacher-head > span.warn { color: #7c2d12; background: #ffedd5; }
+.ohm-review-teacher-head strong { display: block; font-size: .9rem; }
+.ohm-review-teacher-head small { color: var(--muted); font-size: .76rem; font-weight: 800; }
+.ohm-review-teacher-notes { display: grid; gap: 7px; margin: 11px 0 0; padding: 0; list-style: none; }
+.ohm-review-teacher-notes li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.ohm-review-teacher-notes b { color: var(--purple); font-size: .66rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.ohm-review-teacher-notes span { font-size: .84rem; font-weight: 700; line-height: 1.5; }
+
 .ohm-race-control-panel { background: #e9ffb0; }
 .ohm-race-control-panel .activity-control-title > span { color: var(--ink); background: var(--orange); }
 

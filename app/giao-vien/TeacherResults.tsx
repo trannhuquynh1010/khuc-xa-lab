@@ -3,6 +3,7 @@
 import { useState, type ReactNode, type SyntheticEvent } from "react";
 import type { Submission } from "@/lib/db";
 import type { ExperimentSubmission, OhmPayload, PrismColorPayload, ResistanceFactor, ResistanceFactorsPayload } from "@/lib/experiments";
+import { reviewOhmExperiment, type OhmReview } from "@/lib/ohm-experiment-review";
 import { formatSineRatio } from "@/lib/physics";
 import { teamTasks, type TeamAssignments } from "@/lib/team";
 import MaterialBarChart from "../MaterialBarChart";
@@ -81,6 +82,31 @@ export function RefractionResults({ submissions }: { submissions: Submission[] }
   );
 }
 
+/**
+ * Nhận xét tự động của bài nộp. Bài nộp trước khi có tính năng này không lưu
+ * sẵn nhận xét, nên tính lại ngay tại đây từ số liệu đã lưu — hàm phân tích là
+ * hàm thuần nên kết quả giống hệt bản sinh lúc nộp.
+ */
+function OhmReviewPanel({ payload }: { payload: OhmPayload }) {
+  const review: OhmReview = payload.review ?? reviewOhmExperiment(payload.measurements, payload.conclusion ?? "");
+  return (
+    <section className="ohm-review-teacher">
+      <div className="ohm-review-teacher-head">
+        <span className={review.needsRevision ? "warn" : "ok"}>{review.needsRevision ? "Cần xem lại" : "Khá chắc"}</span>
+        <div>
+          <strong>Nhận xét tự động {payload.review ? "" : "(tính lại từ số liệu)"}</strong>
+          <small>{review.summary}</small>
+        </div>
+      </div>
+      <ul className="ohm-review-teacher-notes">
+        {review.notes.map((note) => (
+          <li key={note.id}><b>{note.topic === "data" ? "Số liệu" : "Kết luận"}</b><span>{note.text}</span></li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function OhmResults({ submissions }: { submissions: ExperimentSubmission<OhmPayload>[] }) {
   if (!submissions.length) return <EmptyResults />;
   return (
@@ -101,6 +127,7 @@ export function OhmResults({ submissions }: { submissions: ExperimentSubmission<
                   <div className="table-scroll"><table className="compact-data-table"><thead><tr><th>Lần đo</th><th>U (V)</th><th>I (A)</th></tr></thead><tbody>{submission.payload.measurements.map((item) => <tr key={item.sequence}><th scope="row">{item.sequence}</th><td>{item.voltage}</td><td>{item.current}</td></tr>)}</tbody></table></div>
                   <div className="single-chart teacher-chart-grid"><RelationshipChart title="Cường độ dòng điện theo hiệu điện thế" xLabel="Hiệu điện thế U (V)" yLabel="Cường độ dòng điện I (A)" points={submission.payload.measurements} xValue={(point) => point.voltage} yValue={(point) => point.current} xCeiling={Math.max(5, ...submission.payload.measurements.map((point) => point.voltage * 1.2))} yCeiling={Math.max(1, ...submission.payload.measurements.map((point) => point.current * 1.2))} /><div className="conclusion-answer"><span>Kết luận của nhóm</span><p>{submission.payload.conclusion ?? "Bài nộp cũ chưa có kết luận."}</p></div></div>
                 </div>
+                <OhmReviewPanel payload={submission.payload} />
               </>
             )}</DeferredDetails>
           </article>

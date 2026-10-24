@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
+import type { OhmReview } from "@/lib/ohm-experiment-review";
 import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
@@ -54,6 +55,7 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
   const [conclusion, setConclusion] = useState("");
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
+  const [review, setReview] = useState<OhmReview | null>(null);
   const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, conclusion, rows }, (value) => {
     if (!isDraftRecord(value)) return;
     if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
@@ -130,7 +132,8 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể gửi số liệu.");
-      setState({ type: "success", message: `Đã gửi thành công ${measurements.length} lần đo cho giáo viên.` });
+      if (result.review) setReview(result.review as OhmReview);
+      setState({ type: "success", message: `Đã gửi ${measurements.length} lần đo cho giáo viên. Nhóm vẫn có thể sửa rồi nộp lại.` });
     } catch (error) {
       setState({ type: "error", message: error instanceof Error ? error.message : "Không thể gửi số liệu." });
     }
@@ -193,7 +196,33 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
         </section>
       )}
 
-      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : "Nộp bài →"}</button></div>
+      {review ? (
+        <section className="ohm-review-card" aria-live="polite" aria-labelledby="ohm-review-heading">
+          <div className="ohm-review-head">
+            <span aria-hidden="true">✎</span>
+            <div>
+              <p className="eyebrow">NHẬN XÉT TỰ ĐỘNG</p>
+              <h3 id="ohm-review-heading">{review.needsRevision ? "Nhóm xem lại vài điểm nhé" : "Bài của nhóm đã khá chắc"}</h3>
+              <p>{review.summary}</p>
+            </div>
+          </div>
+          <ol className="ohm-review-notes">
+            {review.notes.map((note) => (
+              <li key={note.id} className={note.topic === "data" ? "data" : "conclusion"}>
+                <b>{note.topic === "data" ? "Về số liệu" : "Về kết luận"}</b>
+                <p>{note.text}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="ohm-review-foot">
+            {review.needsRevision
+              ? "Đây là câu hỏi gợi mở, không phải điểm. Nhóm sửa số liệu hoặc kết luận ở mục 2 rồi bấm Nộp bài lần nữa — bài mới sẽ thay cho bài cũ."
+              : "Nhóm vẫn có thể sửa và nộp lại nếu muốn hoàn thiện thêm. Cô sẽ xem lại bài của nhóm."}
+          </p>
+        </section>
+      ) : null}
+
+      <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : review ? "Nộp lại →" : "Nộp bài →"}</button></div>
     </form>
   );
 }

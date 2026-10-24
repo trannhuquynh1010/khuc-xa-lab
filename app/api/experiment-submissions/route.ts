@@ -3,6 +3,7 @@ import { isActivityKey } from "@/lib/activities";
 import { isClassName, isGroupName } from "@/lib/classes";
 import { createExperimentSubmission, isActivityOpen } from "@/lib/db";
 import type { OhmMeasurement, ResistanceFactorMeasurement, ResistanceFactorsPayload } from "@/lib/experiments";
+import { reviewOhmExperiment } from "@/lib/ohm-experiment-review";
 import { calculateResistance } from "@/lib/physics";
 import { isTeamAssignments, normalizeTeamAssignments } from "@/lib/team";
 
@@ -75,6 +76,10 @@ export async function POST(request: Request) {
       if (!isText(body.payload?.conclusion, 600) || !validMeasurementList(body.payload?.measurements, isOhmMeasurement)) {
         return NextResponse.json({ error: "Số liệu khảo sát mối liên hệ I – U chưa hợp lệ." }, { status: 400 });
       }
+      const conclusion = body.payload.conclusion.trim();
+      // Nhận xét tự động: sinh ở máy chủ để học sinh và giáo viên đọc cùng một
+      // bản, và để nhóm nhận phản hồi ngay khi nộp mà vẫn sửa lại được.
+      const review = reviewOhmExperiment(body.payload.measurements, conclusion);
       const result = await createExperimentSubmission({
         activityKey: "ohm",
         className: body.className.trim(),
@@ -82,10 +87,11 @@ export async function POST(request: Request) {
         payload: {
           teamAssignments,
           measurements: body.payload.measurements,
-          conclusion: body.payload.conclusion.trim(),
+          conclusion,
+          review,
         },
       });
-      return NextResponse.json({ ok: true, ...result }, { status: 201 });
+      return NextResponse.json({ ok: true, ...result, review }, { status: 201 });
     }
 
     if (body.activityKey === "prism-colors") {
