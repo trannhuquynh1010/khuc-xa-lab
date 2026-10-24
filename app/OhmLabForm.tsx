@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { classNames, groupNames } from "@/lib/classes";
 import type { OhmMeasurement } from "@/lib/experiments";
-import type { OhmReview } from "@/lib/ohm-experiment-review";
+import { reviewOhmExperiment, type OhmReview } from "@/lib/ohm-experiment-review";
 import { createEmptyTeamAssignments, isTeamAssignments, teamTasks, type TeamTaskKey } from "@/lib/team";
 import RelationshipChart from "./RelationshipChart";
 import TeamAssignmentsFields from "./TeamAssignmentsFields";
@@ -56,6 +56,7 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
   const [rows, setRows] = useState<InputRow[]>(() => Array.from({ length: 5 }, (_, index) => blankRow(index + 1)));
   const [state, setState] = useState<{ type: "idle" | "sending" | "success" | "error"; message: string }>({ type: "idle", message: "" });
   const [review, setReview] = useState<OhmReview | null>(null);
+  const reviewRef = useRef<HTMLElement | null>(null);
   const { draftStatus } = useDeviceDraft(draftKey, { className, groupName, teamAssignments, conclusion, rows }, (value) => {
     if (!isDraftRecord(value)) return;
     if (typeof value.className === "string" && classNames.includes(value.className)) setClassName(value.className);
@@ -132,8 +133,12 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Không thể gửi số liệu.");
-      if (result.review) setReview(result.review as OhmReview);
+      // Ưu tiên nhận xét từ máy chủ; nếu vì lí do nào đó không có thì tự tính
+      // ngay tại đây (hàm phân tích là hàm thuần nên cho cùng kết quả), để nhóm
+      // luôn nhận được phản hồi sau khi nộp.
+      setReview((result.review as OhmReview | undefined) ?? reviewOhmExperiment(measurements, conclusion));
       setState({ type: "success", message: `Đã gửi ${measurements.length} lần đo cho giáo viên. Nhóm vẫn có thể sửa rồi nộp lại.` });
+      window.setTimeout(() => reviewRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
     } catch (error) {
       setState({ type: "error", message: error instanceof Error ? error.message : "Không thể gửi số liệu." });
     }
@@ -197,7 +202,7 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
       )}
 
       {review ? (
-        <section className="ohm-review-card" aria-live="polite" aria-labelledby="ohm-review-heading">
+        <section ref={reviewRef} className="ohm-review-card" aria-live="polite" aria-labelledby="ohm-review-heading">
           <div className="ohm-review-head">
             <span aria-hidden="true">✎</span>
             <div>
