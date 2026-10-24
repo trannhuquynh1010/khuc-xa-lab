@@ -229,9 +229,9 @@ export function buildOhmRulesReview(analysis: OhmDataAnalysis, signals: OhmConcl
     if (analysis.ratioConstant && analysis.enoughPoints && analysis.halfZeroSequences.length === 0) {
       notes.push({ id: "data-constant", topic: "data", text: "Số liệu của nhóm khá đều tay. Nhóm thử so các cặp số liệu với nhau xem khi U tăng lên mấy lần thì I tăng lên mấy lần nhé." });
     }
-    if (analysis.originSequences.length) {
-      notes.push({ id: "data-origin-point", topic: "data", text: `Lần đo số ${listSequences(analysis.originSequences)} có U = 0 và I = 0. Theo nhóm, điểm này giúp ích gì khi vẽ đồ thị I theo U?` });
-    }
+    // Lần đo có U = 0 và I = 0 là số liệu hợp lệ và nhóm đã ghi đúng, đồ thị
+    // cũng đã hiện điểm đó, nên không cần nhận xét gì thêm: chỉ nói khi nhóm
+    // có việc cần làm hoặc cần nghĩ thêm.
     if (analysis.enoughPoints && analysis.ratioConstant && !analysis.voltageRangeWide) {
       notes.push({ id: "data-narrow-range", topic: "data", text: "Các mức U nhóm chọn khá gần nhau. Nếu đo thêm ở một mức U cách xa hơn, quy luật nhóm tìm được sẽ rõ hơn hay mờ đi?" });
     }
