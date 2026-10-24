@@ -8,6 +8,7 @@ import {
 } from "@/lib/refraction-quiz";
 import { scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 import { getPracticeBonusPoint, type PracticeKey } from "@/lib/practice-attempt-types";
+import { gradeCurrentVoltagePractice } from "@/lib/current-voltage-practice-score";
 import { createEmptyOhmRaceAnswers, OHM_RACE_QUESTION_COUNT } from "@/lib/ohm-race";
 import { isOhmRaceAnswerCorrect } from "@/lib/ohm-race-score";
 import { createEmptyOpticsQuestAnswers, OPTICS_QUEST_QUESTION_COUNT } from "@/lib/optics-quest";
@@ -80,11 +81,11 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
 
   const answers = record(value);
   if (key === "current-voltage-practice") {
-    const missingValues = record(answers.missingValues);
-    const statements = record(answers.statementAnswers);
-    const responses = [missingValues.currentAt15, missingValues.voltageAt012, missingValues.currentAt45, answers.incrementAnswer, answers.secondVoltageAnswer, answers.graph, statements.scale, statements.origin, statements.ammeter, statements.increment];
-    const correct = [approximately(missingValues.currentAt15, 0.06), approximately(missingValues.voltageAt012, 3), approximately(missingValues.currentAt45, 0.18), approximately(answers.incrementAnswer, 0.35), approximately(answers.secondVoltageAnswer, 3), answers.graph === "direct", statements.scale === "true", statements.origin === "true", statements.ammeter === "false", statements.increment === "true"];
-    return finish(responses.filter(Boolean).length, correct.filter(Boolean).length, 10);
+    // Điểm cộng của bài này không theo số câu đúng mà theo thứ hạng nộp bài
+    // (10 bạn làm đúng trọn bài và nộp sớm nhất), nên được chốt ở lớp DB khi
+    // lưu bài; ở đây luôn trả về 0.
+    const graded = gradeCurrentVoltagePractice(value);
+    return { completedCount: graded.answeredCount, correctCount: graded.correctCount, totalItems: graded.totalItems, bonusPoint: 0 };
   }
 
   if (key === "ohm-law-practice") {

@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { formatStudentNumber } from "@/lib/classes";
+import {
+  CURRENT_VOLTAGE_BONUS_POINT,
+  CURRENT_VOLTAGE_BONUS_SLOTS,
+  CURRENT_VOLTAGE_TOTAL_ITEMS,
+  currentVoltageItemLabels,
+  type CurrentVoltageResult,
+} from "@/lib/current-voltage-practice";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
 import PracticeIdentityFields from "./PracticeIdentityFields";
 import usePracticeAttempt from "./usePracticeAttempt";
@@ -12,11 +20,13 @@ type StatementId = "scale" | "origin" | "ammeter" | "increment";
 type TruthChoice = "true" | "false" | "";
 type StatementAnswers = Record<StatementId, TruthChoice>;
 
-const statements: Array<{ id: StatementId; text: string; answer: Exclude<TruthChoice, ""> }> = [
-  { id: "scale", text: "Giữ nguyên dây dẫn và điều kiện đo: U tăng gấp 3 thì I cũng tăng gấp 3.", answer: "true" },
-  { id: "origin", text: "Đồ thị biểu diễn I theo U là đường thẳng đi qua gốc tọa độ.", answer: "true" },
-  { id: "ammeter", text: "Ampe kế phải mắc song song với dây dẫn đang khảo sát.", answer: "false" },
-  { id: "increment", text: "Với cùng một dây dẫn, khi U tăng từ 2 V lên 5 V thì I tăng thêm 150% so với ban đầu.", answer: "true" },
+// Chỉ còn nội dung phát biểu: đáp án nằm ở phía máy chủ vì bài này không có
+// bước tự kiểm tra trước khi nộp.
+const statements: Array<{ id: StatementId; text: string }> = [
+  { id: "scale", text: "Giữ nguyên dây dẫn và điều kiện đo: U tăng gấp 3 thì I cũng tăng gấp 3." },
+  { id: "origin", text: "Đồ thị biểu diễn I theo U là đường thẳng đi qua gốc tọa độ." },
+  { id: "ammeter", text: "Ampe kế phải mắc song song với dây dẫn đang khảo sát." },
+  { id: "increment", text: "Với cùng một dây dẫn, khi U tăng từ 2 V lên 5 V thì I tăng thêm 150% so với ban đầu." },
 ];
 
 const emptyMissingValues: MissingValues = { currentAt15: "", voltageAt012: "", currentAt45: "" };
@@ -24,11 +34,6 @@ const emptyStatements: StatementAnswers = { scale: "", origin: "", ammeter: "", 
 
 function isTruthChoice(value: unknown): value is TruthChoice {
   return value === "true" || value === "false" || value === "";
-}
-
-function approximately(value: string, expected: number) {
-  const parsed = Number(value.trim().replace(",", "."));
-  return Number.isFinite(parsed) && Math.abs(parsed - expected) < 0.001;
 }
 
 function MiniGraph({ kind }: { kind: GraphKind }) {
@@ -59,7 +64,9 @@ export default function CurrentVoltagePractice() {
   const [secondVoltageAnswer, setSecondVoltageAnswer] = useState("");
   const [graph, setGraph] = useState<GraphKind | "">("");
   const [statementAnswers, setStatementAnswers] = useState<StatementAnswers>(emptyStatements);
-  const [checked, setChecked] = useState(false);
+  // Gắn kết quả với đúng lớp + STT đã tải, để khi đổi STT không hiện lại kết
+  // quả của bạn trước đó.
+  const [result, setResult] = useState<{ identity: string; data: CurrentVoltageResult } | null>(null);
   const { draftStatus } = useDeviceDraft(
     deviceDraftKey("ohm-current-voltage-practice-v6"),
     { missingValues, incrementAnswer, secondVoltageAnswer, graph, statementAnswers },
@@ -96,33 +103,41 @@ export default function CurrentVoltagePractice() {
     + Number(Boolean(secondVoltageAnswer.trim()))
     + Number(Boolean(graph))
     + Object.values(statementAnswers).filter(Boolean).length;
-  const statementScore = statements.filter((statement) => statementAnswers[statement.id] === statement.answer).length;
-  const score = Number(approximately(missingValues.currentAt15, 0.06))
-    + Number(approximately(missingValues.voltageAt012, 3))
-    + Number(approximately(missingValues.currentAt45, 0.18))
-    + Number(approximately(incrementAnswer, 0.35))
-    + Number(approximately(secondVoltageAnswer, 3))
-    + Number(graph === "direct")
-    + statementScore;
   const attempt = usePracticeAttempt(
     "current-voltage-practice",
     { missingValues, incrementAnswer, secondVoltageAnswer, graph, statementAnswers },
     completedItems,
   );
 
-  function updateChoice(setter: (value: string) => void, value: string) {
-    setter(value);
-    setChecked(false);
-  }
+  const identityKey = `${attempt.className}:${attempt.studentNumber}`;
+
+  // Kết quả, điểm cộng và lời giải thích chỉ có sau khi em đã nộp bài.
+  const loadResult = useCallback(async () => {
+    if (!attempt.identityReady) return;
+    const identity = `${attempt.className}:${attempt.studentNumber}`;
+    const params = new URLSearchParams({ className: attempt.className, studentNumber: attempt.studentNumber });
+    try {
+      const response = await fetch(`/api/current-voltage-practice?${params}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as CurrentVoltageResult;
+      if (data.submitted) setResult({ identity, data });
+    } catch {
+      /* giữ nguyên trạng thái khi mạng lỗi tạm thời */
+    }
+  }, [attempt.className, attempt.identityReady, attempt.studentNumber]);
+
+  useEffect(() => {
+    if (!attempt.locked) return;
+    const timer = window.setTimeout(() => void loadResult(), 0);
+    return () => window.clearTimeout(timer);
+  }, [attempt.locked, loadResult]);
 
   function updateMissingValue(key: MissingValueKey, value: string) {
     setMissingValues((current) => ({ ...current, [key]: value }));
-    setChecked(false);
   }
 
   function answerStatement(id: StatementId, answer: Exclude<TruthChoice, "">) {
     setStatementAnswers((current) => ({ ...current, [id]: answer }));
-    setChecked(false);
   }
 
   function resetPractice() {
@@ -131,27 +146,88 @@ export default function CurrentVoltagePractice() {
     setSecondVoltageAnswer("");
     setGraph("");
     setStatementAnswers(emptyStatements);
-    setChecked(false);
   }
 
-  const resultClass = (correct: boolean) => checked ? correct ? "practice-correct" : "practice-incorrect" : "";
+  async function submitPractice() {
+    if (!window.confirm(`Nộp bài với ${completedItems}/${CURRENT_VOLTAGE_TOTAL_ITEMS} ý đã làm? Em chỉ nộp được một lần, nên hãy kiểm tra lại cho chắc chắn trước khi nộp.`)) return;
+    await attempt.submit();
+    await loadResult();
+  }
+
+  // Chỉ hiện kết quả khi em đã nộp và kết quả đúng là của em.
+  const shownResult = attempt.locked && result?.identity === identityKey ? result.data : null;
+  const wrongItems = shownResult?.items.filter((item) => !item.correct) ?? [];
+  const perfect = shownResult !== null && shownResult.correctCount >= shownResult.totalItems;
 
   return (
     <div className="electric-practice current-voltage-practice">
       <div className="practice-intro">
-        <div><p className="eyebrow">LUYỆN TẬP I – U</p><h3>Thử thách phòng thí nghiệm</h3><p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ.</p></div>
+        <div>
+          <p className="eyebrow">LUYỆN TẬP I – U</p>
+          <h3>Thử thách phòng thí nghiệm</h3>
+          <p>Vận dụng kiến thức đã học để hoàn thành 5 nhiệm vụ. Em tự kiểm tra lại rồi mới nộp, vì mỗi bạn chỉ nộp một lần. {CURRENT_VOLTAGE_BONUS_SLOTS} bạn đầu tiên làm đúng cả {CURRENT_VOLTAGE_TOTAL_ITEMS} ý được +{CURRENT_VOLTAGE_BONUS_POINT} điểm cộng.</p>
+        </div>
         <strong>{completedChallenges}/5</strong>
       </div>
 
       <PracticeIdentityFields practiceKey="current-voltage-practice" className={attempt.className} studentNumber={attempt.studentNumber} onClassChange={attempt.setClassName} onStudentNumberChange={attempt.setStudentNumber} />
-      {attempt.locked ? <div className="quiz-submission-notice"><span>✓</span><div><strong>Đã thu bài</strong><p>{attempt.message}</p></div></div> : null}
+
+      {shownResult ? (
+        <section className="cv-result" aria-live="polite">
+          <div className={`cv-result-head ${shownResult.bonusPoint > 0 ? "earned" : perfect ? "missed-slot" : "no-bonus"}`}>
+            <span aria-hidden="true">{shownResult.bonusPoint > 0 ? "★" : perfect ? "✓" : "↺"}</span>
+            <div>
+              <p className="eyebrow">ĐÃ NỘP BÀI</p>
+              <h4>
+                {shownResult.bonusPoint > 0
+                  ? `Em được +${shownResult.bonusPoint} điểm cộng`
+                  : perfect
+                    ? `Em làm đúng cả ${shownResult.totalItems} ý`
+                    : `Em làm đúng ${shownResult.correctCount}/${shownResult.totalItems} ý`}
+              </h4>
+              <p>
+                {shownResult.bonusPoint > 0
+                  ? `${attempt.className} · STT ${formatStudentNumber(Number(attempt.studentNumber))} · em là bạn thứ ${shownResult.rank} của lớp làm đúng trọn bài.`
+                  : perfect
+                    ? `Rất tiếc, ${shownResult.bonusSlots} suất điểm cộng của lớp đã có bạn nhận trước. Kết quả của em vẫn được ghi nhận đầy đủ.`
+                    : `Chưa đạt điểm cộng lần này. Điểm cộng dành cho ${shownResult.bonusSlots} bạn đầu tiên làm đúng cả ${shownResult.totalItems} ý.`}
+              </p>
+            </div>
+            <b>{shownResult.correctCount}/{shownResult.totalItems}</b>
+          </div>
+
+          {wrongItems.length ? (
+            <>
+              <h5 className="cv-result-subhead">Những ý em cần xem lại ({wrongItems.length})</h5>
+              <ol className="cv-wrong-list">
+                {wrongItems.map((item) => (
+                  <li key={item.id}>
+                    <p className="cv-wrong-where">{currentVoltageItemLabels[item.id].card}</p>
+                    <b>{currentVoltageItemLabels[item.id].label}</b>
+                    <div className="cv-wrong-answers">
+                      <span className="mine">Em trả lời: <i>{item.response}</i></span>
+                      <span className="right">Đáp án đúng: <i>{item.correctAnswer}</i></span>
+                    </div>
+                    <p className="cv-wrong-why"><b>Vì sao:</b> {item.explanation}</p>
+                    <p className="cv-wrong-hint"><b>Cách làm lại:</b> {item.hint}</p>
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p className="cv-result-allright">Em làm đúng toàn bộ các ý. Hãy giữ cách làm cẩn thận này cho những bài sau.</p>
+          )}
+        </section>
+      ) : attempt.locked ? (
+        <div className="quiz-submission-notice"><span className="loading-dot" /><div><strong>Đang tải kết quả…</strong><p>{attempt.message}</p></div></div>
+      ) : null}
 
       <fieldset className="practice-grid practice-question-fieldset" disabled={attempt.locked || attempt.checking || attempt.submitting}>
         <article className="practice-card">
           <div className="practice-card-heading"><span>01</span><div><h4>Giải mã ba ô trống</h4><p>Nhập số, không cần ghi đơn vị.</p></div></div>
           <div className="mini-data-table data-hole-table" role="table" aria-label="Bảng số liệu có ba ô trống">
-            <div role="row"><strong role="columnheader">U (V)</strong><span>1,5</span><span className="missing-cell"><input inputMode="decimal" aria-label="Hiệu điện thế khi I bằng 0,12 A" value={missingValues.voltageAt012} className={resultClass(approximately(missingValues.voltageAt012, 3))} onChange={(event) => updateMissingValue("voltageAt012", event.target.value)} placeholder="?" /></span><span>4,5</span><span>6,0</span></div>
-            <div role="row"><strong role="rowheader">I (A)</strong><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 1,5 V" value={missingValues.currentAt15} className={resultClass(approximately(missingValues.currentAt15, 0.06))} onChange={(event) => updateMissingValue("currentAt15", event.target.value)} placeholder="?" /></span><span>0,12</span><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 4,5 V" value={missingValues.currentAt45} className={resultClass(approximately(missingValues.currentAt45, 0.18))} onChange={(event) => updateMissingValue("currentAt45", event.target.value)} placeholder="?" /></span><span>0,24</span></div>
+            <div role="row"><strong role="columnheader">U (V)</strong><span>1,5</span><span className="missing-cell"><input inputMode="decimal" aria-label="Hiệu điện thế khi I bằng 0,12 A" value={missingValues.voltageAt012} onChange={(event) => updateMissingValue("voltageAt012", event.target.value)} placeholder="?" /></span><span>4,5</span><span>6,0</span></div>
+            <div role="row"><strong role="rowheader">I (A)</strong><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 1,5 V" value={missingValues.currentAt15} onChange={(event) => updateMissingValue("currentAt15", event.target.value)} placeholder="?" /></span><span>0,12</span><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 4,5 V" value={missingValues.currentAt45} onChange={(event) => updateMissingValue("currentAt45", event.target.value)} placeholder="?" /></span><span>0,24</span></div>
           </div>
           <p className="table-hole-note">Cùng một dây dẫn và nhiệt độ không đổi.</p>
         </article>
@@ -159,19 +235,19 @@ export default function CurrentVoltagePractice() {
         <article className="practice-card increment-challenge-card practice-calculation-card">
           <div className="practice-card-heading"><span>02</span><div><h4>Tính I khi U thay đổi</h4><p>Tính giá trị mới của cường độ dòng điện.</p></div></div>
           <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 4 V</b><b>I₁ = 0,20 A</b></div><span><strong>+3 V</strong><small>Tăng thêm</small></span><div><small>Sau đó</small><b>I₂ = ?</b></div></div>
-          <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} className={resultClass(approximately(incrementAnswer, 0.35))} onChange={(event) => { setIncrementAnswer(event.target.value); setChecked(false); }} placeholder="0,00" /><span>A</span></div></label>
+          <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} onChange={(event) => setIncrementAnswer(event.target.value)} placeholder="0,00" /><span>A</span></div></label>
         </article>
 
         <article className="practice-card increment-challenge-card practice-calculation-card">
           <div className="practice-card-heading"><span>03</span><div><h4>Tính U khi I thay đổi</h4><p>Tính giá trị mới của hiệu điện thế.</p></div></div>
           <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 9 V</b><b>I₁ = 0,30 A</b></div><span><strong>-0,20 A</strong><small>Giảm xuống</small></span><div><small>Sau đó</small><b>U₂ = ?</b></div></div>
-          <label>U₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Hiệu điện thế sau khi cường độ dòng điện giảm xuống còn 0,10 A" value={secondVoltageAnswer} className={resultClass(approximately(secondVoltageAnswer, 3))} onChange={(event) => updateChoice(setSecondVoltageAnswer, event.target.value)} placeholder="0,00" /><span>V</span></div></label>
+          <label>U₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Hiệu điện thế sau khi cường độ dòng điện giảm xuống còn 0,10 A" value={secondVoltageAnswer} onChange={(event) => setSecondVoltageAnswer(event.target.value)} placeholder="0,00" /><span>V</span></div></label>
         </article>
 
         <article className="practice-card practice-card-wide">
           <div className="practice-card-heading"><span>04</span><div><h4>Chọn dấu vết đồ thị</h4><p>Đồ thị nào mô tả đúng I phụ thuộc vào U?</p></div></div>
           <div className="graph-choice-grid">
-            {(["direct", "offset", "curve"] as const).map((kind, index) => <button key={kind} type="button" aria-label={`Chọn đồ thị ${String.fromCharCode(65 + index)}`} className={`${graph === kind ? "selected" : ""} ${graph === kind ? resultClass(kind === "direct") : ""}`} onClick={() => { setGraph(kind); setChecked(false); }}><span>Đồ thị {String.fromCharCode(65 + index)}</span><MiniGraph kind={kind} /></button>)}
+            {(["direct", "offset", "curve"] as const).map((kind, index) => <button key={kind} type="button" aria-label={`Chọn đồ thị ${String.fromCharCode(65 + index)}`} className={graph === kind ? "selected" : ""} onClick={() => setGraph(kind)}><span>Đồ thị {String.fromCharCode(65 + index)}</span><MiniGraph kind={kind} /></button>)}
           </div>
         </article>
 
@@ -181,7 +257,7 @@ export default function CurrentVoltagePractice() {
             {statements.map((statement, index) => {
               const answer = statementAnswers[statement.id];
               return (
-                <div key={statement.id} className={`truth-statement ${answer ? resultClass(answer === statement.answer) : ""}`}>
+                <div key={statement.id} className="truth-statement">
                   <p><b>{String.fromCharCode(65 + index)}.</b> {statement.text}</p>
                   <div role="group" aria-label={`Chọn đúng hoặc sai cho phát biểu ${String.fromCharCode(65 + index)}`}>
                     <button type="button" aria-pressed={answer === "true"} className={answer === "true" ? "selected" : ""} onClick={() => answerStatement(statement.id, "true")}>Đúng</button>
@@ -194,15 +270,11 @@ export default function CurrentVoltagePractice() {
         </article>
       </fieldset>
 
-      {attempt.releasedResult ? <div className={`quiz-result ${attempt.releasedResult.bonusPoint ? "bonus-earned" : "bonus-missed"}`}><div className="quiz-score"><span>Kết quả</span><strong>{attempt.releasedResult.bonusPoint ? `+${attempt.releasedResult.bonusPoint}` : "—"}</strong><b>điểm cộng</b></div><div><h4>{attempt.releasedResult.bonusPoint ? `Em nhận +${attempt.releasedResult.bonusPoint} điểm cộng.` : "Em chưa đạt điểm cộng lần này."}</h4><p>Đúng {attempt.releasedResult.correctCount}/{attempt.releasedResult.totalItems} ý.</p></div></div> : null}
-
       <div className="practice-actions">
         <span className="draft-status">{attempt.saving ? "Đang đồng bộ bài làm…" : draftStatus}</span>
         {attempt.message && !attempt.locked ? <span className={`form-message ${attempt.messageType}`}>{attempt.message}</span> : null}
-        {checked ? <p className={score === 10 ? "correct" : "incorrect"} aria-live="polite">{score === 10 ? "Chinh phục trọn bộ: 10/10!" : `Đúng ${score}/10. Hãy xem lại các mục màu cam.`}</p> : null}
         <button type="button" className="secondary-button" disabled={attempt.locked} onClick={resetPractice}>Làm lại</button>
-        <button type="button" className="secondary-button" disabled={completedChallenges < 5 || attempt.locked} onClick={() => setChecked(true)}>Kiểm tra</button>
-        <button type="button" className="primary-button" disabled={completedItems < 10 || !attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void attempt.submit()}>{attempt.submitting ? "Đang nộp…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
+        <button type="button" className="primary-button" disabled={completedItems < CURRENT_VOLTAGE_TOTAL_ITEMS || !attempt.identityReady || attempt.locked || attempt.checking || attempt.submitting} onClick={() => void submitPractice()}>{attempt.submitting ? "Đang nộp…" : attempt.locked ? "Đã nộp ✓" : "Nộp bài →"}</button>
       </div>
     </div>
   );

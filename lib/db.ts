@@ -13,6 +13,8 @@ import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
 import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
+import { CURRENT_VOLTAGE_BONUS_POINT, CURRENT_VOLTAGE_BONUS_SLOTS, CURRENT_VOLTAGE_TOTAL_ITEMS, type CurrentVoltageResult } from "@/lib/current-voltage-practice";
+import { gradeCurrentVoltagePractice } from "@/lib/current-voltage-practice-score";
 import { getOhmRaceQuestion, OHM_RACE_QUESTION_COUNT, type OhmRaceGroup, type OhmRacePlayer, type OhmRaceQuestionStat, type OhmRaceReveal, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { gradeOhmRace } from "@/lib/ohm-race-score";
 import { getOpticsQuestQuestion, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestQuestionStat, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
@@ -2061,6 +2063,19 @@ async function savePracticeAttempt(input: PracticeAttemptInput, submit: boolean)
   const sql = getSql();
   const schoolYear = getCurrentSchoolYear();
   const evaluation = scorePracticeAttempt(input.practiceKey, input.answers);
+  let bonusPoint = evaluation.bonusPoint;
+  // Bài "Luyện tập I phụ thuộc vào U": điểm cộng theo thứ hạng, +1 cho những
+  // bạn đầu tiên làm đúng trọn bài. Đếm số suất đã trao để chốt ngay lúc nộp,
+  // nhờ vậy học sinh biết kết quả liền và suất đã trao không bị đổi về sau.
+  if (submit && input.practiceKey === "current-voltage-practice" && evaluation.correctCount >= evaluation.totalItems) {
+    const awarded = await sql`
+      SELECT COUNT(*)::int AS count
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+        AND class_name = ${input.className} AND status = 'submitted' AND bonus_point > 0
+    `;
+    bonusPoint = Number(awarded[0]?.count ?? 0) < CURRENT_VOLTAGE_BONUS_SLOTS ? CURRENT_VOLTAGE_BONUS_POINT : 0;
+  }
   const id = randomUUID();
   const nextStatus = submit ? "submitted" : "draft";
   const rows = await sql`
@@ -2070,7 +2085,7 @@ async function savePracticeAttempt(input: PracticeAttemptInput, submit: boolean)
     )
     VALUES (
       ${id}, ${schoolYear}, ${input.practiceKey}, ${input.className}, ${input.studentNumber}, ${JSON.stringify(input.answers)}::jsonb,
-      ${evaluation.completedCount}, ${evaluation.correctCount}, ${evaluation.totalItems}, ${evaluation.bonusPoint}, ${nextStatus}, FALSE,
+      ${evaluation.completedCount}, ${evaluation.correctCount}, ${evaluation.totalItems}, ${bonusPoint}, ${nextStatus}, FALSE,
       ${submit ? new Date().toISOString() : null}, NOW()
     )
     ON CONFLICT (school_year, practice_key, class_name, student_number)
@@ -2125,6 +2140,68 @@ export async function getPracticeAttemptStatus(practiceKey: PracticeKey, classNa
     total_items: evaluation.totalItems,
     bonus_point: evaluation.bonusPoint,
   });
+}
+
+/**
+ * Kết quả bài "Luyện tập I phụ thuộc vào U" cho một học sinh.
+ * Chỉ trả về chi tiết đúng/sai và lời giải thích SAU KHI em đã nộp bài, để đáp
+ * án không lọt ra trước lúc nộp.
+ */
+export async function getCurrentVoltagePracticeResult(schoolYear: string, className: string, studentNumber: number): Promise<CurrentVoltageResult> {
+  await ensureSchema();
+  const sql = getSql();
+  const [rows, awardedRows] = await Promise.all([
+    sql`
+      SELECT status, answers, bonus_point, submitted_at
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+        AND class_name = ${className} AND student_number = ${studentNumber}
+      LIMIT 1
+    `,
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+        AND class_name = ${className} AND status = 'submitted' AND bonus_point > 0
+    `,
+  ]);
+  const row = rows[0];
+  const submitted = row?.status === "submitted";
+  const awardedCount = Number(awardedRows[0]?.count ?? 0);
+  if (!submitted) {
+    return {
+      submitted: false,
+      correctCount: 0,
+      totalItems: CURRENT_VOLTAGE_TOTAL_ITEMS,
+      bonusPoint: 0,
+      rank: null,
+      bonusSlots: CURRENT_VOLTAGE_BONUS_SLOTS,
+      awardedCount,
+      items: [],
+    };
+  }
+  const graded = gradeCurrentVoltagePractice(row.answers);
+  let rank: number | null = null;
+  if (graded.correctCount >= graded.totalItems && row.submitted_at) {
+    const earlier = await sql`
+      SELECT COUNT(*)::int AS count
+      FROM practice_attempts
+      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+        AND class_name = ${className} AND status = 'submitted'
+        AND correct_count >= total_items AND submitted_at < ${String(row.submitted_at)}
+    `;
+    rank = Number(earlier[0]?.count ?? 0) + 1;
+  }
+  return {
+    submitted: true,
+    correctCount: graded.correctCount,
+    totalItems: graded.totalItems,
+    bonusPoint: Number(row.bonus_point ?? 0),
+    rank,
+    bonusSlots: CURRENT_VOLTAGE_BONUS_SLOTS,
+    awardedCount,
+    items: graded.items,
+  };
 }
 
 export async function getOhmRaceSnapshot(schoolYear: string, className: string): Promise<OhmRaceSnapshot> {

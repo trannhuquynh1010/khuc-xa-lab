@@ -838,6 +838,31 @@ details .table-scroll { margin-top: 12px; }
 .race-detail { margin: 0 0 14px; color: var(--muted); }
 .ohm-race-game > .form-message { margin: 0; padding: 10px 24px; }
 
+/* Kết quả + xem lại câu sai của bài Luyện tập I phụ thuộc vào U */
+.cv-result { margin: 0 0 18px; padding: 18px; border: 1.5px solid var(--ink); border-radius: 20px; background: #fff; box-shadow: 4px 4px 0 var(--ink); }
+.cv-result-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 15px; align-items: center; padding: 16px; border-radius: 16px; }
+.cv-result-head.earned { background: linear-gradient(120deg, var(--lime), #fff9b8); }
+.cv-result-head.missed-slot { background: #eef6ff; }
+.cv-result-head.no-bonus { background: #f6f3ec; }
+.cv-result-head > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: #fff; font-size: 1.6rem; }
+.cv-result-head h4 { margin: 2px 0 4px; font-size: 1.3rem; letter-spacing: -.02em; }
+.cv-result-head p:last-child { margin: 0; color: var(--muted); font-size: .84rem; font-weight: 750; line-height: 1.5; }
+.cv-result-head > b { font-size: 1.7rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv-result-subhead { margin: 20px 0 10px; font-size: 1rem; }
+.cv-result-allright { margin: 16px 0 0; padding: 13px 15px; border-radius: 13px; background: #f0fdf4; color: #14532d; font-weight: 800; }
+.cv-wrong-list { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
+.cv-wrong-list li { padding: 14px 16px; border: 1.3px solid #f3b9b2; border-radius: 15px; background: #fff8f7; }
+.cv-wrong-where { margin: 0 0 3px; color: var(--muted); font-size: .68rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.cv-wrong-list li > b { display: block; margin-bottom: 9px; font-size: .97rem; }
+.cv-wrong-answers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.cv-wrong-answers span { padding: 6px 11px; border-radius: 999px; font-size: .78rem; font-weight: 800; }
+.cv-wrong-answers .mine { background: #fde8e6; color: #9b2c20; }
+.cv-wrong-answers .right { background: #e5f4df; color: #14532d; }
+.cv-wrong-answers i { font-style: normal; font-weight: 950; }
+.cv-wrong-why, .cv-wrong-hint { margin: 0 0 6px; font-size: .86rem; font-weight: 700; line-height: 1.55; }
+.cv-wrong-hint { margin-bottom: 0; padding: 10px 12px; border-radius: 11px; background: #fff; }
+.cv-wrong-why > b, .cv-wrong-hint > b { color: var(--purple); }
+
 /* Nhận xét tự động cho phần thí nghiệm I–U */
 .ohm-review-card { margin: 18px 0 0; padding: 20px; border: 1.5px solid var(--ink); border-radius: 20px; background: #f3fbff; box-shadow: 4px 4px 0 var(--purple); }
 .ohm-review-head { display: flex; gap: 15px; align-items: flex-start; }
