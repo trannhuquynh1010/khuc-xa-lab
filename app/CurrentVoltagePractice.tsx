@@ -8,6 +8,7 @@ import {
   CURRENT_VOLTAGE_BONUS_SLOTS,
   CURRENT_VOLTAGE_TOTAL_ITEMS,
   currentVoltageItemLabels,
+  type CurrentVoltageItemId,
   type CurrentVoltageResult,
 } from "@/lib/current-voltage-practice";
 import useDeviceDraft, { deviceDraftKey, isDraftRecord } from "./useDeviceDraft";
@@ -158,6 +159,37 @@ export default function CurrentVoltagePractice() {
   // Chỉ hiện kết quả khi em đã nộp và kết quả đúng là của em.
   const shownResult = attempt.locked && result?.identity === identityKey ? result.data : null;
   const wrongItems = shownResult?.items.filter((item) => !item.correct) ?? [];
+  const reviewById = new Map((shownResult?.items ?? []).map((item) => [item.id, item]));
+
+  /** Tô xanh ý đúng, tô đỏ ý sai; trước khi nộp thì không tô gì. */
+  function mark(id: CurrentVoltageItemId) {
+    const item = reviewById.get(id);
+    return item ? (item.correct ? "practice-correct" : "practice-incorrect") : "";
+  }
+
+  /** Đánh dấu một phương án trong nhóm lựa chọn sau khi đã nộp. */
+  function markChoice(id: CurrentVoltageItemId, value: string, chosen: boolean) {
+    const item = reviewById.get(id);
+    if (!item) return chosen ? "selected" : "";
+    const classes = [chosen ? "selected" : ""];
+    if (value === item.correctValue) classes.push("practice-correct");
+    else if (chosen) classes.push("practice-incorrect");
+    return classes.filter(Boolean).join(" ");
+  }
+
+  /** Giải thích hiện ngay dưới ý làm sai, giữ nguyên bố cục bài làm. */
+  function itemFeedback(id: CurrentVoltageItemId) {
+    const item = reviewById.get(id);
+    if (!item || item.correct) return null;
+    return (
+      <div className="cv-item-feedback" key={`feedback-${id}`}>
+        <p className="cv-item-where">{currentVoltageItemLabels[id].label}</p>
+        <p className="cv-item-answer">Em trả lời <s>{item.response}</s> · Đáp án đúng: <b>{item.correctAnswer}</b></p>
+        <p><b>Vì sao:</b> {item.explanation}</p>
+        <p><b>Cách làm lại:</b> {item.hint}</p>
+      </div>
+    );
+  }
   const perfect = shownResult !== null && shownResult.correctCount >= shownResult.totalItems;
   // Đạt mức xét điểm cộng nhưng lớp đã hết suất.
   const eligible = shownResult !== null && shownResult.correctCount >= CURRENT_VOLTAGE_BONUS_MIN_CORRECT;
@@ -200,23 +232,7 @@ export default function CurrentVoltagePractice() {
           </div>
 
           {wrongItems.length ? (
-            <>
-              <h5 className="cv-result-subhead">Những ý em cần xem lại ({wrongItems.length})</h5>
-              <ol className="cv-wrong-list">
-                {wrongItems.map((item) => (
-                  <li key={item.id}>
-                    <p className="cv-wrong-where">{currentVoltageItemLabels[item.id].card}</p>
-                    <b>{currentVoltageItemLabels[item.id].label}</b>
-                    <div className="cv-wrong-answers">
-                      <span className="mine">Em trả lời: <i>{item.response}</i></span>
-                      <span className="right">Đáp án đúng: <i>{item.correctAnswer}</i></span>
-                    </div>
-                    <p className="cv-wrong-why"><b>Vì sao:</b> {item.explanation}</p>
-                    <p className="cv-wrong-hint"><b>Cách làm lại:</b> {item.hint}</p>
-                  </li>
-                ))}
-              </ol>
-            </>
+            <p className="cv-result-guide">Bài làm của em vẫn ở bên dưới. Những ý làm sai được <b className="cv-red">tô đỏ</b> ngay tại chỗ, kèm đáp án đúng và lời giải thích.</p>
           ) : (
             <p className="cv-result-allright">Em làm đúng toàn bộ các ý. Hãy giữ cách làm cẩn thận này cho những bài sau.</p>
           )}
@@ -229,29 +245,35 @@ export default function CurrentVoltagePractice() {
         <article className="practice-card">
           <div className="practice-card-heading"><span>01</span><div><h4>Giải mã ba ô trống</h4><p>Nhập số, không cần ghi đơn vị.</p></div></div>
           <div className="mini-data-table data-hole-table" role="table" aria-label="Bảng số liệu có ba ô trống">
-            <div role="row"><strong role="columnheader">U (V)</strong><span>1,5</span><span className="missing-cell"><input inputMode="decimal" aria-label="Hiệu điện thế khi I bằng 0,12 A" value={missingValues.voltageAt012} onChange={(event) => updateMissingValue("voltageAt012", event.target.value)} placeholder="?" /></span><span>4,5</span><span>6,0</span></div>
-            <div role="row"><strong role="rowheader">I (A)</strong><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 1,5 V" value={missingValues.currentAt15} onChange={(event) => updateMissingValue("currentAt15", event.target.value)} placeholder="?" /></span><span>0,12</span><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 4,5 V" value={missingValues.currentAt45} onChange={(event) => updateMissingValue("currentAt45", event.target.value)} placeholder="?" /></span><span>0,24</span></div>
+            <div role="row"><strong role="columnheader">U (V)</strong><span>1,5</span><span className="missing-cell"><input inputMode="decimal" aria-label="Hiệu điện thế khi I bằng 0,12 A" className={mark("voltageAt012")} value={missingValues.voltageAt012} onChange={(event) => updateMissingValue("voltageAt012", event.target.value)} placeholder="?" /></span><span>4,5</span><span>6,0</span></div>
+            <div role="row"><strong role="rowheader">I (A)</strong><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 1,5 V" className={mark("currentAt15")} value={missingValues.currentAt15} onChange={(event) => updateMissingValue("currentAt15", event.target.value)} placeholder="?" /></span><span>0,12</span><span className="missing-cell"><input inputMode="decimal" aria-label="Cường độ dòng điện khi U bằng 4,5 V" className={mark("currentAt45")} value={missingValues.currentAt45} onChange={(event) => updateMissingValue("currentAt45", event.target.value)} placeholder="?" /></span><span>0,24</span></div>
           </div>
           <p className="table-hole-note">Cùng một dây dẫn và nhiệt độ không đổi.</p>
+          {itemFeedback("voltageAt012")}
+          {itemFeedback("currentAt15")}
+          {itemFeedback("currentAt45")}
         </article>
 
         <article className="practice-card increment-challenge-card practice-calculation-card">
           <div className="practice-card-heading"><span>02</span><div><h4>Tính I khi U thay đổi</h4><p>Tính giá trị mới của cường độ dòng điện.</p></div></div>
           <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 4 V</b><b>I₁ = 0,20 A</b></div><span><strong>+3 V</strong><small>Tăng thêm</small></span><div><small>Sau đó</small><b>I₂ = ?</b></div></div>
-          <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" value={incrementAnswer} onChange={(event) => setIncrementAnswer(event.target.value)} placeholder="0,00" /><span>A</span></div></label>
+          <label>I₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Cường độ dòng điện sau khi tăng hiệu điện thế thêm 3 V" className={mark("incrementAnswer")} value={incrementAnswer} onChange={(event) => setIncrementAnswer(event.target.value)} placeholder="0,00" /><span>A</span></div></label>
+          {itemFeedback("incrementAnswer")}
         </article>
 
         <article className="practice-card increment-challenge-card practice-calculation-card">
           <div className="practice-card-heading"><span>03</span><div><h4>Tính U khi I thay đổi</h4><p>Tính giá trị mới của hiệu điện thế.</p></div></div>
           <div className="increment-story"><div><small>Ban đầu</small><b>U₁ = 9 V</b><b>I₁ = 0,30 A</b></div><span><strong>-0,20 A</strong><small>Giảm xuống</small></span><div><small>Sau đó</small><b>U₂ = ?</b></div></div>
-          <label>U₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Hiệu điện thế sau khi cường độ dòng điện giảm xuống còn 0,10 A" value={secondVoltageAnswer} onChange={(event) => setSecondVoltageAnswer(event.target.value)} placeholder="0,00" /><span>V</span></div></label>
+          <label>U₂ bằng bao nhiêu?<div><input inputMode="decimal" aria-label="Hiệu điện thế sau khi cường độ dòng điện giảm xuống còn 0,10 A" className={mark("secondVoltageAnswer")} value={secondVoltageAnswer} onChange={(event) => setSecondVoltageAnswer(event.target.value)} placeholder="0,00" /><span>V</span></div></label>
+          {itemFeedback("secondVoltageAnswer")}
         </article>
 
         <article className="practice-card practice-card-wide">
           <div className="practice-card-heading"><span>04</span><div><h4>Chọn dấu vết đồ thị</h4><p>Đồ thị nào mô tả đúng I phụ thuộc vào U?</p></div></div>
           <div className="graph-choice-grid">
-            {(["direct", "offset", "curve"] as const).map((kind, index) => <button key={kind} type="button" aria-label={`Chọn đồ thị ${String.fromCharCode(65 + index)}`} className={graph === kind ? "selected" : ""} onClick={() => setGraph(kind)}><span>Đồ thị {String.fromCharCode(65 + index)}</span><MiniGraph kind={kind} /></button>)}
+            {(["direct", "offset", "curve"] as const).map((kind, index) => <button key={kind} type="button" aria-label={`Chọn đồ thị ${String.fromCharCode(65 + index)}`} className={markChoice("graph", kind, graph === kind)} onClick={() => setGraph(kind)}><span>Đồ thị {String.fromCharCode(65 + index)}</span><MiniGraph kind={kind} /></button>)}
           </div>
+          {itemFeedback("graph")}
         </article>
 
         <article className="practice-card practice-card-wide">
@@ -263,9 +285,10 @@ export default function CurrentVoltagePractice() {
                 <div key={statement.id} className="truth-statement">
                   <p><b>{String.fromCharCode(65 + index)}.</b> {statement.text}</p>
                   <div role="group" aria-label={`Chọn đúng hoặc sai cho phát biểu ${String.fromCharCode(65 + index)}`}>
-                    <button type="button" aria-pressed={answer === "true"} className={answer === "true" ? "selected" : ""} onClick={() => answerStatement(statement.id, "true")}>Đúng</button>
-                    <button type="button" aria-pressed={answer === "false"} className={answer === "false" ? "selected" : ""} onClick={() => answerStatement(statement.id, "false")}>Sai</button>
+                    <button type="button" aria-pressed={answer === "true"} className={markChoice(statement.id, "true", answer === "true")} onClick={() => answerStatement(statement.id, "true")}>Đúng</button>
+                    <button type="button" aria-pressed={answer === "false"} className={markChoice(statement.id, "false", answer === "false")} onClick={() => answerStatement(statement.id, "false")}>Sai</button>
                   </div>
+                  {itemFeedback(statement.id)}
                 </div>
               );
             })}

@@ -143,6 +143,7 @@ export function gradeCurrentVoltagePractice(answers: unknown) {
       correct,
       response,
       correctAnswer: entry.kind === "number" ? formatExpected(entry) : entry.labels[entry.value] ?? entry.value,
+      correctValue: entry.kind === "number" ? String(entry.value) : entry.value,
       explanation: entry.explanation,
       hint: entry.hint,
     };

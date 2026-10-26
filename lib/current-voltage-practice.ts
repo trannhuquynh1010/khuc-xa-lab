@@ -56,6 +56,8 @@ export type CurrentVoltageReviewItem = {
   response: string;
   /** Đáp án đúng, dạng dễ đọc. */
   correctAnswer: string;
+  /** Giá trị thô của đáp án, để giao diện đánh dấu đúng phương án nào. */
+  correctValue: string;
   explanation: string;
   hint: string;
 };
