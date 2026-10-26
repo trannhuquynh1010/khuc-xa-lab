@@ -9,6 +9,7 @@ import {
 import { scoreRefractionQuiz } from "@/lib/refraction-quiz-score";
 import { getPracticeBonusPoint, type PracticeKey } from "@/lib/practice-attempt-types";
 import { gradeCurrentVoltagePractice } from "@/lib/current-voltage-practice-score";
+import { gradeOhmLawPractice } from "@/lib/ohm-law-practice-score";
 import { createEmptyOhmRaceAnswers, OHM_RACE_QUESTION_COUNT } from "@/lib/ohm-race";
 import { isOhmRaceAnswerCorrect } from "@/lib/ohm-race-score";
 import { createEmptyOpticsQuestAnswers, OPTICS_QUEST_QUESTION_COUNT } from "@/lib/optics-quest";
@@ -19,17 +20,6 @@ type ScoreResult = { completedCount: number; correctCount: number; totalItems: n
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-function parseDecimal(value: unknown) {
-  if (typeof value !== "string" && typeof value !== "number") return null;
-  const parsed = Number(String(value).trim().replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function approximately(value: unknown, expected: number) {
-  const parsed = parseDecimal(value);
-  return parsed !== null && Math.abs(parsed - expected) < 0.001;
 }
 
 function finish(completedCount: number, correctCount: number, totalItems: number): ScoreResult {
@@ -89,9 +79,9 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
   }
 
   if (key === "ohm-law-practice") {
-    const responses = [answers.boxResistanceAnswer, answers.boxCurrentAnswer, answers.boxConclusion, answers.currentAnswer, answers.voltageAnswer, answers.resistanceAnswer, answers.safeSource];
-    const correct = [approximately(answers.boxResistanceAnswer, 20), approximately(answers.boxCurrentAnswer, 0.45), answers.boxConclusion === "consistent", approximately(answers.currentAnswer, 0.3), approximately(answers.voltageAnswer, 6), approximately(answers.resistanceAnswer, 30), answers.safeSource === "6"];
-    return finish(responses.filter((item) => String(item ?? "").trim()).length, correct.filter(Boolean).length, 7);
+    // Điểm cộng theo thứ hạng nộp bài, chốt ở lớp DB; ở đây luôn trả về 0.
+    const graded = gradeOhmLawPractice(value);
+    return { completedCount: graded.answeredCount, correctCount: graded.correctCount, totalItems: graded.totalItems, bonusPoint: 0 };
   }
 
   if (key === "ohm-race") {

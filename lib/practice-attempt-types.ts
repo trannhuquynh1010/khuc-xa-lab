@@ -26,6 +26,25 @@ export function getPracticeBonusPoint(correctCount: number, totalItems: number) 
   return 0;
 }
 
+/**
+ * Các bài tính điểm cộng theo THỨ HẠNG NỘP BÀI thay vì theo số câu đúng:
+ * mỗi lớp có một số suất nhất định, bạn nào nộp mà đạt mức `minCorrect` sẽ nhận
+ * một suất nếu lớp còn trống. Suất được chốt ngay lúc nộp nên không bị đổi về
+ * sau. Bài không có trong danh sách này vẫn dùng getPracticeBonusPoint.
+ */
+export type RankBonusConfig = { slots: number; point: number; minCorrect: number };
+
+const rankBonusConfigs: Partial<Record<PracticeKey, RankBonusConfig>> = {
+  // 10 ý · xét từ 9/10 trở lên
+  "current-voltage-practice": { slots: 10, point: 1, minCorrect: 9 },
+  // 7 ý · xét từ 6/7 trở lên
+  "ohm-law-practice": { slots: 10, point: 1, minCorrect: 6 },
+};
+
+export function getRankBonusConfig(key: PracticeKey): RankBonusConfig | null {
+  return rankBonusConfigs[key] ?? null;
+}
+
 export type PracticeCompletionState = "no-data" | "partial" | "complete";
 
 export function getPracticeCompletionState(completedCount: number, totalItems: number): PracticeCompletionState {

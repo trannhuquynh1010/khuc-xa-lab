@@ -11,10 +11,12 @@ import { getCurrentSchoolYear } from "@/lib/school-years";
 import type { TeamAssignments } from "@/lib/team";
 import { formatStudentNumber, groupNames } from "@/lib/classes";
 import { emptyPracticeAnswers, scorePracticeAttempt } from "@/lib/practice-attempt-score";
-import { getPracticeCompletionState, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
+import { getPracticeCompletionState, getRankBonusConfig, type PracticeAttemptStatus, type PracticeKey, type TeacherPracticeAttempt } from "@/lib/practice-attempt-types";
 import { getOpticsReviewMasteryLabel } from "@/lib/optics-review";
-import { CURRENT_VOLTAGE_BONUS_MIN_CORRECT, CURRENT_VOLTAGE_BONUS_POINT, CURRENT_VOLTAGE_BONUS_SLOTS, CURRENT_VOLTAGE_TOTAL_ITEMS, type CurrentVoltageResult } from "@/lib/current-voltage-practice";
+import { CURRENT_VOLTAGE_TOTAL_ITEMS, type CurrentVoltageResult } from "@/lib/current-voltage-practice";
 import { gradeCurrentVoltagePractice } from "@/lib/current-voltage-practice-score";
+import { OHM_LAW_TOTAL_ITEMS, type OhmLawResult } from "@/lib/ohm-law-practice";
+import { gradeOhmLawPractice } from "@/lib/ohm-law-practice-score";
 import { getOhmRaceQuestion, OHM_RACE_QUESTION_COUNT, type OhmRaceGroup, type OhmRacePlayer, type OhmRaceQuestionStat, type OhmRaceReveal, type OhmRaceSnapshot } from "@/lib/ohm-race";
 import { gradeOhmRace } from "@/lib/ohm-race-score";
 import { getOpticsQuestQuestion, OPTICS_QUEST_QUESTION_COUNT, type OpticsQuestGroup, type OpticsQuestPlayer, type OpticsQuestQuestionStat, type OpticsQuestReveal, type OpticsQuestSnapshot } from "@/lib/optics-quest";
@@ -2064,17 +2066,18 @@ async function savePracticeAttempt(input: PracticeAttemptInput, submit: boolean)
   const schoolYear = getCurrentSchoolYear();
   const evaluation = scorePracticeAttempt(input.practiceKey, input.answers);
   let bonusPoint = evaluation.bonusPoint;
-  // Bài "Luyện tập I phụ thuộc vào U": điểm cộng theo thứ hạng, +1 cho những
-  // bạn đầu tiên làm đúng trọn bài. Đếm số suất đã trao để chốt ngay lúc nộp,
-  // nhờ vậy học sinh biết kết quả liền và suất đã trao không bị đổi về sau.
-  if (submit && input.practiceKey === "current-voltage-practice" && evaluation.correctCount >= CURRENT_VOLTAGE_BONUS_MIN_CORRECT) {
+  // Các bài tính điểm cộng theo thứ hạng nộp bài: đếm số suất lớp đã trao để
+  // chốt ngay lúc nộp, nhờ vậy học sinh biết kết quả liền và suất đã trao không
+  // bị đổi về sau.
+  const rankBonus = getRankBonusConfig(input.practiceKey);
+  if (submit && rankBonus && evaluation.correctCount >= rankBonus.minCorrect) {
     const awarded = await sql`
       SELECT COUNT(*)::int AS count
       FROM practice_attempts
-      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+      WHERE school_year = ${schoolYear} AND practice_key = ${input.practiceKey}
         AND class_name = ${input.className} AND status = 'submitted' AND bonus_point > 0
     `;
-    bonusPoint = Number(awarded[0]?.count ?? 0) < CURRENT_VOLTAGE_BONUS_SLOTS ? CURRENT_VOLTAGE_BONUS_POINT : 0;
+    bonusPoint = Number(awarded[0]?.count ?? 0) < rankBonus.slots ? rankBonus.point : 0;
   }
   const id = randomUUID();
   const nextStatus = submit ? "submitted" : "draft";
@@ -2147,62 +2150,86 @@ export async function getPracticeAttemptStatus(practiceKey: PracticeKey, classNa
  * Chỉ trả về chi tiết đúng/sai và lời giải thích SAU KHI em đã nộp bài, để đáp
  * án không lọt ra trước lúc nộp.
  */
-export async function getCurrentVoltagePracticeResult(schoolYear: string, className: string, studentNumber: number): Promise<CurrentVoltageResult> {
+/**
+ * Phần dùng chung cho các bài tính điểm cộng theo thứ hạng: lấy bài của học
+ * sinh, số suất lớp đã trao và thứ hạng của em trong nhóm đạt mức xét.
+ */
+async function readRankBonusAttempt(schoolYear: string, className: string, studentNumber: number, practiceKey: PracticeKey) {
   await ensureSchema();
   const sql = getSql();
+  const config = getRankBonusConfig(practiceKey)!;
   const [rows, awardedRows] = await Promise.all([
     sql`
       SELECT status, answers, bonus_point, submitted_at
       FROM practice_attempts
-      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+      WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
         AND class_name = ${className} AND student_number = ${studentNumber}
       LIMIT 1
     `,
     sql`
       SELECT COUNT(*)::int AS count
       FROM practice_attempts
-      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
+      WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
         AND class_name = ${className} AND status = 'submitted' AND bonus_point > 0
     `,
   ]);
   const row = rows[0];
   const submitted = row?.status === "submitted";
   const awardedCount = Number(awardedRows[0]?.count ?? 0);
-  if (!submitted) {
-    return {
-      submitted: false,
-      correctCount: 0,
-      totalItems: CURRENT_VOLTAGE_TOTAL_ITEMS,
-      bonusPoint: 0,
-      rank: null,
-      bonusSlots: CURRENT_VOLTAGE_BONUS_SLOTS,
-      awardedCount,
-      items: [],
-    };
+  return {
+    row,
+    submitted,
+    awardedCount,
+    bonusSlots: config.slots,
+    bonusPoint: Number(row?.bonus_point ?? 0),
+    /** Thứ hạng theo thời điểm nộp trong nhóm đạt mức xét điểm cộng. */
+    async rankOf(correctCount: number) {
+      if (!submitted || correctCount < config.minCorrect || !row?.submitted_at) return null;
+      const earlier = await sql`
+        SELECT COUNT(*)::int AS count
+        FROM practice_attempts
+        WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
+          AND class_name = ${className} AND status = 'submitted'
+          AND correct_count >= ${config.minCorrect}
+          AND submitted_at < ${String(row.submitted_at)}
+      `;
+      return Number(earlier[0]?.count ?? 0) + 1;
+    },
+  };
+}
+
+export async function getCurrentVoltagePracticeResult(schoolYear: string, className: string, studentNumber: number): Promise<CurrentVoltageResult> {
+  const attempt = await readRankBonusAttempt(schoolYear, className, studentNumber, "current-voltage-practice");
+  if (!attempt.submitted) {
+    return { submitted: false, correctCount: 0, totalItems: CURRENT_VOLTAGE_TOTAL_ITEMS, bonusPoint: 0, rank: null, bonusSlots: attempt.bonusSlots, awardedCount: attempt.awardedCount, items: [] };
   }
-  const graded = gradeCurrentVoltagePractice(row.answers);
-  // Thứ hạng tính trong số các bạn đủ điều kiện xét điểm cộng (đúng từ 9/10),
-  // theo thời điểm nộp.
-  let rank: number | null = null;
-  if (graded.correctCount >= CURRENT_VOLTAGE_BONUS_MIN_CORRECT && row.submitted_at) {
-    const earlier = await sql`
-      SELECT COUNT(*)::int AS count
-      FROM practice_attempts
-      WHERE school_year = ${schoolYear} AND practice_key = 'current-voltage-practice'
-        AND class_name = ${className} AND status = 'submitted'
-        AND correct_count >= ${CURRENT_VOLTAGE_BONUS_MIN_CORRECT}
-        AND submitted_at < ${String(row.submitted_at)}
-    `;
-    rank = Number(earlier[0]?.count ?? 0) + 1;
-  }
+  const graded = gradeCurrentVoltagePractice(attempt.row.answers);
   return {
     submitted: true,
     correctCount: graded.correctCount,
     totalItems: graded.totalItems,
-    bonusPoint: Number(row.bonus_point ?? 0),
-    rank,
-    bonusSlots: CURRENT_VOLTAGE_BONUS_SLOTS,
-    awardedCount,
+    bonusPoint: attempt.bonusPoint,
+    rank: await attempt.rankOf(graded.correctCount),
+    bonusSlots: attempt.bonusSlots,
+    awardedCount: attempt.awardedCount,
+    items: graded.items,
+  };
+}
+
+export async function getOhmLawPracticeResult(schoolYear: string, className: string, studentNumber: number): Promise<OhmLawResult> {
+  const attempt = await readRankBonusAttempt(schoolYear, className, studentNumber, "ohm-law-practice");
+  if (!attempt.submitted) {
+    return { submitted: false, correctCount: 0, totalItems: OHM_LAW_TOTAL_ITEMS, bonusPoint: 0, rank: null, bonusSlots: attempt.bonusSlots, awardedCount: attempt.awardedCount, items: [] };
+  }
+  const graded = gradeOhmLawPractice(attempt.row.answers);
+  return {
+    submitted: true,
+    correctCount: graded.correctCount,
+    totalItems: graded.totalItems,
+    bonusPoint: attempt.bonusPoint,
+    rank: await attempt.rankOf(graded.correctCount),
+    bonusSlots: attempt.bonusSlots,
+    awardedCount: attempt.awardedCount,
     items: graded.items,
   };
 }
