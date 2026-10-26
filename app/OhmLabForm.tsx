@@ -178,6 +178,34 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
           </div>
         </div>
         <label className="conclusion-prompt ohm-conclusion">Kết luận: Khi hiệu điện thế U thay đổi, cường độ dòng điện I thay đổi như thế nào?<textarea required maxLength={600} value={conclusion} onChange={(event) => setConclusion(event.target.value)} placeholder="Viết nhận xét dựa trên số liệu và đồ thị của nhóm…" /></label>
+
+        {/* Nhận xét nằm ngay dưới phần thí nghiệm, không trôi xuống cuối trang
+            khi giáo viên mở thêm các bài luyện tập phía dưới. */}
+        {review ? (
+          <section ref={reviewRef} className="ohm-review-card" aria-live="polite" aria-labelledby="ohm-review-heading">
+            <div className="ohm-review-head">
+              <span aria-hidden="true">✎</span>
+              <div>
+                <p className="eyebrow">NHẬN XÉT TỰ ĐỘNG</p>
+                <h3 id="ohm-review-heading">{review.needsRevision ? "Nhóm xem lại vài điểm nhé" : "Bài của nhóm đã khá chắc"}</h3>
+                <p>{review.summary}</p>
+              </div>
+            </div>
+            <ol className="ohm-review-notes">
+              {review.notes.map((note) => (
+                <li key={note.id} className={note.topic === "data" ? "data" : "conclusion"}>
+                  <b>{note.topic === "data" ? "Về số liệu" : "Về kết luận"}</b>
+                  <p>{note.text}</p>
+                </li>
+              ))}
+            </ol>
+            <p className="ohm-review-foot">
+              {review.needsRevision
+                ? "Đây là câu hỏi gợi mở, không phải điểm. Nhóm sửa số liệu hoặc kết luận ngay phía trên rồi bấm Nộp lại ở cuối trang — bài mới sẽ thay cho bài cũ."
+                : "Nhóm vẫn có thể sửa và nộp lại nếu muốn hoàn thiện thêm. Cô sẽ xem lại bài của nhóm."}
+            </p>
+          </section>
+        ) : null}
       </section>
 
       {showCurrentVoltagePractice && (
@@ -200,32 +228,6 @@ export default function OhmLabForm({ showCurrentVoltagePractice, showOhmsLawPrac
           <OhmRaceGame round={raceRound} running={raceRunning} startedAt={raceStartedAt} endedAt={raceEndedAt} />
         </section>
       )}
-
-      {review ? (
-        <section ref={reviewRef} className="ohm-review-card" aria-live="polite" aria-labelledby="ohm-review-heading">
-          <div className="ohm-review-head">
-            <span aria-hidden="true">✎</span>
-            <div>
-              <p className="eyebrow">NHẬN XÉT TỰ ĐỘNG</p>
-              <h3 id="ohm-review-heading">{review.needsRevision ? "Nhóm xem lại vài điểm nhé" : "Bài của nhóm đã khá chắc"}</h3>
-              <p>{review.summary}</p>
-            </div>
-          </div>
-          <ol className="ohm-review-notes">
-            {review.notes.map((note) => (
-              <li key={note.id} className={note.topic === "data" ? "data" : "conclusion"}>
-                <b>{note.topic === "data" ? "Về số liệu" : "Về kết luận"}</b>
-                <p>{note.text}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="ohm-review-foot">
-            {review.needsRevision
-              ? "Đây là câu hỏi gợi mở, không phải điểm. Nhóm sửa số liệu hoặc kết luận ở mục 2 rồi bấm Nộp bài lần nữa — bài mới sẽ thay cho bài cũ."
-              : "Nhóm vẫn có thể sửa và nộp lại nếu muốn hoàn thiện thêm. Cô sẽ xem lại bài của nhóm."}
-          </p>
-        </section>
-      ) : null}
 
       <div className="submit-row"><div className={`form-message ${state.type}`} role={state.type === "error" ? "alert" : "status"}>{state.message}</div><span className="draft-status" aria-live="polite">{draftStatus}</span><button className="primary-button" type="submit" disabled={state.type === "sending"}>{state.type === "sending" ? "Đang gửi…" : review ? "Nộp lại →" : "Nộp bài →"}</button></div>
     </form>

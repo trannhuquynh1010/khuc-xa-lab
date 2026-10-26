@@ -64,6 +64,11 @@ export type CurrentVoltageReviewItem = {
 
 export type CurrentVoltageResult = {
   submitted: boolean;
+  /**
+   * Giáo viên đã bấm "Công bố" cho lớp chưa. Trước khi công bố, kết quả và đáp
+   * án không được trả về, để bạn nộp sớm không thể chia đáp án cho cả lớp.
+   */
+  released: boolean;
   correctCount: number;
   totalItems: number;
   /** Điểm cộng đã chốt lúc nộp bài. */

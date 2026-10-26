@@ -2160,7 +2160,7 @@ async function readRankBonusAttempt(schoolYear: string, className: string, stude
   const config = getRankBonusConfig(practiceKey)!;
   const [rows, awardedRows] = await Promise.all([
     sql`
-      SELECT status, answers, bonus_point, submitted_at
+      SELECT status, answers, bonus_point, submitted_at, released_at
       FROM practice_attempts
       WHERE school_year = ${schoolYear} AND practice_key = ${practiceKey}
         AND class_name = ${className} AND student_number = ${studentNumber}
@@ -2179,6 +2179,8 @@ async function readRankBonusAttempt(schoolYear: string, className: string, stude
   return {
     row,
     submitted,
+    // Chỉ công bố khi giáo viên đã bấm nút cho lớp.
+    released: submitted && row?.released_at !== null && row?.released_at !== undefined,
     awardedCount,
     bonusSlots: config.slots,
     bonusPoint: Number(row?.bonus_point ?? 0),
@@ -2200,12 +2202,15 @@ async function readRankBonusAttempt(schoolYear: string, className: string, stude
 
 export async function getCurrentVoltagePracticeResult(schoolYear: string, className: string, studentNumber: number): Promise<CurrentVoltageResult> {
   const attempt = await readRankBonusAttempt(schoolYear, className, studentNumber, "current-voltage-practice");
-  if (!attempt.submitted) {
-    return { submitted: false, correctCount: 0, totalItems: CURRENT_VOLTAGE_TOTAL_ITEMS, bonusPoint: 0, rank: null, bonusSlots: attempt.bonusSlots, awardedCount: attempt.awardedCount, items: [] };
-  }
+  const blank = { correctCount: 0, totalItems: CURRENT_VOLTAGE_TOTAL_ITEMS, bonusPoint: 0, rank: null, bonusSlots: attempt.bonusSlots, awardedCount: attempt.awardedCount, items: [] };
+  // Chưa nộp, hoặc đã nộp mà giáo viên chưa công bố: không trả về kết quả lẫn
+  // đáp án, để bạn nộp sớm không thể chia đáp án cho cả lớp.
+  if (!attempt.submitted) return { submitted: false, released: false, ...blank };
+  if (!attempt.released) return { submitted: true, released: false, ...blank };
   const graded = gradeCurrentVoltagePractice(attempt.row.answers);
   return {
     submitted: true,
+    released: true,
     correctCount: graded.correctCount,
     totalItems: graded.totalItems,
     bonusPoint: attempt.bonusPoint,
@@ -2218,12 +2223,13 @@ export async function getCurrentVoltagePracticeResult(schoolYear: string, classN
 
 export async function getOhmLawPracticeResult(schoolYear: string, className: string, studentNumber: number): Promise<OhmLawResult> {
   const attempt = await readRankBonusAttempt(schoolYear, className, studentNumber, "ohm-law-practice");
-  if (!attempt.submitted) {
-    return { submitted: false, correctCount: 0, totalItems: OHM_LAW_TOTAL_ITEMS, bonusPoint: 0, rank: null, bonusSlots: attempt.bonusSlots, awardedCount: attempt.awardedCount, items: [] };
-  }
+  const blank = { correctCount: 0, totalItems: OHM_LAW_TOTAL_ITEMS, bonusPoint: 0, rank: null, bonusSlots: attempt.bonusSlots, awardedCount: attempt.awardedCount, items: [] };
+  if (!attempt.submitted) return { submitted: false, released: false, ...blank };
+  if (!attempt.released) return { submitted: true, released: false, ...blank };
   const graded = gradeOhmLawPractice(attempt.row.answers);
   return {
     submitted: true,
+    released: true,
     correctCount: graded.correctCount,
     totalItems: graded.totalItems,
     bonusPoint: attempt.bonusPoint,

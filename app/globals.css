@@ -2198,6 +2198,17 @@ details .table-scroll { margin-top: 12px; }
 .quest-review-list li p { margin: 6px 0 0; }
 .quest-review-list li small { display: block; margin-top: 6px; color: #64748b; }
 .quest-correct-answer { font-weight: 800; color: #15803d; }
+/* Phần công bố của Đường đua: hiện lại đề bài và các phương án để em nhớ câu hỏi */
+.quest-review-prompt { margin: 6px 0 0 !important; font-weight: 750; line-height: 1.55; }
+.quest-review-detail { margin: 4px 0 0 !important; color: #64748b; font-size: .88rem; font-weight: 700; }
+.quest-review-choices { display: grid; gap: 5px; margin: 9px 0 0; padding: 0; list-style: none; }
+.quest-review-choices li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 7px 9px; border-radius: 9px; background: #f8fafc; font-size: .88rem; font-weight: 700; }
+.quest-review-choices li > span:first-child { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #e2e8f0; color: #475569; font-size: .72rem; font-weight: 900; }
+.quest-review-choices li.correct { background: #f0fdf4; }
+.quest-review-choices li.correct > span:first-child { background: #16a34a; color: #fff; }
+.quest-review-choices li.picked-wrong { background: #fef2f2; }
+.quest-review-choices li.picked-wrong > span:first-child { background: #dc2626; color: #fff; }
+.quest-review-choices i { color: #64748b; font-style: normal; font-weight: 800; }
 
 .quest-rank-board { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 8px; }
 .quest-rank-board li { display: grid; grid-template-columns: 52px 1fr auto auto; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; border-left: 6px solid var(--quest-group-color, #6366f1); }

@@ -122,9 +122,27 @@ export default function OhmRaceGame({ round, running, startedAt, endedAt }: { ro
               return (
                 <li key={item.id} className={item.correct ? "correct" : "incorrect"}>
                   <b>Câu {index + 1}. {question?.title ?? item.id} {item.correct ? "✓" : "✗"}</b>
-                  <p>Trả lời của em: {yourLabel}</p>
+                  {/* Hiện lại đề bài để em nhớ câu hỏi cho gì, không chỉ thấy đáp án. */}
+                  {question ? <p className="quest-review-prompt">{question.prompt}</p> : null}
+                  {question?.detail ? <p className="quest-review-detail">{question.detail}</p> : null}
+                  {question?.kind === "choice" && question.choices ? (
+                    <ul className="quest-review-choices">
+                      {question.choices.map((choice, choiceIndex) => {
+                        const isCorrect = choice.value === item.correctAnswer;
+                        const isMine = choice.value === item.response;
+                        return (
+                          <li key={choice.value} className={isCorrect ? "correct" : isMine ? "picked-wrong" : ""}>
+                            <span>{isCorrect ? "✓" : isMine ? "✗" : String.fromCharCode(65 + choiceIndex)}</span>
+                            <span>{choice.label}{isMine ? <i> — em đã chọn</i> : null}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p>Trả lời của em: {yourLabel}{question?.unit && item.answered ? ` ${question.unit}` : ""}</p>
+                  )}
                   {!item.correct ? <p className="quest-correct-answer">Đáp án đúng: {correctLabel}</p> : null}
-                  <small>{item.explanation}</small>
+                  {!item.correct ? <small><b>Cách làm:</b> {item.explanation}</small> : <small>{item.explanation}</small>}
                 </li>
               );
             })}

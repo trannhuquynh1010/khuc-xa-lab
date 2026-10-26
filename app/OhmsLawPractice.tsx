@@ -83,10 +83,13 @@ export default function OhmsLawPractice() {
     }
   }, [attempt.className, attempt.identityReady, attempt.studentNumber]);
 
+  // Sau khi nộp thì hỏi lại định kì, để khi cô bấm "Công bố" thì kết quả và
+  // lời giải tự hiện ra mà em không phải tải lại trang.
   useEffect(() => {
     if (!attempt.locked) return;
     const timer = window.setTimeout(() => void loadResult(), 0);
-    return () => window.clearTimeout(timer);
+    const interval = window.setInterval(() => void loadResult(), 5000);
+    return () => { window.clearTimeout(timer); window.clearInterval(interval); };
   }, [attempt.locked, loadResult]);
 
   function resetPractice() {
@@ -105,8 +108,9 @@ export default function OhmsLawPractice() {
     await loadResult();
   }
 
-  // Chỉ hiện kết quả khi em đã nộp và kết quả đúng là của em.
-  const shownResult = attempt.locked && result?.identity === identityKey ? result.data : null;
+  // Chỉ hiện kết quả khi em đã nộp, kết quả đúng là của em, và cô đã công bố.
+  const ownResult = attempt.locked && result?.identity === identityKey ? result.data : null;
+  const shownResult = ownResult?.released ? ownResult : null;
   const wrongItems = shownResult?.items.filter((item) => !item.correct) ?? [];
   const perfect = shownResult !== null && shownResult.correctCount >= shownResult.totalItems;
   const eligible = shownResult !== null && shownResult.correctCount >= OHM_LAW_BONUS_MIN_CORRECT;
@@ -185,7 +189,7 @@ export default function OhmsLawPractice() {
           )}
         </section>
       ) : attempt.locked ? (
-        <div className="quiz-submission-notice"><span className="loading-dot" /><div><strong>Đang tải kết quả…</strong><p>{attempt.message}</p></div></div>
+        <div className="quiz-submission-notice"><span>✓</span><div><strong>Đã nộp bài</strong><p>Bài của em đã được ghi nhận. Kết quả, điểm cộng và lời giải sẽ hiện ngay tại đây khi cô công bố cho cả lớp.</p></div></div>
       ) : null}
 
       <fieldset className="practice-grid practice-question-fieldset" disabled={attempt.locked || attempt.checking || attempt.submitting}>
