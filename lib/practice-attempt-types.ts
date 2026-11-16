@@ -8,6 +8,7 @@ export const practiceDefinitions = [
   { key: "resistance-factors-practice", activityKey: "resistance-factors", label: "Mật mã điện trở", totalItems: 12 },
   { key: "optics-quest", activityKey: "optics-game", label: "Photon Quest", totalItems: 12 },
   { key: "optics-review", activityKey: "optics-review", label: "Ôn tập Quang học", totalItems: 20 },
+  { key: "hk1-review", activityKey: "hk1-review", label: "Ôn thi HK1 · 28 câu trắc nghiệm", totalItems: 28 },
 ] as const satisfies ReadonlyArray<{ key: string; activityKey: ActivityKey; label: string; totalItems: number }>;
 
 export type PracticeKey = (typeof practiceDefinitions)[number]["key"];

@@ -21,6 +21,7 @@ async function isPracticeOpen(practiceKey: PracticeKey) {
   if (practiceKey === "ohm-race") return setting.ohmRaceOpen;
   if (practiceKey === "optics-quest") return setting.isOpen;
   if (practiceKey === "optics-review") return setting.isOpen;
+  if (practiceKey === "hk1-review") return setting.isOpen;
   return setting.resistanceFactorsPracticeOpen;
 }
 

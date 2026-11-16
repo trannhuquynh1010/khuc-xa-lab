@@ -20,6 +20,7 @@ const LensImageConstruction = dynamic(() => import("./LensImageConstruction"), {
 const DragonflyBalanceExplorer = dynamic(() => import("./DragonflyBalanceExplorer"), { loading: ActivityToolLoading });
 const OhmLabForm = dynamic(() => import("./OhmLabForm"), { loading: ActivityToolLoading });
 const ResistanceFactorsLabForm = dynamic(() => import("./ResistanceFactorsLabForm"), { loading: ActivityToolLoading });
+const Hk1ReviewSheet = dynamic(() => import("./Hk1ReviewSheet"), { loading: ActivityToolLoading });
 
 type ActivityStatus = { key: ActivityKey; isOpen: boolean; constructionOpen: boolean; applicationOpen: boolean; colorOpen: boolean; iuPracticeOpen: boolean; ohmLawPracticeOpen: boolean; ohmRaceOpen: boolean; ohmRaceRunning: boolean; ohmRaceRound: number; ohmRaceStartedAt: string | null; ohmRaceEndedAt: string | null; resistivityOpen: boolean; resistanceFactorsPracticeOpen: boolean; imageConstructionOpen: boolean; opticsGameRunning: boolean; opticsGameRound: number; opticsGameStartedAt: string | null; opticsGameEndedAt: string | null; updatedAt: string };
 
@@ -92,7 +93,9 @@ export default function StudentWorkspace() {
   const imageConstructionOpen = activities?.find((activity) => activity.key === "lenses")?.imageConstructionOpen ?? false;
   const opticsGameSetting = activities?.find((activity) => activity.key === "optics-game");
   const heroTheme = visibleActiveKey === "dragonfly-balance" ? "mechanics" : visibleActiveKey === "refraction" || visibleActiveKey === "prism-colors" || visibleActiveKey === "total-internal-reflection" || visibleActiveKey === "optics-game" || visibleActiveKey === "optics-review" || visibleActiveKey === "optics-ai-review" || visibleActiveKey === "lenses" || visibleActiveKey === null ? "optics" : "electricity";
-  const heroSymbols = visibleActiveKey === "ohm"
+  const heroSymbols = visibleActiveKey === "hk1-review"
+    ? ["A", "B", "C"]
+    : visibleActiveKey === "ohm"
     ? ["U", "I", "A"]
       : visibleActiveKey === "resistance-factors"
       ? ["R", "Ω", "ρ"]
@@ -206,6 +209,7 @@ export default function StudentWorkspace() {
           {visibleActiveKey === "lenses" ? <><LensPathExplorer /><PrismLiveStudent activityKey="lenses" title="Bài tập củng cố Thấu kính" />{imageConstructionOpen ? <LensImageConstruction /> : null}</> : null}
           {visibleActiveKey === "dragonfly-balance" ? <DragonflyBalanceExplorer /> : null}
           {visibleActiveKey === "ohm" ? <OhmLabForm showCurrentVoltagePractice={currentVoltagePracticeOpen} showOhmsLawPractice={ohmsLawPracticeOpen} showRace={ohmRaceOpen} raceRunning={ohmRaceRunning} raceRound={ohmRaceRound} raceStartedAt={ohmRaceStartedAt} raceEndedAt={ohmRaceEndedAt} /> : null}
+          {visibleActiveKey === "hk1-review" ? <div className="hk1-shell"><Hk1ReviewSheet /></div> : null}
           {visibleActiveKey === "resistance-factors" ? <ResistanceFactorsLabForm showResistivity={resistivityOpen} showPractice={resistanceFactorsPracticeOpen} /> : null}
         </>
       )}

@@ -1,12 +1,14 @@
 import type { ActivityKey } from "@/lib/activities";
 import { groupNames } from "@/lib/classes";
 import {
+  getPracticeAttemptSummary,
   listSubmittedGroups,
   type RefractionQuizClassSummary,
 } from "@/lib/db";
 import { getPracticeDefinition, type PracticeKey } from "@/lib/practice-attempt-types";
 import { forceSubmitPractice, resetPracticeAttempts, togglePracticeScores, toggleRefractionQuizScores } from "./actions";
 import ForceSubmitPracticeButton from "./ForceSubmitPracticeButton";
+import Hk1ReviewDashboard from "./Hk1ReviewDashboard";
 import PracticeAttemptDisclosure from "./PracticeAttemptDisclosure";
 import ResetPracticeButton from "./ResetPracticeButton";
 import TeacherClassFilter from "./TeacherClassFilter";
@@ -143,6 +145,21 @@ export async function PracticeCollectionPanel({ summaryPromise, practiceKey, sel
       </div>
       <PracticeAttemptDisclosure key={`${practiceKey}:${selectedYear}:${selectedClass}:${submittedCount}:${releasedCount}:${forcedCount}`} submittedCount={submittedCount} practiceKey={practiceKey} className={selectedClass} schoolYear={selectedYear} />
     </section>
+  );
+}
+
+export async function Hk1ReviewSection({ summaryPromise, selectedClass, selectedYear }: {
+  summaryPromise: ReturnType<typeof getPracticeAttemptSummary>;
+  selectedClass: string;
+  selectedYear: string;
+}) {
+  const summary = await summaryPromise;
+  return (
+    <>
+      <PracticeCollectionPanel summaryPromise={Promise.resolve(summary)} practiceKey="hk1-review" selectedClass={selectedClass} selectedYear={selectedYear} />
+      {/* Đổi key khi số bài thu thay đổi để bảng thống kê tải lại ngay sau khi bấm Thu bài. */}
+      <Hk1ReviewDashboard key={`${selectedYear}:${selectedClass}:${summary.submittedCount}`} className={selectedClass} schoolYear={selectedYear} />
+    </>
   );
 }
 

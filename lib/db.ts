@@ -2583,6 +2583,27 @@ export async function getPracticeAttemptSummary(schoolYear: string, practiceKey:
   };
 }
 
+/**
+ * Mọi bài Ôn thi HK1 của một lớp, cả nháp đang làm lẫn bài đã thu, kèm đáp án.
+ * Không cache vì bảng thống kê của giáo viên cần số liệu tức thời ngay sau khi thu bài.
+ */
+export async function listHk1ReviewRows(schoolYear: string, className: string) {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT student_number, status, forced, answers
+    FROM practice_attempts
+    WHERE school_year = ${schoolYear} AND practice_key = 'hk1-review' AND class_name = ${className}
+    ORDER BY student_number ASC
+  `;
+  return rows.map((row) => ({
+    studentNumber: Number(row.student_number),
+    status: row.status === "submitted" ? "submitted" as const : "draft" as const,
+    forced: Boolean(row.forced),
+    answers: row.answers as unknown,
+  }));
+}
+
 export async function forceSubmitPracticeClass(schoolYear: string, practiceKey: PracticeKey, className: string) {
   await ensureSchema();
   const sql = getSql();

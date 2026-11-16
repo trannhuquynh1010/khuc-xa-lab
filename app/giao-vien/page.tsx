@@ -6,7 +6,7 @@ import { getCurrentSchoolYear, isSchoolYear } from "@/lib/school-years";
 import Link from "next/link";
 import { Suspense } from "react";
 import { finishOhmRace, finishOpticsGame, login, logout, resetPracticeAttempts, toggleActivity, toggleCurrentVoltagePractice, toggleLensImageConstruction, toggleOhmRace, toggleOhmRaceRunning, toggleOhmsLawPractice, toggleOpticsGameRunning, togglePrismColor, toggleRefractionApplication, toggleRefractionConstruction, toggleResistanceFactorsPractice, toggleResistivity } from "./actions";
-import { loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
+import { Hk1ReviewSection, loadTeacherActivityData, PracticeCollectionPanel, RefractionQuizPanel, TeacherClassProgress, TeacherDataSkeleton, TeacherSubmissionData } from "./TeacherDashboardSections";
 import TeacherYearFilter from "./TeacherYearFilter";
 import ResetYearButton from "./ResetYearButton";
 import TeacherToggleSubmitButton from "./TeacherToggleSubmitButton";
@@ -43,7 +43,7 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
   const selectedClass = isClassName(params.class) ? params.class : selectedKey === "refraction" ? "9H04" : "9H01";
   const selectedYear = isSchoolYear(params.year) ? params.year : getCurrentSchoolYear();
   const definition = getActivityDefinition(selectedKey);
-  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" || selectedKey === "optics-ai-review" || selectedKey === "lens-ai-review" || selectedKey === "lenses" || selectedKey === "total-internal-reflection" || selectedKey === "dragonfly-balance" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
+  const activityDataPromise = selectedKey === "optics-game" || selectedKey === "optics-review" || selectedKey === "optics-ai-review" || selectedKey === "lens-ai-review" || selectedKey === "lenses" || selectedKey === "total-internal-reflection" || selectedKey === "dragonfly-balance" || selectedKey === "hk1-review" ? null : loadTeacherActivityData(selectedKey, selectedYear, selectedClass);
   const quizSummaryPromise = selectedKey === "refraction" && isRefractionQuizClassName(selectedClass)
     ? getRefractionQuizClassSummary(selectedYear, selectedClass)
     : null;
@@ -58,6 +58,9 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
     : null;
   const opticsReviewSummaryPromise = selectedKey === "optics-review"
     ? getPracticeAttemptSummary(selectedYear, "optics-review", selectedClass)
+    : null;
+  const hk1ReviewSummaryPromise = selectedKey === "hk1-review"
+    ? getPracticeAttemptSummary(selectedYear, "hk1-review", selectedClass)
     : null;
   const [settings, knownSchoolYears] = await Promise.all([listActivitySettings(), listSchoolYears()]);
   const schoolYears = [...new Set([...knownSchoolYears, selectedYear])].sort((left, right) => right.localeCompare(left));
@@ -324,6 +327,21 @@ export default async function TeacherPage({ searchParams }: { searchParams: Prom
             <div className="adaptive-level-guide"><div className="level-1"><b>1</b><span><strong>Nền tảng</strong><small>Nhận biết và củng cố khái niệm</small></span></div><div className="level-2"><b>2</b><span><strong>Vận dụng</strong><small>Xử lí dữ kiện và tình huống</small></span></div><div className="level-3"><b>3</b><span><strong>Thử thách</strong><small>Suy luận nhiều bước và thiết kế thí nghiệm</small></span></div></div>
           </section>
           {opticsReviewSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><PracticeCollectionPanel summaryPromise={opticsReviewSummaryPromise} practiceKey="optics-review" selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
+        </>
+      )}
+
+      {selectedKey === "hk1-review" && (
+        <>
+          <section className="class-progress-panel hk1-teacher-guide">
+            <div className="class-progress-header">
+              <div><p className="eyebrow">CÁCH TỔ CHỨC</p><h2>{selectedClass} · 28 câu trắc nghiệm trên giấy</h2><p>Học sinh làm trên đề giấy, chọn lớp + STT rồi tô đáp án A–D lên web. Hết giờ, cô bấm <b>Thu bài ngay</b>: thống kê % từng đáp án hiện ngay bên dưới.</p></div>
+              <TeacherClassFilter selectedClass={selectedClass} selectedYear={selectedYear} activity={selectedKey} />
+            </div>
+            <div className="lens-teacher-stage-list">
+              {["Mở bài", "HS tô đáp án", "Thu bài ngay", "Chữa câu sai nhiều"].map((item, index) => <span key={item}><b>{index + 1}</b>{item}</span>)}
+            </div>
+          </section>
+          {hk1ReviewSummaryPromise ? <Suspense fallback={<TeacherDataSkeleton />}><Hk1ReviewSection summaryPromise={hk1ReviewSummaryPromise} selectedClass={selectedClass} selectedYear={selectedYear} /></Suspense> : null}
         </>
       )}
 

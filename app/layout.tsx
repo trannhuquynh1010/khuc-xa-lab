@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import "./optics-ai.css";
+import "./hk1-review.css";
 
 const beVietnamPro = Be_Vietnam_Pro({
   weight: ["400", "600", "700", "900"],

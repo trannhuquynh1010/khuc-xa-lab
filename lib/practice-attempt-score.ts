@@ -14,6 +14,8 @@ import { createEmptyOhmRaceAnswers, OHM_RACE_QUESTION_COUNT } from "@/lib/ohm-ra
 import { isOhmRaceAnswerCorrect } from "@/lib/ohm-race-score";
 import { createEmptyOpticsQuestAnswers, OPTICS_QUEST_QUESTION_COUNT } from "@/lib/optics-quest";
 import { isOpticsQuestAnswerCorrect } from "@/lib/optics-quest-score";
+import { createEmptyHk1ReviewAnswers } from "@/lib/hk1-review";
+import { gradeHk1Review } from "@/lib/hk1-review-score";
 import { createEmptyOpticsReviewAnswers, getOpticsReviewQuestion, isOpticsReviewAnswerCorrect, isOpticsReviewResponseAnswered, OPTICS_REVIEW_QUESTION_COUNT } from "@/lib/optics-review";
 
 type ScoreResult = { completedCount: number; correctCount: number; totalItems: number; bonusPoint: number };
@@ -52,6 +54,7 @@ export function emptyPracticeAnswers(key: PracticeKey): unknown {
   if (key === "ohm-race") return createEmptyOhmRaceAnswers(1);
   if (key === "optics-quest") return createEmptyOpticsQuestAnswers(1);
   if (key === "optics-review") return createEmptyOpticsReviewAnswers();
+  if (key === "hk1-review") return createEmptyHk1ReviewAnswers();
   return { controls: {}, rankOrder: [], lengthScale: "", areaScale: "", diagnosis: "", fix: "", statementAnswers: {} };
 }
 
@@ -67,6 +70,12 @@ export function scorePracticeAttempt(key: PracticeKey, value: unknown): ScoreRes
     ].filter(Boolean).length;
     const completedCount = completedRequired + (answers.statements.length > 0 ? 6 : 0);
     return { ...evaluation, completedCount };
+  }
+
+  if (key === "hk1-review") {
+    // Bài ôn thi: không có điểm cộng, chỉ ghi số câu đúng để giáo viên xem.
+    const graded = gradeHk1Review(value);
+    return { completedCount: graded.answeredCount, correctCount: graded.correctCount, totalItems: graded.totalItems, bonusPoint: 0 };
   }
 
   const answers = record(value);

@@ -76,6 +76,13 @@ export const activityDefinitions = [
     label: "Các yếu tố ảnh hưởng đến điện trở",
     description: "Khảo sát chất liệu, chiều dài và tiết diện.",
   },
+  {
+    key: "hk1-review",
+    symbol: "✎",
+    shortLabel: "Ôn thi HK1",
+    label: "Ôn thi học kì 1 · Trắc nghiệm",
+    description: "Làm 28 câu trên giấy, rồi tô đáp án A–D vào phiếu trả lời.",
+  },
 ] as const;
 
 export type ActivityKey = (typeof activityDefinitions)[number]["key"];
